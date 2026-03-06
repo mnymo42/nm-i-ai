@@ -10,7 +10,7 @@ Docs/MCP: configured in `mcp.json` → `https://mcp-docs.ainm.no/mcp`
 
 | Difficulty | Bots | Best score | Orders | Status |
 |------------|------|-----------|--------|--------|
-| easy       | 1    | 104       | 12     | active |
+| easy       | 1    | 117       | 14     | active |
 | medium     | ?    | ?         | ?      | not yet run |
 | hard       | ?    | ?         | ?      | not yet run |
 | expert     | ?    | ?         | ?      | not yet run |
