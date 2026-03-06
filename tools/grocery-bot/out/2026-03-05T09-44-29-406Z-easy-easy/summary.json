@@ -1,0 +1,16 @@
+{
+  "runId": "2026-03-05T09-44-29-406Z-easy-easy",
+  "difficulty": "easy",
+  "profile": "easy",
+  "finalScore": 20,
+  "finalItems": 10,
+  "finalOrders": 2,
+  "replay": "/app/tools/grocery-bot/out/2026-03-05T09-44-29-406Z-easy-easy/replay.jsonl",
+  "metrics": {
+    "ticks": 300,
+    "finalScore": 20,
+    "ordersCompleted": 2,
+    "itemsDelivered": 10,
+    "totalStalls": 0
+  }
+}

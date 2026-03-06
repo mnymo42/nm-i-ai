@@ -1,0 +1,47 @@
+{
+  "easy": {
+    "assignment": {
+      "congestion_penalty": 0.1,
+      "preview_item_weight": 0.15
+    },
+    "recovery": {
+      "no_progress_rounds": 15,
+      "mid_no_progress_rounds": 10,
+      "late_no_progress_rounds": 6,
+      "late_rounds_window": 60,
+      "burst_rounds": 10
+    },
+    "runtime": {
+      "nudge_invalid_only": true,
+      "nudge_planned_waits": false,
+      "max_consecutive_pick_failures_before_forbid": 2,
+      "approach_forbid_ttl": 40,
+      "pick_failure_spiral_window": 10,
+      "pick_failure_spiral_threshold": 3,
+      "target_lock_stall_rounds": 12,
+      "target_lock_forbid_ttl": 30,
+      "order_stall_bailout_rounds": 20
+    }
+  },
+  "medium": {
+    "routing": {
+      "horizon": 18
+    }
+  },
+  "hard": {
+    "anti_deadlock": {
+      "stall_threshold": 2,
+      "forced_wait_rounds": 2
+    }
+  },
+  "expert": {
+    "assignment": {
+      "congestion_penalty": 0.62,
+      "contention_penalty": 0.55,
+      "urgency_bonus": 0.8
+    },
+    "routing": {
+      "horizon": 26
+    }
+  }
+}

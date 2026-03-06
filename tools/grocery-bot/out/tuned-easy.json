@@ -1,0 +1,23 @@
+{
+  "assignment": {
+    "travel_to_item": 1,
+    "travel_item_to_dropoff": 0.7,
+    "congestion_penalty": 0.1,
+    "contention_penalty": 0.1,
+    "urgency_bonus": 0.3,
+    "remaining_demand_priority": 1,
+    "preview_item_weight": 0.15
+  },
+  "routing": {
+    "horizon": 12,
+    "hold_goal_steps": 3
+  },
+  "anti_deadlock": {
+    "stall_threshold": 2,
+    "forced_wait_rounds": 1
+  },
+  "phase_switch": {
+    "endgame_round_ratio": 0.82,
+    "hard_cutoff_round_ratio": 0.93
+  }
+}
