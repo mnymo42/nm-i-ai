@@ -1899,7 +1899,7 @@ export class GroceryPlanner {
         reservations,
         edgeReservations,
         horizon: this.profile.routing.horizon,
-        holdAtGoal: true,
+        holdAtGoal: resolved.targetType !== 'drop_off',
       });
 
       if (resolved.action === 'pick_up') {
