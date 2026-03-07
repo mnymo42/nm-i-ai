@@ -78,3 +78,7 @@ test('parseCliArguments resolves --oracle and --script paths', () => {
   assert.match(args.oracle, /tools\/grocery-bot\/config\/oracle-expert\.json$/);
   assert.match(args.script, /tools\/grocery-bot\/config\/script-expert\.json$/);
 });
+
+test('expert_replay_handoff profile is frozen as a copy of expert', () => {
+  assert.deepEqual(defaultProfiles.expert_replay_handoff, defaultProfiles.expert);
+});

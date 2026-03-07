@@ -5,7 +5,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { evaluateOracleScript } from '../src/oracle-script-evaluator.mjs';
-import { compressOracleReplayScript, extractScriptFromReplay } from '../src/oracle-script-compressor.mjs';
+import {
+  compressOracleReplayScript,
+  extractScriptFromReplay,
+  findLongestMatchingReplayTick,
+} from '../src/oracle-script-compressor.mjs';
 import { loadOracleFile, loadScriptFile } from '../src/oracle-script-io.mjs';
 import { buildLegacyOracleScript } from '../src/oracle-script-legacy.mjs';
 import {
@@ -346,6 +350,7 @@ test('replay compression preserves expected state and reports actual script-end 
   assert.equal(script.last_scripted_tick, 0);
   assert.equal(script.estimated_score, 0);
   assert.equal(script.replay_target_meta.target_score, 5);
+  assert.equal(script.replay_target_meta.target_reachable_within_prefix, true);
   assert.equal(script.replay_target_meta.score_at_script_end, 0);
   assert.equal(script.replay_target_meta.compression_mode, 'handoff_early');
   assert.deepEqual(script.ticks[0].expected_state, {
@@ -630,6 +635,7 @@ test('replay compressor rewinds to earliest tick that reaches the target score',
 
   assert.equal(compressed.estimated_score, 6);
   assert.equal(compressed.replay_target_meta.target_score, 6);
+  assert.equal(compressed.replay_target_meta.target_reachable_within_prefix, true);
   assert.equal(compressed.replay_target_meta.score_at_script_end, 6);
   assert.equal(compressed.replay_target_meta.compression_mode, 'preserve_score');
   assert.equal(compressed.last_scripted_tick, 10);
@@ -672,4 +678,109 @@ test('replay compressor supports explicit handoff_early mode', () => {
   assert.equal(compressed.estimated_score, 0);
   assert.equal(compressed.last_scripted_tick, 0);
   assert.equal(compressed.replay_target_meta.final_tick_delta, 1);
+  assert.equal(compressed.replay_target_meta.target_reachable_within_prefix, true);
+});
+
+test('findLongestMatchingReplayTick returns the last replay-stable tick', () => {
+  const oracle = buildFixtureOracle();
+  const sourceReplayPath = writeReplayWithActions(oracle, [
+    {
+      type: 'tick',
+      tick: 0,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [1, 1], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'wait' }],
+    },
+    {
+      type: 'tick',
+      tick: 1,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [1, 2], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'move_down' }],
+    },
+    {
+      type: 'tick',
+      tick: 2,
+      state_snapshot: { score: 1, bots: [{ id: 0, position: [1, 2], inventory: ['oats'] }] },
+      actions_sent: [{ bot: 0, action: 'pick_up', item_id: 'item_oats_0' }],
+    },
+  ]);
+  const validationReplayPath = writeReplayWithActions(oracle, [
+    {
+      type: 'tick',
+      tick: 0,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [1, 1], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'wait' }],
+    },
+    {
+      type: 'tick',
+      tick: 1,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [1, 2], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'move_down' }],
+    },
+    {
+      type: 'tick',
+      tick: 2,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [2, 2], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'move_right' }],
+    },
+  ]);
+
+  assert.equal(findLongestMatchingReplayTick(sourceReplayPath, validationReplayPath), 1);
+});
+
+test('replay compressor can cap output to the validated safe prefix', () => {
+  const oracle = buildFixtureOracle();
+  const sourceReplayPath = writeReplayWithActions(oracle, [
+    {
+      type: 'tick',
+      tick: 0,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [1, 1], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'wait' }],
+    },
+    {
+      type: 'tick',
+      tick: 1,
+      state_snapshot: { score: 2, bots: [{ id: 0, position: [1, 2], inventory: ['oats'] }] },
+      actions_sent: [{ bot: 0, action: 'drop_off' }],
+    },
+    {
+      type: 'tick',
+      tick: 2,
+      state_snapshot: { score: 5, bots: [{ id: 0, position: [1, 2], inventory: ['oats'] }] },
+      actions_sent: [{ bot: 0, action: 'wait' }],
+    },
+  ]);
+  const validationReplayPath = writeReplayWithActions(oracle, [
+    {
+      type: 'tick',
+      tick: 0,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [1, 1], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'wait' }],
+    },
+    {
+      type: 'tick',
+      tick: 1,
+      state_snapshot: { score: 2, bots: [{ id: 0, position: [1, 2], inventory: ['oats'] }] },
+      actions_sent: [{ bot: 0, action: 'drop_off' }],
+    },
+    {
+      type: 'tick',
+      tick: 2,
+      state_snapshot: { score: 0, bots: [{ id: 0, position: [2, 2], inventory: [] }] },
+      actions_sent: [{ bot: 0, action: 'move_right' }],
+    },
+  ]);
+
+  const compressed = compressOracleReplayScript({
+    oracle,
+    replayPath: sourceReplayPath,
+    validationReplayPath,
+    targetScore: 5,
+    mode: 'preserve_score',
+  });
+
+  assert.equal(compressed.last_scripted_tick, 1);
+  assert.equal(compressed.estimated_score, 2);
+  assert.equal(compressed.replay_target_meta.safe_prefix_tick, 1);
+  assert.equal(compressed.replay_target_meta.target_reachable_within_prefix, false);
+  assert.equal(compressed.replay_target_meta.target_tick, null);
 });

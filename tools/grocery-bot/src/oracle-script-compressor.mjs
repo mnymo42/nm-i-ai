@@ -1,4 +1,5 @@
 import { parseJsonl } from './replay-io.mjs';
+import { buildExpectedScriptState } from './replay-transition-diff.mjs';
 
 function cloneTick(tick) {
   return {
@@ -19,6 +20,66 @@ function buildTickRows(replayPath) {
   return parseJsonl(replayPath).filter((row) => row.type === 'tick');
 }
 
+function normalizeBotState(bot) {
+  return {
+    id: bot.id,
+    position: [...bot.position],
+    inventory: [...(bot.inventory || [])].sort(),
+  };
+}
+
+function statesMatch(sourceRow, validationRow) {
+  if (!sourceRow || !validationRow) {
+    return false;
+  }
+
+  const sourceSnapshot = sourceRow.state_snapshot || {};
+  const validationSnapshot = validationRow.state_snapshot || {};
+  if ((sourceSnapshot.score ?? 0) !== (validationSnapshot.score ?? 0)) {
+    return false;
+  }
+
+  const sourceBots = new Map((sourceSnapshot.bots || []).map((bot) => [bot.id, normalizeBotState(bot)]));
+  const validationBots = new Map((validationSnapshot.bots || []).map((bot) => [bot.id, normalizeBotState(bot)]));
+  if (sourceBots.size !== validationBots.size) {
+    return false;
+  }
+
+  for (const [botId, sourceBot] of sourceBots.entries()) {
+    const validationBot = validationBots.get(botId);
+    if (!validationBot) {
+      return false;
+    }
+
+    if (JSON.stringify(sourceBot.position) !== JSON.stringify(validationBot.position)) {
+      return false;
+    }
+
+    if (sourceBot.inventory.join('|') !== validationBot.inventory.join('|')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function findLongestMatchingReplayTick(sourceReplayPath, validationReplayPath) {
+  const sourceRows = buildTickRows(sourceReplayPath);
+  const validationRows = buildTickRows(validationReplayPath);
+  const validationByTick = new Map(validationRows.map((row) => [row.tick, row]));
+  let lastMatchingTick = -1;
+
+  for (const sourceRow of sourceRows) {
+    const validationRow = validationByTick.get(sourceRow.tick);
+    if (!statesMatch(sourceRow, validationRow)) {
+      break;
+    }
+    lastMatchingTick = sourceRow.tick;
+  }
+
+  return lastMatchingTick;
+}
+
 export function extractScriptFromReplay(replayPath, stopTick = null) {
   const tickRows = buildTickRows(replayPath);
   const ticks = [];
@@ -30,14 +91,7 @@ export function extractScriptFromReplay(replayPath, stopTick = null) {
     ticks.push({
       tick: row.tick,
       actions: (row.actions_sent || row.actions_planned || []).map((action) => ({ ...action })),
-      expected_state: row.state_snapshot ? {
-        score: row.state_snapshot.score ?? 0,
-        bots: (row.state_snapshot.bots || []).map((bot) => ({
-          id: bot.id,
-          position: [...bot.position],
-          inventory: [...(bot.inventory || [])],
-        })),
-      } : undefined,
+      expected_state: buildExpectedScriptState(row.state_snapshot),
     });
   }
 
@@ -79,6 +133,7 @@ export function compressOracleReplayScript({
   oracle,
   replayPath,
   stopTick = null,
+  validationReplayPath = null,
   targetOrdersCovered = null,
   targetScore = null,
   mode = 'preserve_score',
@@ -86,11 +141,19 @@ export function compressOracleReplayScript({
   const tickRows = buildTickRows(replayPath);
   const { scoreTimeline, finalScore } = summarizeReplayProgress(tickRows);
   const requiredScore = targetScore ?? finalScore;
-  const baselineLastTick = stopTick ?? (tickRows.at(-1)?.tick ?? -1);
-  const scoreSeenTick = Math.min(
-    baselineLastTick,
-    earliestTickMeetingScore(scoreTimeline, requiredScore),
+  const replayLastTick = tickRows.at(-1)?.tick ?? -1;
+  const stablePrefixTick = validationReplayPath
+    ? findLongestMatchingReplayTick(replayPath, validationReplayPath)
+    : null;
+  const baselineLastTick = Math.min(
+    stopTick ?? replayLastTick,
+    stablePrefixTick ?? replayLastTick,
   );
+  const fullReplayTargetTick = earliestTickMeetingScore(scoreTimeline, requiredScore);
+  const targetReachableWithinPrefix = fullReplayTargetTick <= baselineLastTick;
+  const scoreSeenTick = targetReachableWithinPrefix
+    ? fullReplayTargetTick
+    : baselineLastTick;
   const targetTick = mode === 'handoff_early'
     ? Math.max(0, scoreSeenTick - 1)
     : scoreSeenTick;
@@ -118,11 +181,14 @@ export function compressOracleReplayScript({
     },
     replay_target_meta: {
       source_replay: replayPath,
+      validation_replay: validationReplayPath,
       baseline_score: finalScore,
-      baseline_last_tick: baselineLastTick,
+      baseline_last_tick: replayLastTick,
+      safe_prefix_tick: stablePrefixTick,
       compression_mode: mode,
       target_score: requiredScore,
-      target_tick: scoreSeenTick,
+      target_tick: targetReachableWithinPrefix ? fullReplayTargetTick : null,
+      target_reachable_within_prefix: targetReachableWithinPrefix,
       score_at_script_end: scoreAtScriptEnd,
       script_cutoff_tick: targetTick,
       final_tick_delta: baselineLastTick - extracted.last_scripted_tick,

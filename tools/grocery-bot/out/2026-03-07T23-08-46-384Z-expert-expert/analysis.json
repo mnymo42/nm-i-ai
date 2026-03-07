@@ -1,0 +1,243 @@
+{
+  "finalScore": 13,
+  "ordersCompleted": 1,
+  "itemsDelivered": 8,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 2
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 7
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 0
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 3
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 0
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 1
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 28,
+      "length": 29
+    },
+    {
+      "startTick": 37,
+      "endTick": 52,
+      "length": 16
+    },
+    {
+      "startTick": 60,
+      "endTick": 103,
+      "length": 44
+    },
+    {
+      "startTick": 104,
+      "endTick": 116,
+      "length": 13
+    },
+    {
+      "startTick": 117,
+      "endTick": 158,
+      "length": 42
+    },
+    {
+      "startTick": 159,
+      "endTick": 299,
+      "length": 141
+    }
+  ],
+  "failedPickups": {
+    "total": 56,
+    "byItemId": {
+      "item_19": 1,
+      "item_36": 1,
+      "item_70": 4,
+      "item_72": 1,
+      "item_78": 15,
+      "item_40": 3,
+      "item_76": 3,
+      "item_80": 1,
+      "item_79": 21,
+      "item_74": 6
+    },
+    "byItemType": {
+      "oats": 1,
+      "apples": 5,
+      "bananas": 1,
+      "cereal": 15,
+      "onions": 9,
+      "rice": 3,
+      "cream": 1,
+      "flour": 21
+    }
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 149,
+      "byReason": {
+        "conflict_stationary_occupant": 149
+      }
+    },
+    "waitActions": 996,
+    "nonScoringDropoffs": 5
+  },
+  "multiBotCoordination": {
+    "botCount": 10,
+    "totalStalls": 1454,
+    "maxStalledBots": 10,
+    "peakTaskCount": 29,
+    "forcedWaitActions": 470,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "controlModeTimeline": [],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [],
+    "activeCloseEtaTimeline": [],
+    "queueAssignmentsPeak": 0,
+    "serviceBayAssignmentsPeak": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 5,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 6,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 7,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 8,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 9,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "apples",
+    "apples",
+    "apples",
+    "rice",
+    "rice",
+    "rice",
+    "cream",
+    "cereal",
+    "cereal",
+    "bananas",
+    "bananas",
+    "bananas",
+    "butter",
+    "flour",
+    "onions",
+    "flour",
+    "cereal",
+    "cereal",
+    "onions",
+    "apples",
+    "rice",
+    "cereal",
+    "cereal",
+    "cereal"
+  ]
+}

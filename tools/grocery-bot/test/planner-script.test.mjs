@@ -52,8 +52,15 @@ test('planner trusts replay-derived scripted tick when expected state matches', 
           tick: 0,
           actions: [{ bot: 0, action: 'wait' }],
           expected_state: {
+            type: 'game_state',
+            round: 0,
+            max_rounds: 300,
             score: 0,
+            drop_off: [0, 0],
+            drop_offs: [[0, 0]],
             bots: [{ id: 0, position: [1, 1], inventory: [] }],
+            items: [{ id: 'item_0', type: 'milk', position: [2, 1] }],
+            orders: [{ id: 'o0', status: 'active', complete: false, items_required: ['milk'], items_delivered: [] }],
           },
         }],
       ]),
@@ -79,16 +86,30 @@ test('planner disables script and falls back to live planning on expected-state 
           tick: 0,
           actions: [{ bot: 0, action: 'wait' }],
           expected_state: {
+            type: 'game_state',
+            round: 0,
+            max_rounds: 300,
             score: 1,
+            drop_off: [0, 0],
+            drop_offs: [[0, 0]],
             bots: [{ id: 0, position: [1, 1], inventory: [] }],
+            items: [{ id: 'item_0', type: 'milk', position: [2, 1] }],
+            orders: [{ id: 'o0', status: 'active', complete: false, items_required: ['milk'], items_delivered: [] }],
           },
         }],
         [1, {
           tick: 1,
           actions: [{ bot: 0, action: 'wait' }],
           expected_state: {
+            type: 'game_state',
+            round: 1,
+            max_rounds: 300,
             score: 0,
+            drop_off: [0, 0],
+            drop_offs: [[0, 0]],
             bots: [{ id: 0, position: [1, 1], inventory: [] }],
+            items: [{ id: 'item_0', type: 'milk', position: [2, 1] }],
+            orders: [{ id: 'o0', status: 'active', complete: false, items_required: ['milk'], items_delivered: [] }],
           },
         }],
       ]),
@@ -103,4 +124,89 @@ test('planner disables script and falls back to live planning on expected-state 
   const second = planner.plan(baseState({ round: 1 }));
   assert.notEqual(planner.getLastMetrics().scripted, true);
   assert.deepEqual(second, [{ bot: 0, action: 'pick_up', item_id: 'item_0' }]);
+});
+
+test('planner disables oracle and script on stale oracle item typing mismatch', () => {
+  const planner = new GroceryPlanner(defaultProfiles.easy, {
+    oracle: {
+      items: [{ id: 'item_0', type: 'bread', position: [2, 1] }],
+    },
+    script: {
+      tickMap: new Map([
+        [0, [{ bot: 0, action: 'wait' }]],
+      ]),
+      entryMap: new Map([
+        [0, {
+          tick: 0,
+          actions: [{ bot: 0, action: 'wait' }],
+          expected_state: {
+            score: 0,
+            bots: [{ id: 0, position: [1, 1], inventory: [] }],
+          },
+        }],
+      ]),
+    },
+  });
+
+  const first = planner.plan(baseState({ round: 0 }));
+  assert.deepEqual(first, [{ bot: 0, action: 'pick_up', item_id: 'item_0' }]);
+  assert.equal(planner.getLastMetrics().scripted, undefined);
+  assert.equal(planner.getLastMetrics().oracleDisabled, true);
+  assert.equal(planner.getLastMetrics().scriptDisabled, true);
+  assert.equal(planner.getLastMetrics().assumptionMismatch.reason, 'oracle_item_rotation_mismatch');
+  assert.equal(planner.getLastMetrics().assumptionMismatch.mismatchCount, 1);
+});
+
+test('planner disables script when expected order state does not match exactly', () => {
+  const planner = new GroceryPlanner(defaultProfiles.easy, {
+    script: {
+      tickMap: new Map([[0, [{ bot: 0, action: 'wait' }]]]),
+      entryMap: new Map([[0, {
+        tick: 0,
+        actions: [{ bot: 0, action: 'wait' }],
+        expected_state: {
+          type: 'game_state',
+          round: 0,
+          max_rounds: 300,
+          score: 0,
+          drop_off: [0, 0],
+          drop_offs: [[0, 0]],
+          bots: [{ id: 0, position: [1, 1], inventory: [] }],
+          items: [{ id: 'item_0', type: 'milk', position: [2, 1] }],
+          orders: [{ id: 'o0', status: 'active', complete: false, items_required: ['bread'], items_delivered: [] }],
+        },
+      }]]),
+    },
+  });
+
+  const first = planner.plan(baseState({ round: 0 }));
+  assert.deepEqual(first, [{ bot: 0, action: 'pick_up', item_id: 'item_0' }]);
+  assert.equal(planner.getLastMetrics().scriptDiverged, true);
+});
+
+test('planner disables script when expected remaining shelf items do not match exactly', () => {
+  const planner = new GroceryPlanner(defaultProfiles.easy, {
+    script: {
+      tickMap: new Map([[0, [{ bot: 0, action: 'wait' }]]]),
+      entryMap: new Map([[0, {
+        tick: 0,
+        actions: [{ bot: 0, action: 'wait' }],
+        expected_state: {
+          type: 'game_state',
+          round: 0,
+          max_rounds: 300,
+          score: 0,
+          drop_off: [0, 0],
+          drop_offs: [[0, 0]],
+          bots: [{ id: 0, position: [1, 1], inventory: [] }],
+          items: [{ id: 'item_0', type: 'bread', position: [2, 1] }],
+          orders: [{ id: 'o0', status: 'active', complete: false, items_required: ['milk'], items_delivered: [] }],
+        },
+      }]]),
+    },
+  });
+
+  const first = planner.plan(baseState({ round: 0 }));
+  assert.deepEqual(first, [{ bot: 0, action: 'pick_up', item_id: 'item_0' }]);
+  assert.equal(planner.getLastMetrics().scriptDiverged, true);
 });

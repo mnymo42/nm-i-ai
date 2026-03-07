@@ -232,6 +232,7 @@ defaultProfiles.medium_warehouse_v1.runtime.multi_bot_strategy = 'warehouse_v1';
 defaultProfiles.hard_warehouse_v1 = JSON.parse(JSON.stringify(defaultProfiles.hard));
 defaultProfiles.expert_warehouse_v1 = JSON.parse(JSON.stringify(defaultProfiles.expert));
 defaultProfiles.nightmare_warehouse_v1 = JSON.parse(JSON.stringify(defaultProfiles.nightmare));
+defaultProfiles.expert_replay_handoff = JSON.parse(JSON.stringify(defaultProfiles.expert));
 
 function deepMerge(base, patch) {
   if (!patch || typeof patch !== 'object') {
@@ -257,7 +258,10 @@ function deepMerge(base, patch) {
 
 export function loadProfiles(configPath) {
   if (!configPath || !fs.existsSync(configPath)) {
-    return defaultProfiles;
+    return {
+      ...defaultProfiles,
+      expert_replay_handoff: JSON.parse(JSON.stringify(defaultProfiles.expert)),
+    };
   }
 
   const raw = fs.readFileSync(configPath, 'utf8');
@@ -266,6 +270,10 @@ export function loadProfiles(configPath) {
   const profiles = { ...defaultProfiles };
   for (const [difficulty, profile] of Object.entries(parsed)) {
     profiles[difficulty] = deepMerge(defaultProfiles[difficulty] || {}, profile);
+  }
+
+  if (!Object.hasOwn(parsed, 'expert_replay_handoff')) {
+    profiles.expert_replay_handoff = JSON.parse(JSON.stringify(profiles.expert));
   }
 
   return profiles;

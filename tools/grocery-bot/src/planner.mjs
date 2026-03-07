@@ -16,6 +16,7 @@ import {
   addAdaptiveCooldown,
   updateApproachStats,
 } from './planner-singlebot.mjs';
+import { buildComparableReplayState } from './replay-transition-diff.mjs';
 
 export class GroceryPlanner {
   constructor(profile, options = {}) {
@@ -48,6 +49,8 @@ export class GroceryPlanner {
     this.missionsByBot = new Map();
     this.scriptDisabled = false;
     this.scriptDivergedAtRound = null;
+    this.assumptionCheckDone = false;
+    this.assumptionMismatch = null;
   }
 
   resetIntentState() {
@@ -72,37 +75,63 @@ export class GroceryPlanner {
     if (!expectedState) {
       return true;
     }
+    const comparableLiveState = buildComparableReplayState(state);
+    return JSON.stringify(expectedState) === JSON.stringify(comparableLiveState);
+  }
 
-    if ((expectedState.score ?? 0) !== (state.score ?? 0)) {
-      return false;
+  validateOracleAndScriptAssumptions(state) {
+    if (this.assumptionCheckDone) {
+      return this.assumptionMismatch;
     }
 
-    const expectedBots = new Map((expectedState.bots || []).map((bot) => [bot.id, bot]));
-    if (expectedBots.size !== (state.bots || []).length) {
-      return false;
+    this.assumptionCheckDone = true;
+    const oracleItems = this.oracle?.items;
+    if (!Array.isArray(oracleItems) || oracleItems.length === 0) {
+      return null;
     }
 
-    for (const bot of state.bots || []) {
-      const expectedBot = expectedBots.get(bot.id);
-      if (!expectedBot) {
-        return false;
+    const liveItemsById = new Map((state.items || []).map((item) => [item.id, item]));
+    const mismatches = [];
+
+    for (const oracleItem of oracleItems) {
+      const liveItem = liveItemsById.get(oracleItem.id);
+      if (!liveItem) {
+        mismatches.push({
+          itemId: oracleItem.id,
+          reason: 'missing_live_item',
+          oracleType: oracleItem.type,
+        });
+        continue;
       }
 
-      if (encodeCoord(expectedBot.position) !== encodeCoord(bot.position)) {
-        return false;
-      }
-
-      const expectedInventory = [...(expectedBot.inventory || [])].sort().join('|');
-      const actualInventory = [...(bot.inventory || [])].sort().join('|');
-      if (expectedInventory !== actualInventory) {
-        return false;
+      if (oracleItem.type !== liveItem.type) {
+        mismatches.push({
+          itemId: oracleItem.id,
+          reason: 'item_type_mismatch',
+          oracleType: oracleItem.type,
+          liveType: liveItem.type,
+        });
       }
     }
 
-    return true;
+    if (mismatches.length === 0) {
+      return null;
+    }
+
+    this.assumptionMismatch = {
+      reason: 'oracle_item_rotation_mismatch',
+      mismatchCount: mismatches.length,
+      sample: mismatches.slice(0, 5),
+    };
+
+    this.oracle = null;
+    this.scriptDisabled = true;
+    this.scriptDivergedAtRound = state.round;
+    return this.assumptionMismatch;
   }
 
   plan(state) {
+    const assumptionMismatch = this.validateOracleAndScriptAssumptions(state);
     let scriptFallbackMetrics = null;
     // Script replay: if we have precomputed actions for this tick, use them verbatim
     if (!this.scriptDisabled && this.script?.tickMap?.has(state.round)) {
@@ -318,6 +347,14 @@ export class GroceryPlanner {
           ...scriptFallbackMetrics,
         };
       }
+      if (assumptionMismatch) {
+        this.lastMetrics = {
+          ...(this.lastMetrics || {}),
+          oracleDisabled: true,
+          scriptDisabled: true,
+          assumptionMismatch,
+        };
+      }
       return actions;
     }
 
@@ -343,6 +380,14 @@ export class GroceryPlanner {
           ...scriptFallbackMetrics,
         };
       }
+      if (assumptionMismatch) {
+        this.lastMetrics = {
+          ...(this.lastMetrics || {}),
+          oracleDisabled: true,
+          scriptDisabled: true,
+          assumptionMismatch,
+        };
+      }
       return actions;
     }
 
@@ -365,6 +410,14 @@ export class GroceryPlanner {
           ...scriptFallbackMetrics,
         };
       }
+      if (assumptionMismatch) {
+        this.lastMetrics = {
+          ...(this.lastMetrics || {}),
+          oracleDisabled: true,
+          scriptDisabled: true,
+          assumptionMismatch,
+        };
+      }
       return actions;
     }
 
@@ -383,6 +436,14 @@ export class GroceryPlanner {
       this.lastMetrics = {
         ...(this.lastMetrics || {}),
         ...scriptFallbackMetrics,
+      };
+    }
+    if (assumptionMismatch) {
+      this.lastMetrics = {
+        ...(this.lastMetrics || {}),
+        oracleDisabled: true,
+        scriptDisabled: true,
+        assumptionMismatch,
       };
     }
     return actions;
