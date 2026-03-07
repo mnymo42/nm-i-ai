@@ -3,7 +3,7 @@
 ## Current Baseline
 
 - Best repeatable easy score: `118`
-- Current medium benchmark: `109`
+- Current medium benchmark: `115`
 - Verified runs:
   - `tools/grocery-bot/out/2026-03-07T15-56-13-035Z-easy-easy`
   - `tools/grocery-bot/out/2026-03-07T16-00-36-191Z-easy-easy`
@@ -16,7 +16,8 @@
 - Medium progression:
   - `tools/grocery-bot/out/2026-03-07T16-03-36-053Z-medium-medium` -> score `52`, `5` orders, `27` items
   - `tools/grocery-bot/out/2026-03-07T16-14-57-783Z-medium-medium` -> score `109`, `11` orders, `54` items
-  - The jump came from count-aware preview pruning in multi-bot task generation; the remaining bottleneck is stall-heavy routing/coordination.
+  - `tools/grocery-bot/out/2026-03-07T18-48-23-889Z-medium-medium` -> score `115`, `12` orders, `55` items
+  - The latest jump came from restoring the simpler `82ee32e`-style multi-bot assignment/runtime path while keeping client legality fixes.
 
 ## What Changed To Reach 118
 
@@ -28,7 +29,7 @@
 
 - Easy is no longer the active bottleneck.
 - Medium is now the active bottleneck.
-- The current target is to push the medium benchmark from `109` to `>116`.
+- The current target is to push the medium benchmark from `115` to `>116`.
 - Detailed experiment history now lives in [`EXPERIMENT_LOG.md`](./EXPERIMENT_LOG.md).
 - Structural refactor backlog now lives in [`STRUCTURE_REVIEW.md`](./STRUCTURE_REVIEW.md).
 - `mission_v1` is not the medium default after a live collapse to score `2`; the stable assignment path remains the baseline.
@@ -192,6 +193,6 @@ Expected impact:
 - smoother progress inside long stagnation windows
 
 ## Suggested Next Iteration Order
-1. Push medium above `116` by reducing multi-bot stall cascades.
+1. Push medium above `116` by building on the recovered `115` baseline without destabilizing throughput.
 2. Validate each medium change with tests plus replay simulation before spending a live token.
 3. Only reopen easy-specific logic if a shared change regresses the `118` baseline.
