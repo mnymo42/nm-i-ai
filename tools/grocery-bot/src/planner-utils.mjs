@@ -1,4 +1,4 @@
-import { manhattanDistance } from './coords.mjs';
+import { encodeCoord, manhattanDistance } from './coords.mjs';
 import { findTimeAwarePath } from './routing.mjs';
 
 export function cloneDemand(map) {
@@ -153,7 +153,18 @@ export function pickNearestRelevantItem(bot, items, neededTypes) {
   return best?.item || null;
 }
 
-export function closestAdjacentCell(graph, from, itemPosition, reservations, edgeReservations, horizon) {
+export function closestAdjacentCell(
+  graph,
+  from,
+  itemPosition,
+  reservations,
+  edgeReservations,
+  horizon,
+  {
+    blockedNextStepCoords = null,
+    blockedGoalCoords = null,
+  } = {},
+) {
   const adjacent = graph.adjacentWalkableCells(itemPosition);
   if (adjacent.length === 0) {
     return null;
@@ -163,6 +174,11 @@ export function closestAdjacentCell(graph, from, itemPosition, reservations, edg
   let bestTarget = null;
 
   for (const cell of adjacent) {
+    const cellKey = encodeCoord(cell);
+    if (blockedGoalCoords?.has(cellKey)) {
+      continue;
+    }
+
     const path = findTimeAwarePath({
       graph,
       start: from,
@@ -171,6 +187,7 @@ export function closestAdjacentCell(graph, from, itemPosition, reservations, edg
       edgeReservations,
       startTime: 0,
       horizon,
+      blockedNextStepCoords,
     });
 
     if (!path) {

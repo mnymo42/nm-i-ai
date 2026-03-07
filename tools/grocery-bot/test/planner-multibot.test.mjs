@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  actionFromTask,
   buildCostMatrix,
   buildTasks,
   estimateZonePenalty,
@@ -276,6 +277,69 @@ test('buildMediumMissionAssignments prioritizes drop missions for bots carrying 
 
   assert.equal(missionPlan.missionsByBot.get(0).missionType, 'drop_active');
   assert.equal(missionPlan.metrics.dropMissionsAssigned >= 1, true);
+});
+
+test('actionFromTask avoids an occupied pickup service bay when another adjacent bay is available', () => {
+  const graph = new GridGraph({ width: 5, height: 5, walls: [] });
+  const task = {
+    key: 'item:milk_0',
+    kind: 'pick_up',
+    target: [2, 1],
+    item: { id: 'milk_0', type: 'milk', position: [2, 1] },
+    botScoped: false,
+    demandScore: 1,
+    sourceOrder: 'active',
+  };
+
+  const resolved = actionFromTask({
+    bot: { id: 0, position: [0, 1], inventory: [] },
+    task,
+    graph,
+    reservations: new Map(),
+    edgeReservations: new Map(),
+    profile: defaultProfiles.medium,
+    holdGoalSteps: defaultProfiles.medium.routing.hold_goal_steps,
+    blockedNextStepCoords: new Set(['1,1']),
+    blockedServiceBayCoords: new Set(['1,1']),
+  });
+
+  assert.notEqual(resolved.action, 'wait');
+  assert.notEqual(resolved.action, 'move_right');
+});
+
+test('actionFromTask waits when the only pickup service bay is occupied', () => {
+  const graph = new GridGraph({
+    width: 5,
+    height: 5,
+    walls: [
+      [2, 0],
+      [2, 2],
+      [3, 1],
+    ],
+  });
+  const task = {
+    key: 'item:milk_0',
+    kind: 'pick_up',
+    target: [2, 1],
+    item: { id: 'milk_0', type: 'milk', position: [2, 1] },
+    botScoped: false,
+    demandScore: 1,
+    sourceOrder: 'active',
+  };
+
+  const resolved = actionFromTask({
+    bot: { id: 0, position: [0, 1], inventory: [] },
+    task,
+    graph,
+    reservations: new Map(),
+    edgeReservations: new Map(),
+    profile: defaultProfiles.medium,
+    holdGoalSteps: defaultProfiles.medium.routing.hold_goal_steps,
+    blockedNextStepCoords: new Set(['1,1']),
+    blockedServiceBayCoords: new Set(['1,1']),
+  });
+
+  assert.equal(resolved.action, 'wait');
 });
 
 test('buildMediumMissionAssignments disables preview missions in endgame cutoff window', () => {

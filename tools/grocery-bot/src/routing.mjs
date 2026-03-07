@@ -22,6 +22,7 @@ export function findTimeAwarePath({
   edgeReservations = new Map(),
   startTime = 0,
   horizon = 16,
+  blockedNextStepCoords = null,
 }) {
   if (!graph.isWalkable(start) || !graph.isWalkable(goal)) {
     return null;
@@ -60,6 +61,10 @@ export function findTimeAwarePath({
     for (const nextCoord of options) {
       const nextTime = current.time + 1;
       const nextCoordKey = encodeCoord(nextCoord);
+
+      if (nextTime === startTime + 1 && blockedNextStepCoords?.has(nextCoordKey)) {
+        continue;
+      }
 
       if (reservationHas(reservations, nextTime, nextCoordKey)) {
         continue;

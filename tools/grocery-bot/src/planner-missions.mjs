@@ -567,6 +567,8 @@ export function resolveMissionAction({
   reservations,
   edgeReservations,
   profile,
+  blockedNextStepCoords = null,
+  blockedServiceBayCoords = null,
 }) {
   if (!mission) {
     return { action: 'wait', nextPath: [bot.position], targetType: 'mission_idle', noPath: false };
@@ -585,6 +587,7 @@ export function resolveMissionAction({
       edgeReservations,
       startTime: 0,
       horizon: profile.routing.horizon,
+      blockedNextStepCoords,
     });
     if (!path || path.length < 2) {
       return { action: 'wait', nextPath: [bot.position], targetType: 'drop_off', noPath: true };
@@ -610,6 +613,10 @@ export function resolveMissionAction({
       reservations,
       edgeReservations,
       profile.routing.horizon,
+      {
+        blockedNextStepCoords,
+        blockedGoalCoords: blockedServiceBayCoords,
+      },
     );
     if (!target || !target.path || target.path.length < 2) {
       return { action: 'wait', nextPath: [bot.position], targetType: 'item', noPath: true };
@@ -631,6 +638,7 @@ export function resolveMissionAction({
       edgeReservations,
       startTime: 0,
       horizon: profile.routing.horizon,
+      blockedNextStepCoords,
     });
     if (!path || path.length < 2) {
       return { action: 'wait', nextPath: [bot.position], targetType: 'idle_reposition', noPath: true };

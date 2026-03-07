@@ -181,7 +181,17 @@ export function makeOccupancyReservations(state) {
   return reservations;
 }
 
-export function actionFromTask({ bot, task, graph, reservations, edgeReservations, profile, holdGoalSteps }) {
+export function actionFromTask({
+  bot,
+  task,
+  graph,
+  reservations,
+  edgeReservations,
+  profile,
+  holdGoalSteps,
+  blockedNextStepCoords = null,
+  blockedServiceBayCoords = null,
+}) {
   if (task.kind === 'drop_off') {
     if (bot.position[0] === task.target[0] && bot.position[1] === task.target[1]) {
       return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off' };
@@ -195,6 +205,7 @@ export function actionFromTask({ bot, task, graph, reservations, edgeReservation
       edgeReservations,
       startTime: 0,
       horizon: profile.routing.horizon,
+      blockedNextStepCoords,
     });
 
     if (!path || path.length < 2) {
@@ -221,6 +232,10 @@ export function actionFromTask({ bot, task, graph, reservations, edgeReservation
     reservations,
     edgeReservations,
     profile.routing.horizon,
+    {
+      blockedNextStepCoords,
+      blockedGoalCoords: blockedServiceBayCoords,
+    },
   );
 
   if (!target || !target.path || target.path.length < 2) {
@@ -231,9 +246,20 @@ export function actionFromTask({ bot, task, graph, reservations, edgeReservation
   return { action, nextPath: target.path, targetType: 'item', holdGoalSteps };
 }
 
-export function chooseFallbackAction(bot, graph, reservations, edgeReservations, horizon) {
+export function chooseFallbackAction(
+  bot,
+  graph,
+  reservations,
+  edgeReservations,
+  horizon,
+  blockedNextStepCoords = null,
+) {
   for (const neighbor of graph.neighbors(bot.position)) {
     const moveKey = encodeCoord(neighbor);
+    if (blockedNextStepCoords?.has(moveKey)) {
+      continue;
+    }
+
     if (reservations.get(1)?.has(moveKey)) {
       continue;
     }
@@ -251,6 +277,7 @@ export function chooseFallbackAction(bot, graph, reservations, edgeReservations,
       edgeReservations,
       startTime: 0,
       horizon,
+      blockedNextStepCoords,
     });
 
     if (path && path.length >= 2) {

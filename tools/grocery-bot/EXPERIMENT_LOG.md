@@ -79,6 +79,16 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Verdict: `revert as medium default`
 - Notes: the mission layer is structurally interesting but catastrophically unstable in live medium. Keep the code available behind a non-default strategy flag only if we revisit it later; medium default is reverted to the stable assignment path.
 
+### Pickup service-bay exclusivity + aisle queue discipline
+
+- Hypothesis: medium is collapsing because bots are allowed to claim occupied aisle slots as their immediate next step and to target pickup approach cells that are already occupied, creating forklift-style bay jams.
+- Change: multi-bot pathing now blocks currently occupied slots as immediate next-step destinations, and pickup approach selection now treats occupied adjacent shelf cells as unavailable service bays.
+- Validation:
+  - `node --test tools/grocery-bot/test/routing.test.mjs tools/grocery-bot/test/planner-multibot.test.mjs` -> pass
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+- Verdict: `pending live validation`
+- Notes: this is a warehouse-queueing fix, not a scoring-weight change. Promote only if the next medium live run materially reduces `conflict_stationary_occupant`, failed pickups, and stall cascades.
+
 ## Guidance
 
 - Prefer experiments that are soft cost-shaping changes over hard role locks.

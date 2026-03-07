@@ -43,3 +43,24 @@ test('findTimeAwarePath avoids reserved cells at reserved timesteps', () => {
   assert.equal(path[path.length - 1][1], 0);
   assert.notDeepEqual(path[1], [1, 0]);
 });
+
+test('findTimeAwarePath does not step into a currently occupied next-step cell', () => {
+  const graph = new GridGraph({ width: 4, height: 3, walls: [] });
+  const reservations = new Map();
+
+  const path = findTimeAwarePath({
+    graph,
+    start: [0, 1],
+    goal: [2, 1],
+    reservations,
+    startTime: 0,
+    horizon: 10,
+    blockedNextStepCoords: new Set(['1,1']),
+  });
+
+  assert.equal(path[0][0], 0);
+  assert.equal(path[0][1], 1);
+  assert.equal(path[path.length - 1][0], 2);
+  assert.equal(path[path.length - 1][1], 1);
+  assert.notDeepEqual(path[1], [1, 1]);
+});
