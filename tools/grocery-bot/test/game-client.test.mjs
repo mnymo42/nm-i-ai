@@ -102,9 +102,9 @@ test('sanitizeActionsForState keeps wait when no movement is possible', () => {
   assert.deepEqual(actions, [{ bot: 0, action: 'wait' }]);
 });
 
-test('game client sends at most one payload per round', () => {
+test('game client sends at most one payload per round', async () => {
   const sent = [];
-  const client = new GroceryGameClient({ token: 'test-token' });
+  const client = new GroceryGameClient({ token: 'test-token', minRoundSendIntervalMs: 0 });
   client.ws = {
     readyState: 1,
     send(payload) {
@@ -112,20 +112,20 @@ test('game client sends at most one payload per round', () => {
     },
   };
 
-  const first = client.sendActionsForRound([{ bot: 0, action: 'wait' }], 12);
+  const first = await client.sendActionsForRound([{ bot: 0, action: 'wait' }], 12);
   assert.equal(typeof first, 'string');
   assert.equal(sent.length, 1);
 
-  assert.throws(
+  await assert.rejects(
     () => client.sendActionsForRound([{ bot: 0, action: 'wait' }], 12),
     /already sent for round 12/,
   );
   assert.equal(sent.length, 1);
 });
 
-test('game client allows sends for new rounds after the hard limit guard', () => {
+test('game client allows sends for new rounds after the hard limit guard', async () => {
   const sent = [];
-  const client = new GroceryGameClient({ token: 'test-token' });
+  const client = new GroceryGameClient({ token: 'test-token', minRoundSendIntervalMs: 0 });
   client.ws = {
     readyState: 1,
     send(payload) {
@@ -133,8 +133,26 @@ test('game client allows sends for new rounds after the hard limit guard', () =>
     },
   };
 
-  client.sendActionsForRound([{ bot: 0, action: 'wait' }], 12);
-  client.sendActionsForRound([{ bot: 0, action: 'move_right' }], 13);
+  await client.sendActionsForRound([{ bot: 0, action: 'wait' }], 12);
+  await client.sendActionsForRound([{ bot: 0, action: 'move_right' }], 13);
 
   assert.equal(sent.length, 2);
+});
+
+test('game client enforces a minimum 20ms interval between round sends', async () => {
+  const sent = [];
+  const client = new GroceryGameClient({ token: 'test-token', minRoundSendIntervalMs: 20 });
+  client.ws = {
+    readyState: 1,
+    send(payload) {
+      sent.push({ payload, sentAt: Date.now() });
+    },
+  };
+
+  await client.sendActionsForRound([{ bot: 0, action: 'wait' }], 12);
+  await client.sendActionsForRound([{ bot: 0, action: 'move_right' }], 13);
+
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1].sentAt - sent[0].sentAt >= 15, true);
+  assert.equal(client.lastSendDelayMs >= 0, true);
 });

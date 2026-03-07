@@ -4,6 +4,14 @@ import NodeWebSocket from 'ws';
 const WebSocketImpl = globalThis.WebSocket || NodeWebSocket;
 const WS_OPEN_READY_STATE = 1;
 
+function sleep(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function withTimeout(promise, timeoutMs, timeoutMessage) {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
@@ -351,9 +359,15 @@ export function sanitizeActionsForState(actions, state, runtime = {}) {
 }
 
 export class GroceryGameClient {
-  constructor({ token, urlBase = 'wss://game.ainm.no/ws', idleTimeoutMs = 15_000 }) {
+  constructor({
+    token,
+    urlBase = 'wss://game.ainm.no/ws',
+    idleTimeoutMs = 15_000,
+    minRoundSendIntervalMs = 20,
+  }) {
     this.url = `${urlBase}?token=${encodeURIComponent(token)}`;
     this.idleTimeoutMs = idleTimeoutMs;
+    this.minRoundSendIntervalMs = minRoundSendIntervalMs;
     this.ws = null;
     this.queue = [];
     this.pending = [];
@@ -361,6 +375,8 @@ export class GroceryGameClient {
     this.closeReason = null;
     this.lastSentRound = null;
     this.lastSentPayload = null;
+    this.lastSendAt = 0;
+    this.lastSendDelayMs = 0;
   }
 
   async connect() {
@@ -408,11 +424,11 @@ export class GroceryGameClient {
     return withTimeout(new Promise((resolve) => this.pending.push(resolve)), this.idleTimeoutMs, 'Server idle timeout');
   }
 
-  sendActions(actions) {
+  async sendActions(actions) {
     return this.sendActionsForRound(actions, null);
   }
 
-  sendActionsForRound(actions, round = null) {
+  async sendActionsForRound(actions, round = null) {
     if (!this.ws || this.ws.readyState !== WS_OPEN_READY_STATE) {
       throw new Error('WebSocket is not open');
     }
@@ -421,8 +437,17 @@ export class GroceryGameClient {
       throw new Error(`Action payload already sent for round ${round}`);
     }
 
+    const now = Date.now();
+    const elapsedSinceLastSend = now - this.lastSendAt;
+    const sendDelayMs = Math.max(0, this.minRoundSendIntervalMs - elapsedSinceLastSend);
+    if (sendDelayMs > 0) {
+      await sleep(sendDelayMs);
+    }
+
     const payload = buildActionEnvelope(actions);
     this.ws.send(payload);
+    this.lastSendAt = Date.now();
+    this.lastSendDelayMs = sendDelayMs;
     if (typeof round === 'number') {
       this.lastSentRound = round;
       this.lastSentPayload = payload;
@@ -505,7 +530,7 @@ export class GroceryGameClient {
         const planningFinishedAt = Date.now();
         const { actions, sanitizerOverrides } = sanitizeActionsForStateDetailed(plannedActions, message, runtime);
         const sanitizeFinishedAt = Date.now();
-        const serialized = this.sendActionsForRound(actions, message.round);
+        const serialized = await this.sendActionsForRound(actions, message.round);
         const sendFinishedAt = Date.now();
 
         const failedPickupsThisTick = pickupResults.filter((result) => result.succeeded === false).length;
@@ -531,6 +556,7 @@ export class GroceryGameClient {
           sanitizeLatencyMs: sanitizeFinishedAt - planningFinishedAt,
           sendLatencyMs: sendFinishedAt - sanitizeFinishedAt,
           clientLoopLatencyMs: sendFinishedAt - loopStartedAt,
+          sendThrottleDelayMs: this.lastSendDelayMs,
         };
 
         if (!layoutLogged && replayLogger) {
