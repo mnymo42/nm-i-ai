@@ -129,6 +129,10 @@ function actionTargetPosition(bot, actionName) {
   return bot.position;
 }
 
+function isMoveAction(actionName) {
+  return ['move_up', 'move_down', 'move_left', 'move_right'].includes(actionName);
+}
+
 function buildActiveDemand(state) {
   const activeOrder = (state.orders || []).find((order) => order.status === 'active' && !order.complete);
   const demand = new Map();
@@ -297,6 +301,7 @@ export function sanitizeActionsForStateDetailed(actions, state, runtime = {}) {
 
   const nudgeInvalidOnly = runtime.nudge_invalid_only !== false;
   const nudgePlannedWaits = runtime.nudge_planned_waits === true;
+  const plannedStates = [];
 
   for (const bot of (state.bots || [])) {
     const plannedAction = byBot.get(bot.id);
@@ -330,8 +335,13 @@ export function sanitizeActionsForStateDetailed(actions, state, runtime = {}) {
     }
 
     const target = actionTargetPosition(bot, sanitized.action);
-    reservedTargets.add(`${target[0]},${target[1]}`);
-    result.push(sanitized);
+    plannedStates.push({
+      bot,
+      plannedAction,
+      sanitized,
+      overrideReason,
+      target,
+    });
 
     if (!plannedAction) {
       continue;
@@ -344,6 +354,96 @@ export function sanitizeActionsForStateDetailed(actions, state, runtime = {}) {
         planned_action: plannedAction.action,
         sent_action: sanitized.action,
         reason: overrideReason || 'sanitized',
+      });
+    }
+  }
+
+  const currentByBot = new Map((state.bots || []).map((bot) => [bot.id, bot.position]));
+  const targetGroups = new Map();
+  for (const entry of plannedStates) {
+    const key = `${entry.target[0]},${entry.target[1]}`;
+    const list = targetGroups.get(key) || [];
+    list.push(entry);
+    targetGroups.set(key, list);
+  }
+
+  const conflictReasons = new Map();
+  for (const group of targetGroups.values()) {
+    if (group.length <= 1) {
+      continue;
+    }
+
+    for (const entry of group) {
+      conflictReasons.set(entry.bot.id, 'conflict_same_target');
+    }
+  }
+
+  for (const entry of plannedStates) {
+    if (!isMoveAction(entry.sanitized.action)) {
+      continue;
+    }
+
+    for (const other of plannedStates) {
+      if (other.bot.id === entry.bot.id) {
+        continue;
+      }
+
+      const otherCurrent = currentByBot.get(other.bot.id);
+      const entryCurrent = currentByBot.get(entry.bot.id);
+      const otherTarget = other.target;
+
+      if (isSameCell(entry.target, otherCurrent) && isSameCell(otherTarget, otherCurrent)) {
+        conflictReasons.set(entry.bot.id, 'conflict_stationary_occupant');
+      }
+
+      if (
+        isMoveAction(other.sanitized.action)
+        && isSameCell(entry.target, otherCurrent)
+        && isSameCell(otherTarget, entryCurrent)
+      ) {
+        conflictReasons.set(entry.bot.id, 'conflict_swap');
+      }
+    }
+  }
+
+  reservedTargets.clear();
+  for (const entry of plannedStates) {
+    const conflictReason = conflictReasons.get(entry.bot.id) || null;
+    let finalAction = entry.sanitized;
+    let finalReason = entry.overrideReason;
+
+    if (conflictReason) {
+      const nudge = chooseNudgeAction({
+        bot: entry.bot,
+        state,
+        wallSet,
+        reservedTargets,
+        occupiedNow,
+      });
+      if (nudge) {
+        finalAction = { bot: entry.bot.id, action: nudge };
+        finalReason = conflictReason;
+      } else {
+        finalAction = { bot: entry.bot.id, action: 'wait' };
+        finalReason = conflictReason;
+      }
+    }
+
+    const finalTarget = actionTargetPosition(entry.bot, finalAction.action);
+    reservedTargets.add(`${finalTarget[0]},${finalTarget[1]}`);
+    result.push(finalAction);
+
+    if (!entry.plannedAction) {
+      continue;
+    }
+
+    const changed = entry.plannedAction.action !== finalAction.action || entry.plannedAction.item_id !== finalAction.item_id;
+    if (changed && !sanitizerOverrides.some((override) => override.bot === entry.bot.id)) {
+      sanitizerOverrides.push({
+        bot: entry.bot.id,
+        planned_action: entry.plannedAction.action,
+        sent_action: finalAction.action,
+        reason: finalReason || 'sanitized',
       });
     }
   }

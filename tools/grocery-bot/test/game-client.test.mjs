@@ -3,6 +3,22 @@ import assert from 'node:assert/strict';
 
 import { GroceryGameClient, sanitizeActionsForState } from '../src/game-client.mjs';
 
+function nextPosition(position, action) {
+  const [x, y] = position;
+  switch (action) {
+    case 'move_up':
+      return [x, y - 1];
+    case 'move_down':
+      return [x, y + 1];
+    case 'move_left':
+      return [x - 1, y];
+    case 'move_right':
+      return [x + 1, y];
+    default:
+      return position;
+  }
+}
+
 function baseState(overrides = {}) {
   return {
     type: 'game_state',
@@ -100,6 +116,61 @@ test('sanitizeActionsForState keeps wait when no movement is possible', () => {
   });
   const actions = sanitizeActionsForState([{ bot: 0, action: 'wait' }], state);
   assert.deepEqual(actions, [{ bot: 0, action: 'wait' }]);
+});
+
+test('sanitizeActionsForState prevents two bots from targeting the same cell', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [3, 1], inventory: [] },
+    ],
+    items: [],
+  });
+
+  const actions = sanitizeActionsForState([
+    { bot: 0, action: 'move_right' },
+    { bot: 1, action: 'move_left' },
+  ], state);
+
+  const targets = actions.map((action, index) => nextPosition(state.bots[index].position, action.action));
+  assert.notDeepEqual(targets[0], targets[1]);
+});
+
+test('sanitizeActionsForState prevents head-on swap moves', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [2, 1], inventory: [] },
+    ],
+    items: [],
+  });
+
+  const actions = sanitizeActionsForState([
+    { bot: 0, action: 'move_right' },
+    { bot: 1, action: 'move_left' },
+  ], state);
+
+  assert.notDeepEqual(actions, [
+    { bot: 0, action: 'move_right' },
+    { bot: 1, action: 'move_left' },
+  ]);
+});
+
+test('sanitizeActionsForState prevents moving into a cell occupied by a stationary bot', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [2, 1], inventory: [] },
+    ],
+    items: [],
+  });
+
+  const actions = sanitizeActionsForState([
+    { bot: 0, action: 'move_right' },
+    { bot: 1, action: 'wait' },
+  ], state);
+
+  assert.notEqual(actions[0].action, 'move_right');
 });
 
 test('game client sends at most one payload per round', async () => {
