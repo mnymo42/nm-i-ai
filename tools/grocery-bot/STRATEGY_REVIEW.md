@@ -31,6 +31,7 @@
 - The current target is to push the medium benchmark from `109` to `>116`.
 - Detailed experiment history now lives in [`EXPERIMENT_LOG.md`](./EXPERIMENT_LOG.md).
 - Structural refactor backlog now lives in [`STRUCTURE_REVIEW.md`](./STRUCTURE_REVIEW.md).
+- `mission_v1` is not the medium default after a live collapse to score `2`; the stable assignment path remains the baseline.
 
 ## Current Strategy (As Implemented)
 

@@ -79,7 +79,9 @@ test('planner does not route through shelf cells when approaching target shelf',
 });
 
 test('medium mission planner persists mission while target and order remain valid', () => {
-  const planner = new GroceryPlanner(defaultProfiles.medium);
+  const profile = structuredClone(defaultProfiles.medium);
+  profile.runtime.multi_bot_strategy = 'mission_v1';
+  const planner = new GroceryPlanner(profile);
   const state0 = baseState({
     round: 0,
     grid: { width: 12, height: 10, walls: [] },
@@ -110,7 +112,9 @@ test('medium mission planner persists mission while target and order remain vali
 });
 
 test('medium mission planner invalidates mission when active order changes', () => {
-  const planner = new GroceryPlanner(defaultProfiles.medium);
+  const profile = structuredClone(defaultProfiles.medium);
+  profile.runtime.multi_bot_strategy = 'mission_v1';
+  const planner = new GroceryPlanner(profile);
   const state0 = baseState({
     round: 0,
     grid: { width: 12, height: 10, walls: [] },

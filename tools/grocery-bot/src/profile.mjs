@@ -79,7 +79,7 @@ export const defaultProfiles = {
       loop_break_rounds: 6,
     },
     runtime: {
-      multi_bot_strategy: 'mission_v1',
+      multi_bot_strategy: 'assignment_v1',
       nudge_invalid_only: true,
       nudge_planned_waits: false,
       max_consecutive_pick_failures_before_forbid: 2,

@@ -75,8 +75,9 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
   - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
   - replay simulate against `2026-03-07T16-14-57-783Z-medium-medium` -> `0.6978` match ratio, `0.02` wait ratio
   - replay simulate against `2026-03-07T16-55-44-962Z-medium-medium` -> `0.73` match ratio, `0.0156` wait ratio
-- Verdict: `pending live validation`
-- Notes: implemented but not yet promoted. Only update the medium benchmark if a fresh live run beats `109` without reintroducing failed pickups or dead inventory.
+  - live medium run `2026-03-07T18-00-47-256Z-medium-medium` -> `2`
+- Verdict: `revert as medium default`
+- Notes: the mission layer is structurally interesting but catastrophically unstable in live medium. Keep the code available behind a non-default strategy flag only if we revisit it later; medium default is reverted to the stable assignment path.
 
 ## Guidance
 

@@ -7,6 +7,7 @@ import {
   getNeededTypes,
   estimateCongestion,
   estimateDistanceToDropoff,
+  closestAdjacentCell,
 } from './planner-utils.mjs';
 import {
   sumCounts,
