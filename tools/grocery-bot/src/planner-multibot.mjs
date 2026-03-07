@@ -33,6 +33,44 @@ function reserveInventoryForDemand(inventoryCounts, demand) {
   return { remainingDemand, surplusInventory };
 }
 
+function zoneIndexForX(x, width, zoneCount) {
+  if (zoneCount <= 1 || width <= 0) {
+    return 0;
+  }
+
+  const normalized = Math.max(0, Math.min(width - 1, x));
+  return Math.min(zoneCount - 1, Math.floor((normalized * zoneCount) / width));
+}
+
+export function estimateZonePenalty({ bot, task, state, profile }) {
+  if (task?.kind !== 'pick_up' || !task.item || state.bots.length <= 1) {
+    return 0;
+  }
+
+  const botOrder = [...state.bots].sort((a, b) => a.id - b.id);
+  const botIndex = botOrder.findIndex((candidate) => candidate.id === bot.id);
+  if (botIndex < 0) {
+    return 0;
+  }
+
+  const itemX = task.item.position?.[0];
+  if (!Number.isFinite(itemX)) {
+    return 0;
+  }
+
+  const taskZoneIndex = zoneIndexForX(itemX, state.grid.width, botOrder.length);
+  const zoneDelta = Math.abs(taskZoneIndex - botIndex);
+  if (zoneDelta === 0) {
+    return 0;
+  }
+
+  const activePenalty = profile.assignment.active_zone_penalty ?? 0.35;
+  const previewPenalty = profile.assignment.preview_zone_penalty ?? 1.1;
+  const basePenalty = task.sourceOrder === 'preview' ? previewPenalty : activePenalty;
+
+  return zoneDelta * basePenalty;
+}
+
 export function buildTasks(state, world, profile, phase) {
   const tasks = [];
   const inventoryCounts = countInventoryByType(state.bots);
@@ -135,9 +173,10 @@ export function buildTasks(state, world, profile, phase) {
   return tasks;
 }
 
-export function buildCostMatrix(state, tasks, profile, phase) {
+export function buildCostMatrix(state, tasks, profile, phase, context = {}) {
   const matrix = [];
   const urgency = phase === 'endgame' ? 1.5 : phase === 'cutoff' ? 2.0 : 1;
+  const blockedItemsByBot = context.blockedItemsByBot || new Map();
 
   for (const bot of state.bots) {
     const row = [];
@@ -153,6 +192,14 @@ export function buildCostMatrix(state, tasks, profile, phase) {
         continue;
       }
 
+      if (task.kind === 'pick_up') {
+        const blockedItems = blockedItemsByBot.get(bot.id);
+        if (blockedItems?.has(task.item.id)) {
+          row.push(1e9);
+          continue;
+        }
+      }
+
       const travelToTask = Math.max(0, manhattanDistance(bot.position, task.target) - (task.kind === 'pick_up' ? 1 : 0));
       const travelToDropOff = task.kind === 'pick_up'
         ? estimateDistanceToDropoff(task.item, state.drop_off)
@@ -162,12 +209,14 @@ export function buildCostMatrix(state, tasks, profile, phase) {
         ? state.bots.filter((candidate) => candidate.id !== bot.id && manhattanDistance(candidate.position, task.target) < 4).length
         : 0;
       const demandBonus = task.demandScore * profile.assignment.remaining_demand_priority;
+      const zonePenalty = estimateZonePenalty({ bot, task, state, profile });
 
       const score =
         travelToTask * profile.assignment.travel_to_item +
         travelToDropOff * profile.assignment.travel_item_to_dropoff +
         congestion * profile.assignment.congestion_penalty +
-        contention * profile.assignment.contention_penalty -
+        contention * profile.assignment.contention_penalty +
+        zonePenalty -
         demandBonus * urgency -
         profile.assignment.urgency_bonus * urgency;
 

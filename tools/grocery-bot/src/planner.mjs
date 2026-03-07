@@ -682,7 +682,10 @@ export class GroceryPlanner {
     }
 
     const tasks = buildTasks(state, world, this.profile, phase);
-    const costs = buildCostMatrix(state, tasks, this.profile, phase);
+    const blockedItemsByBot = new Map(
+      state.bots.map((bot) => [bot.id, this.blockedPickupByBot.get(bot.id) || new Map()]),
+    );
+    const costs = buildCostMatrix(state, tasks, this.profile, phase, { blockedItemsByBot });
     const { assignment } = solveMinCostAssignment(costs);
 
     const taskByBot = new Map();

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildTasks } from '../src/planner-multibot.mjs';
+import { buildCostMatrix, buildTasks, estimateZonePenalty } from '../src/planner-multibot.mjs';
 import { defaultProfiles } from '../src/profile.mjs';
 import { buildWorldContext } from '../src/world-model.mjs';
 
@@ -71,4 +71,51 @@ test('buildTasks caps preview pickup candidates to remaining preview demand plus
   const pastaTasks = tasks.filter((task) => task.kind === 'pick_up' && task.item.type === 'pasta');
 
   assert.equal(pastaTasks.length <= 2, true);
+});
+
+test('buildCostMatrix quarantines blocked pickup items per bot', () => {
+  const state = baseState({
+    bots: [{ id: 0, position: [1, 1], inventory: [] }],
+    items: [{ id: 'milk_0', type: 'milk', position: [3, 3] }],
+  });
+  const tasks = [{
+    key: 'item:milk_0',
+    kind: 'pick_up',
+    target: [3, 3],
+    item: { id: 'milk_0', type: 'milk', position: [3, 3] },
+    botScoped: false,
+    demandScore: 1,
+    sourceOrder: 'active',
+  }];
+
+  const matrix = buildCostMatrix(state, tasks, defaultProfiles.medium, 'early', {
+    blockedItemsByBot: new Map([[0, new Map([['milk_0', 4]])]]),
+  });
+
+  assert.equal(matrix[0][0], 1e9);
+});
+
+test('estimateZonePenalty prefers same-zone preview picking', () => {
+  const state = baseState({
+    grid: { width: 12, height: 10, walls: [] },
+    bots: [
+      { id: 0, position: [6, 1], inventory: [] },
+      { id: 1, position: [6, 1], inventory: [] },
+      { id: 2, position: [6, 1], inventory: [] },
+    ],
+  });
+  const task = {
+    key: 'item:pasta_0',
+    kind: 'pick_up',
+    target: [1, 3],
+    item: { id: 'pasta_0', type: 'pasta', position: [1, 3] },
+    botScoped: false,
+    demandScore: 1,
+    sourceOrder: 'preview',
+  };
+
+  const leftPenalty = estimateZonePenalty({ bot: state.bots[0], task, state, profile: defaultProfiles.medium });
+  const rightPenalty = estimateZonePenalty({ bot: state.bots[2], task, state, profile: defaultProfiles.medium });
+
+  assert.equal(leftPenalty < rightPenalty, true);
 });
