@@ -105,7 +105,7 @@ export const defaultProfiles = {
   hard: {
     assignment: {
       travel_to_item: 1.0,
-      travel_item_to_dropoff: 0.85,
+      travel_item_to_dropoff: 1.3,
       congestion_penalty: 0.4,
       contention_penalty: 0.35,
       urgency_bonus: 0.5,
@@ -113,7 +113,7 @@ export const defaultProfiles = {
       preview_item_weight: 0.3,
     },
     routing: {
-      horizon: 20,
+      horizon: 35,
       hold_goal_steps: 5,
     },
     anti_deadlock: {
@@ -160,7 +160,7 @@ export const defaultProfiles = {
   expert: {
     assignment: {
       travel_to_item: 1.0,
-      travel_item_to_dropoff: 0.9,
+      travel_item_to_dropoff: 1.5,
       congestion_penalty: 0.55,
       contention_penalty: 0.5,
       urgency_bonus: 0.7,
@@ -168,7 +168,7 @@ export const defaultProfiles = {
       preview_item_weight: 0.35,
     },
     routing: {
-      horizon: 24,
+      horizon: 45,
       hold_goal_steps: 6,
     },
     anti_deadlock: {
