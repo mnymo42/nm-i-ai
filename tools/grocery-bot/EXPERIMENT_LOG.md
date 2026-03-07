@@ -108,8 +108,9 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Validation:
   - `node --test tools/grocery-bot/test/planner-multibot.test.mjs` -> pass
   - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
-- Verdict: `pending live validation`
-- Notes: this is intended to be a soft wave-close policy, not a rigid finisher role. Promote only if the next medium run improves order completion cadence without reintroducing pickup failures or wasted inventory.
+  - live medium run `2026-03-07T18-34-51-201Z-medium-medium` -> `13`
+- Verdict: `revert`
+- Notes: the idea was directionally reasonable, but this implementation over-committed and stalled the map: `1` completed order, `8` failed pickups, `5` non-scoring dropoffs`, and a `189`-tick dead zone. Revisit only as a much softer bias if at all.
 
 ## Guidance
 

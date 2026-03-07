@@ -2,8 +2,6 @@ import { encodeCoord, manhattanDistance, moveToAction, adjacentManhattan } from 
 import { findTimeAwarePath, reservePath } from './routing.mjs';
 import { countInventoryByType } from './world-model.mjs';
 import {
-  cloneDemand,
-  decrementDemand,
   hasDeliverableInventory,
   shouldScheduleDropOff,
   getNeededTypes,
@@ -19,49 +17,7 @@ import {
 
 export { estimateZonePenalty } from './planner-multibot-common.mjs';
 
-export function buildOrderFlushContext(state, world, profile) {
-  const runtime = profile.runtime || {};
-  if (!runtime.enable_order_flush || state.bots.length <= 1) {
-    return { active: false, remainingActiveCount: sumCounts(world.activeDemand), adjacentCoverageCount: 0 };
-  }
-
-  const inventoryCounts = countInventoryByType(state.bots);
-  const { remainingDemand: activeDemandAfterHeld } = reserveInventoryForDemand(inventoryCounts, world.activeDemand);
-  const remainingDemandAfterAdjacent = cloneDemand(activeDemandAfterHeld);
-  let adjacentCoverageCount = 0;
-
-  for (const bot of state.bots) {
-    if ((bot.inventory || []).length >= 3) {
-      continue;
-    }
-
-    for (const item of state.items) {
-      if (!adjacentManhattan(bot.position, item.position)) {
-        continue;
-      }
-
-      if ((remainingDemandAfterAdjacent.get(item.type) || 0) <= 0) {
-        continue;
-      }
-
-      decrementDemand(remainingDemandAfterAdjacent, item.type);
-      adjacentCoverageCount += 1;
-      break;
-    }
-  }
-
-  const remainingActiveCount = sumCounts(activeDemandAfterHeld);
-  const threshold = runtime.order_flush_missing_threshold ?? 2;
-  const active = remainingActiveCount <= threshold || sumCounts(remainingDemandAfterAdjacent) === 0;
-
-  return {
-    active,
-    remainingActiveCount,
-    adjacentCoverageCount,
-  };
-}
-
-export function buildTasks(state, world, profile, phase, context = {}) {
+export function buildTasks(state, world, profile, phase) {
   const tasks = [];
   const inventoryCounts = countInventoryByType(state.bots);
   const {
@@ -77,12 +33,9 @@ export function buildTasks(state, world, profile, phase, context = {}) {
   const totalFreeSlots = state.bots.reduce((sum, bot) => sum + Math.max(0, 3 - (bot.inventory || []).length), 0);
   const previewReserveSlots = profile.assignment.preview_reserve_slots ?? Math.max(2, Math.ceil(state.bots.length / 3));
   const previewCarrySoftCap = profile.assignment.preview_carry_soft_cap ?? Math.max(3, Math.ceil(state.bots.length / 2));
-  const orderFlush = context.orderFlush || { active: false };
   const allowPreviewPrefetch = (
-    !orderFlush.active
-    && state.bots.length > 1
-    &&
     phase !== 'cutoff'
+    && state.bots.length > 1
     && sumCounts(previewDemand) > 0
     && totalFreeSlots > totalActiveMissing + previewReserveSlots
     && sumCounts(remainingPreviewSurplus) <= previewCarrySoftCap
@@ -112,7 +65,7 @@ export function buildTasks(state, world, profile, phase, context = {}) {
         botId: bot.id,
         target: state.drop_off,
         item: null,
-        demandScore: 4 + (orderFlush.active ? (profile.runtime?.order_flush_drop_bonus ?? 4) : 0),
+        demandScore: 4,
       });
     }
   }
@@ -158,7 +111,7 @@ export function buildTasks(state, world, profile, phase, context = {}) {
         target: item.position,
         item,
         botScoped: false,
-        demandScore: score + (orderFlush.active && activeCount > 0 ? (profile.runtime?.order_flush_pick_bonus ?? 1) : 0),
+        demandScore: score,
         sourceOrder: activeCount > 0 ? 'active' : 'preview',
       });
     }

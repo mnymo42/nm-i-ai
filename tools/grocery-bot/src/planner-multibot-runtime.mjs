@@ -3,7 +3,6 @@ import { encodeCoord, adjacentManhattan } from './coords.mjs';
 import { reservePath } from './routing.mjs';
 import { getNeededTypes, pickNearestRelevantItem } from './planner-utils.mjs';
 import {
-  buildOrderFlushContext,
   buildTasks,
   buildCostMatrix,
   makeOccupancyReservations,
@@ -184,8 +183,7 @@ export function executeAssignedTaskStrategy({
   recoveryThreshold,
   blockedItemsByBot,
 }) {
-  const orderFlush = buildOrderFlushContext(state, world, planner.profile);
-  const tasks = buildTasks(state, world, planner.profile, phase, { orderFlush });
+  const tasks = buildTasks(state, world, planner.profile, phase);
   const costs = buildCostMatrix(state, tasks, planner.profile, phase, { blockedItemsByBot });
   const { assignment } = solveMinCostAssignment(costs);
 
@@ -315,8 +313,6 @@ export function executeAssignedTaskStrategy({
     recoveryThreshold,
     loopDetections: planner.loopDetectionsThisTick,
     approachBlacklistSize: 0,
-    orderFlushActive: orderFlush.active,
-    orderFlushRemainingActiveCount: orderFlush.remainingActiveCount,
     orderEtaAtDecision: null,
     projectedCompletionFeasible: null,
   };

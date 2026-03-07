@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 
 import {
   actionFromTask,
-  buildOrderFlushContext,
   buildCostMatrix,
   buildTasks,
   estimateZonePenalty,
@@ -86,59 +85,6 @@ test('buildTasks caps preview pickup candidates to remaining preview demand plus
   const pastaTasks = tasks.filter((task) => task.kind === 'pick_up' && task.item.type === 'pasta');
 
   assert.equal(pastaTasks.length <= 2, true);
-});
-
-test('buildOrderFlushContext activates when active order is nearly covered by held and adjacent items', () => {
-  const state = baseState({
-    bots: [
-      { id: 0, position: [1, 1], inventory: ['milk'] },
-      { id: 1, position: [3, 2], inventory: [] },
-      { id: 2, position: [5, 1], inventory: [] },
-    ],
-    items: [
-      { id: 'bread_0', type: 'bread', position: [3, 3] },
-      { id: 'pasta_0', type: 'pasta', position: [7, 3] },
-    ],
-    orders: [
-      { id: 'o0', items_required: ['milk', 'bread'], items_delivered: [], status: 'active', complete: false },
-      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
-    ],
-  });
-
-  const orderFlush = buildOrderFlushContext(state, buildWorldContext(state), defaultProfiles.medium);
-
-  assert.equal(orderFlush.active, true);
-  assert.equal(orderFlush.remainingActiveCount, 1);
-  assert.equal(orderFlush.adjacentCoverageCount >= 1, true);
-});
-
-test('buildTasks suppresses preview work and boosts drop priority during order flush', () => {
-  const state = baseState({
-    bots: [
-      { id: 0, position: [1, 1], inventory: ['milk'] },
-      { id: 1, position: [3, 2], inventory: [] },
-      { id: 2, position: [5, 1], inventory: [] },
-    ],
-    items: [
-      { id: 'bread_0', type: 'bread', position: [3, 3] },
-      { id: 'pasta_0', type: 'pasta', position: [7, 3] },
-    ],
-    orders: [
-      { id: 'o0', items_required: ['milk', 'bread'], items_delivered: [], status: 'active', complete: false },
-      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
-    ],
-  });
-  const world = buildWorldContext(state);
-  const orderFlush = buildOrderFlushContext(state, world, defaultProfiles.medium);
-  const tasks = buildTasks(state, world, defaultProfiles.medium, 'mid', { orderFlush });
-
-  const previewTasks = tasks.filter((task) => task.kind === 'pick_up' && task.sourceOrder === 'preview');
-  const dropTask = tasks.find((task) => task.kind === 'drop_off' && task.botId === 0);
-
-  assert.equal(orderFlush.active, true);
-  assert.equal(previewTasks.length, 0);
-  assert.ok(dropTask);
-  assert.equal(dropTask.demandScore > 4, true);
 });
 
 test('buildCostMatrix quarantines blocked pickup items per bot', () => {

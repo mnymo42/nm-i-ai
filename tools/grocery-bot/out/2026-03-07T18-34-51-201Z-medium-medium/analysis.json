@@ -1,0 +1,166 @@
+{
+  "finalScore": 13,
+  "ordersCompleted": 1,
+  "itemsDelivered": 8,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 1
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 2
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 1
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 8
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 1
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 0
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 0
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 20,
+      "length": 21
+    },
+    {
+      "startTick": 21,
+      "endTick": 42,
+      "length": 22
+    },
+    {
+      "startTick": 43,
+      "endTick": 58,
+      "length": 16
+    },
+    {
+      "startTick": 59,
+      "endTick": 80,
+      "length": 22
+    },
+    {
+      "startTick": 81,
+      "endTick": 98,
+      "length": 18
+    },
+    {
+      "startTick": 99,
+      "endTick": 110,
+      "length": 12
+    },
+    {
+      "startTick": 111,
+      "endTick": 299,
+      "length": 189
+    }
+  ],
+  "failedPickups": {
+    "total": 8,
+    "byItemId": {
+      "item_8": 3,
+      "item_1": 2,
+      "item_0": 2,
+      "item_30": 1
+    },
+    "byItemType": {
+      "milk": 5,
+      "yogurt": 2,
+      "bread": 1
+    }
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 0,
+      "byReason": {}
+    },
+    "waitActions": 25,
+    "nonScoringDropoffs": 5
+  },
+  "multiBotCoordination": {
+    "botCount": 3,
+    "totalStalls": 313,
+    "maxStalledBots": 3,
+    "peakTaskCount": 11,
+    "forcedWaitActions": 16,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "yogurt",
+    "bread",
+    "milk"
+  ]
+}

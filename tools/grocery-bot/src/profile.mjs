@@ -80,7 +80,6 @@ export const defaultProfiles = {
     },
     runtime: {
       multi_bot_strategy: 'assignment_v1',
-      enable_order_flush: true,
       nudge_invalid_only: true,
       nudge_planned_waits: false,
       max_consecutive_pick_failures_before_forbid: 2,
@@ -95,9 +94,6 @@ export const defaultProfiles = {
       no_path_reassign_rounds: 2,
       endgame_preview_disable_rounds: 40,
       drop_commit_min_deliverable: 2,
-      order_flush_missing_threshold: 2,
-      order_flush_drop_bonus: 4,
-      order_flush_pick_bonus: 1,
     },
   },
   hard: {
