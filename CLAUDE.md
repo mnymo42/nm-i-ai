@@ -51,12 +51,15 @@ node --test tools/grocery-bot/test/*.test.mjs
 tools/grocery-bot/
 ├── index.mjs                    Entry point, mode dispatch
 ├── src/
-│   ├── planner.mjs              Core decision logic — READ THIS before any strategy changes
+│   ├── planner.mjs              planSingleBot + GroceryPlanner class — read for strategy changes
+│   ├── planner-singlebot.mjs    Single-bot evaluation, recovery, cooldowns, oscillation detection
+│   ├── planner-multibot.mjs     Multi-bot assignment, routing, deadlock (medium+)
+│   ├── planner-utils.mjs        Shared helpers (demand, phase, congestion, path utils)
 │   ├── game-client.mjs          WebSocket loop, action sanitizer, pickup tracking
 │   ├── routing.mjs              Time-aware A* + path reservations (collision avoidance)
 │   ├── assignment.mjs           Min-cost bot-to-item matching
 │   ├── optimizer.mjs            Profile parameter search (random mutation over replay)
-│   ├── replay.mjs               Logging, summarize mode, simulate mode
+│   ├── replay.mjs               Logging, summarize, simulate, analysis generation
 │   ├── world-model.mjs          Demand/inventory helpers
 │   ├── coords.mjs               Grid geometry, move encoding
 │   ├── grid-graph.mjs           Graph for pathfinding
@@ -68,8 +71,9 @@ tools/grocery-bot/
 │   └── profiles.json            Tunable parameters per difficulty (source of truth)
 ├── out/
 │   ├── <run-id>/
-│   │   ├── replay.jsonl         Full tick-by-tick log — do not delete, used by tuner
-│   │   └── summary.json         Final score, orders, items
+│   │   ├── replay.jsonl         Slim tick-by-tick log (layout entry + diffs) — do not delete
+│   │   ├── summary.json         Final score, orders, items
+│   │   └── analysis.json        Compact run analysis — READ THIS first before touching code
 │   └── tuned-<diff>.json        Output of tune mode (merge back into profiles.json when good)
 └── test/                        Node --test unit tests
 ```
@@ -93,22 +97,26 @@ Each tick: build world context → cost-matrix assignment (each bot → item or 
 ## Development Workflow
 
 For each improvement iteration:
-1. Read `planner.mjs` and `STRATEGY_REVIEW.md` before touching anything
-2. Make the targeted change
-3. Run tests: `node --test tools/grocery-bot/test/*.test.mjs`
-4. Simulate offline: `--mode simulate` against the latest replay
-5. If simulation shows improvement → play live to confirm
-6. If score improves → run `--mode tune` against the new replay and merge params
-
-Use the **replay-analyzer** subagent (`.claude/agents/replay-analyzer.md`) to extract structured findings from any replay before planning code changes. Prefer simulate → analyze → change cycles over blind live runs.
+1. Read `out/<run-id>/analysis.json` — compact score/pickup/stall summary, fast to read
+2. Use the **replay-analyzer** subagent (`.claude/agents/replay-analyzer.md`) for deep replay digs
+3. Read the relevant planner file (not all of planner.mjs — pick the right module):
+   - Strategy changes → `planner.mjs` (planSingleBot + GroceryPlanner)
+   - Recovery/cooldown bugs → `planner-singlebot.mjs`
+   - Multi-bot routing/assignment → `planner-multibot.mjs`
+4. Make the targeted change
+5. Run tests: `node --test tools/grocery-bot/test/*.test.mjs`
+6. Simulate offline: `--mode simulate` against the latest replay (measures action agreement, not score)
+7. If change looks good → play live to confirm actual score
+8. If score improves → run `--mode tune` against the new replay and merge params
 
 ## Active Improvement Backlog
 
 Full analysis in `tools/grocery-bot/STRATEGY_REVIEW.md`. Priority order:
 
-1. **Shelf reliability model v2** — track per-`item_id` reliability score globally; penalize and avoid shelves with repeated failed pickups; prefer alternate shelf IDs of same type
-2. **Completion lock with explicit subgoals** — instead of re-deciding every tick, commit to a `pickup_needed → go_dropoff → drop` chain; force-unlock only on impossibility or score mismatch
-3. **Lag-aware action stabilization** — maintain 1–2 round intent memory; do not replan direction if bot position hasn't reflected last action yet
+1. **Run easy, get analysis.json** — establish fresh baseline with new infrastructure
+2. **Shelf reliability model v2** — track per-`item_id` reliability score globally; penalize and avoid shelves with repeated failed pickups; prefer alternate shelf IDs of same type
+3. **Completion lock with explicit subgoals** — instead of re-deciding every tick, commit to a `pickup_needed → go_dropoff → drop` chain; force-unlock only on impossibility or score mismatch
+4. **Lag-aware action stabilization** — maintain 1–2 round intent memory; do not replan direction if bot position hasn't reflected last action yet
 
 ## Conventions
 

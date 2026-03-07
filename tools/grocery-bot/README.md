@@ -24,8 +24,9 @@ node tools/grocery-bot/index.mjs --token <TOKEN> --difficulty hard --profile har
 
 Artifacts are written to:
 
-- `tools/grocery-bot/out/<run-id>/replay.jsonl`
-- `tools/grocery-bot/out/<run-id>/summary.json`
+- `tools/grocery-bot/out/<run-id>/replay.jsonl` — slim tick-by-tick log
+- `tools/grocery-bot/out/<run-id>/summary.json` — final score, orders, items
+- `tools/grocery-bot/out/<run-id>/analysis.json` — compact run analysis (read this first)
 
 ### 2) Summarize replay
 
@@ -38,6 +39,8 @@ node tools/grocery-bot/index.mjs --mode summarize --difficulty hard --replay too
 ```bash
 node tools/grocery-bot/index.mjs --mode simulate --difficulty hard --profile hard --replay tools/grocery-bot/out/<run-id>/replay.jsonl
 ```
+
+Output is `matchRatio` (action agreement with past run) and `waitRatio`. Note: this measures agreement with past actions, not actual score improvement — use live play to confirm score impact.
 
 ### 4) Tune profile from replay
 

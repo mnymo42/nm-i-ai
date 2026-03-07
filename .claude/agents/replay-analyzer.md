@@ -13,10 +13,22 @@ Your job is to extract precise, actionable findings from a replay file that a de
 
 ## What a replay contains
 
-Each line is a JSON object. Line types:
+### analysis.json (always read this first)
+Each run produces `out/<run-id>/analysis.json` — a pre-computed compact summary:
+- `scoreByWindow` — score delta per 25-tick window
+- `stagnationWindows` — zero-score runs ≥10 ticks with start/end/length
+- `failedPickups` — total, byItemId, byItemType
+- `actionEfficiency` — sanitizer overrides (with reasons), waitActions, nonScoringDropoffs
+- `wastedInventoryAtEnd` — item types still held at game_over
+
+Read this file before opening replay.jsonl. It answers most questions in 2KB.
+
+### replay.jsonl format (for deep investigation only)
+Each line is a JSON object:
+- `type: "layout"` — **first entry only**; constant fields: `grid`, `drop_off`, `max_rounds`
 - `type: "tick"` — one game tick. Contains:
   - `tick` — round number (0–299)
-  - `state_snapshot` — full game state: bots (position, inventory), items, orders, grid, score
+  - `state_snapshot` — slim state: bots, items, orders, score (no grid — see layout entry)
   - `actions_sent` — what was actually sent to the server
   - `actions_planned` — what the planner intended before sanitization
   - `sanitizer_overrides` — actions that were overridden (with reason)
@@ -26,12 +38,14 @@ Each line is a JSON object. Line types:
 
 ## Analysis protocol
 
-Run the summarize mode first for a high-level view:
+1. Read `analysis.json` for the high-level picture
+2. If tick-level detail is needed for a specific finding, grep replay.jsonl with a targeted pattern
+3. Only as a last resort, run summarize mode:
 ```bash
 node tools/grocery-bot/index.mjs --mode summarize --difficulty <diff> --replay <path>
 ```
 
-Then parse the replay.jsonl directly for deep analysis. The file can be large — use targeted grep and selective reading.
+Never load the full replay.jsonl into context — always use targeted grep.
 
 ## Required output structure
 
@@ -85,5 +99,6 @@ One specific code change to make first, referencing the exact file and function 
 - Be precise — cite tick numbers and counts, not vague descriptions
 - Focus on the highest-leverage finding, not an exhaustive list
 - For multi-bot difficulties, always check whether bots are routing into each other
-- The tuner only mutates assignment/routing parameters — behavioral bugs in planner.mjs cannot be fixed by tuning alone
+- The tuner only mutates assignment/routing parameters — behavioral bugs in planner logic cannot be fixed by tuning alone
+- Planner is split across files: strategy/GroceryPlanner → `planner.mjs`, recovery/cooldowns → `planner-singlebot.mjs`, multi-bot → `planner-multibot.mjs`
 - If the replay is from a single-bot (easy) run, skip the multi-bot coordination section
