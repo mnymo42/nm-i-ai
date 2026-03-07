@@ -1,0 +1,185 @@
+{
+  "finalScore": 99,
+  "ordersCompleted": 10,
+  "itemsDelivered": 49,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 1
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 3
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 8
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 17
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 9
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 4
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 16
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 1
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 8
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 10
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 8
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 10
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 20,
+      "length": 21
+    },
+    {
+      "startTick": 21,
+      "endTick": 39,
+      "length": 19
+    },
+    {
+      "startTick": 47,
+      "endTick": 59,
+      "length": 13
+    },
+    {
+      "startTick": 60,
+      "endTick": 77,
+      "length": 18
+    },
+    {
+      "startTick": 82,
+      "endTick": 97,
+      "length": 16
+    },
+    {
+      "startTick": 98,
+      "endTick": 107,
+      "length": 10
+    },
+    {
+      "startTick": 116,
+      "endTick": 126,
+      "length": 11
+    },
+    {
+      "startTick": 132,
+      "endTick": 153,
+      "length": 22
+    },
+    {
+      "startTick": 178,
+      "endTick": 200,
+      "length": 23
+    },
+    {
+      "startTick": 215,
+      "endTick": 231,
+      "length": 17
+    },
+    {
+      "startTick": 239,
+      "endTick": 249,
+      "length": 11
+    },
+    {
+      "startTick": 250,
+      "endTick": 263,
+      "length": 14
+    },
+    {
+      "startTick": 264,
+      "endTick": 273,
+      "length": 10
+    },
+    {
+      "startTick": 279,
+      "endTick": 291,
+      "length": 13
+    }
+  ],
+  "failedPickups": {
+    "total": 0,
+    "byItemId": {},
+    "byItemType": {}
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 0,
+      "byReason": {}
+    },
+    "waitActions": 14,
+    "nonScoringDropoffs": 0
+  },
+  "multiBotCoordination": {
+    "botCount": 3,
+    "totalStalls": 108,
+    "maxStalledBots": 3,
+    "peakTaskCount": 11,
+    "forcedWaitActions": 9,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "cream",
+    "bread",
+    "eggs"
+  ]
+}
