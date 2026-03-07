@@ -135,6 +135,7 @@ export function generateOracleScriptCandidates({
 }) {
   const candidates = [];
   let progressCompleted = 0;
+  let bestSoFar = null;
 
   const modularBaseOptions = strategy === 'auto' || strategy === 'modular'
     ? (searchSpace === 'wide'
@@ -159,11 +160,20 @@ export function generateOracleScriptCandidates({
   const totalPlanned = modularOptionsToRun.length + legacyOptionsToRun.length;
 
   function emitProgress(latestStrategy) {
+    const bestScore = bestSoFar ? {
+      strategy: bestSoFar.strategy,
+      ordersCovered: bestSoFar.orders_covered || 0,
+      estimatedScore: bestSoFar.estimated_score || 0,
+      lastScriptedTick: bestSoFar.last_scripted_tick ?? Number.POSITIVE_INFINITY,
+      waits: bestSoFar.aggregate_efficiency?.total_waits || 0,
+      settings: bestSoFar.settings || null,
+    } : null;
     onProgress?.({
       completed: progressCompleted,
       total: totalPlanned,
       latestStrategy,
       candidatesKept: candidates.length,
+      best: bestScore,
     });
   }
 
@@ -182,6 +192,9 @@ export function generateOracleScriptCandidates({
           options: merged,
           script: { ...script, strategy: 'modular', settings: merged },
         });
+        if (!bestSoFar || compareGeneratedScripts(bestSoFar, script) > 0) {
+          bestSoFar = { ...script, strategy: 'modular', settings: merged };
+        }
       } catch {
         // Invalid candidates are expected during search; keep the sweep robust.
       } finally {
@@ -206,6 +219,9 @@ export function generateOracleScriptCandidates({
           options: merged,
           script: { ...script, strategy: 'legacy', settings: merged },
         });
+        if (!bestSoFar || compareGeneratedScripts(bestSoFar, script) > 0) {
+          bestSoFar = { ...script, strategy: 'legacy', settings: merged };
+        }
       } catch {
         // Legacy candidates can also dead-end; skip them.
       } finally {
