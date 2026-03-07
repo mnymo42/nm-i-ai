@@ -88,14 +88,14 @@ function main() {
   const startedAt = Date.now();
   let lastProgressPrinted = 0;
 
-  function reportProgress({ completed, latestStrategy, candidatesKept }) {
-    const shouldPrint = completed <= 5 || completed - lastProgressPrinted >= 25 || completed === args.iterations;
+  function reportProgress({ completed, total, latestStrategy, candidatesKept }) {
+    const shouldPrint = completed <= 5 || completed - lastProgressPrinted >= 25 || completed === total;
     if (!shouldPrint) {
       return;
     }
     lastProgressPrinted = completed;
     console.error(
-      `[progress] ${completed}/${args.iterations} evaluated (${latestStrategy}), valid=${candidatesKept}`,
+      `[progress] ${completed}/${total} evaluated (${latestStrategy}), valid=${candidatesKept}`,
     );
   }
 

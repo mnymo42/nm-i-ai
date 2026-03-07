@@ -136,15 +136,39 @@ export function generateOracleScriptCandidates({
   const candidates = [];
   let progressCompleted = 0;
 
-  if (strategy === 'auto' || strategy === 'modular') {
-    const baseOptions = searchSpace === 'wide'
+  const modularBaseOptions = strategy === 'auto' || strategy === 'modular'
+    ? (searchSpace === 'wide'
       ? shuffleDeterministic(buildModularSearchSpace(), seed ^ 0x51f15e)
-      : [...buildModularCandidateOptions()];
-    const optionsToRun = candidateLimit && searchSpace === 'wide'
-      ? baseOptions.slice(0, Math.ceil(candidateLimit / (strategy === 'auto' ? 2 : 1)))
-      : baseOptions;
+      : [...buildModularCandidateOptions()])
+    : [];
+  const modularOptionsToRun = (strategy === 'auto' || strategy === 'modular')
+    ? (candidateLimit && searchSpace === 'wide'
+      ? modularBaseOptions.slice(0, Math.ceil(candidateLimit / (strategy === 'auto' ? 2 : 1)))
+      : modularBaseOptions)
+    : [];
+  const legacyBaseOptions = strategy === 'auto' || strategy === 'legacy'
+    ? (searchSpace === 'wide'
+      ? shuffleDeterministic(buildLegacySearchSpace(), seed ^ 0xa91e11)
+      : [...buildLegacyCandidateOptions()])
+    : [];
+  const legacyOptionsToRun = (strategy === 'auto' || strategy === 'legacy')
+    ? (candidateLimit && searchSpace === 'wide'
+      ? legacyBaseOptions.slice(0, Math.ceil(candidateLimit / (strategy === 'auto' ? 2 : 1)))
+      : legacyBaseOptions)
+    : [];
+  const totalPlanned = modularOptionsToRun.length + legacyOptionsToRun.length;
 
-    for (const options of optionsToRun) {
+  function emitProgress(latestStrategy) {
+    onProgress?.({
+      completed: progressCompleted,
+      total: totalPlanned,
+      latestStrategy,
+      candidatesKept: candidates.length,
+    });
+  }
+
+  if (strategy === 'auto' || strategy === 'modular') {
+    for (const options of modularOptionsToRun) {
       const merged = { ...options, ...modularOptions };
       try {
         const script = generateOracleScript({
@@ -162,24 +186,13 @@ export function generateOracleScriptCandidates({
         // Invalid candidates are expected during search; keep the sweep robust.
       } finally {
         progressCompleted += 1;
-        onProgress?.({
-          completed: progressCompleted,
-          latestStrategy: 'modular',
-          candidatesKept: candidates.length,
-        });
+        emitProgress('modular');
       }
     }
   }
 
   if (strategy === 'auto' || strategy === 'legacy') {
-    const baseOptions = searchSpace === 'wide'
-      ? shuffleDeterministic(buildLegacySearchSpace(), seed ^ 0xa91e11)
-      : [...buildLegacyCandidateOptions()];
-    const optionsToRun = candidateLimit && searchSpace === 'wide'
-      ? baseOptions.slice(0, Math.ceil(candidateLimit / (strategy === 'auto' ? 2 : 1)))
-      : baseOptions;
-
-    for (const options of optionsToRun) {
+    for (const options of legacyOptionsToRun) {
       const merged = { ...options, ...legacyOptions };
       try {
         const script = buildLegacyOracleScript({
@@ -197,11 +210,7 @@ export function generateOracleScriptCandidates({
         // Legacy candidates can also dead-end; skip them.
       } finally {
         progressCompleted += 1;
-        onProgress?.({
-          completed: progressCompleted,
-          latestStrategy: 'legacy',
-          candidatesKept: candidates.length,
-        });
+        emitProgress('legacy');
       }
     }
   }
