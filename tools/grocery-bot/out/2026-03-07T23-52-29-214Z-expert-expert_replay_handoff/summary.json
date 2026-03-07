@@ -1,0 +1,16 @@
+{
+  "runId": "2026-03-07T23-52-29-214Z-expert-expert_replay_handoff",
+  "difficulty": "expert",
+  "profile": "expert_replay_handoff",
+  "finalScore": 13,
+  "finalItems": 8,
+  "finalOrders": 1,
+  "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-07T23-52-29-214Z-expert-expert_replay_handoff/replay.jsonl",
+  "metrics": {
+    "ticks": 300,
+    "finalScore": 13,
+    "ordersCompleted": 1,
+    "itemsDelivered": 8,
+    "totalStalls": 971
+  }
+}

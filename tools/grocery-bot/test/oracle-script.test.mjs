@@ -355,10 +355,10 @@ test('replay compression preserves expected state and reports actual script-end 
   assert.equal(script.replay_target_meta.compression_mode, 'handoff_early');
   assert.equal(script.ticks[0].expected_state.type, null);
   assert.equal(script.ticks[0].expected_state.round, null);
-  assert.equal(script.ticks[0].expected_state.max_rounds, null);
+  assert.equal(script.ticks[0].expected_state.max_rounds, 300);
   assert.equal(script.ticks[0].expected_state.score, 0);
-  assert.equal(script.ticks[0].expected_state.drop_off, null);
-  assert.deepEqual(script.ticks[0].expected_state.drop_offs, []);
+  assert.deepEqual(script.ticks[0].expected_state.drop_off, oracle.drop_off);
+  assert.deepEqual(script.ticks[0].expected_state.drop_offs, [oracle.drop_off]);
   assert.deepEqual(script.ticks[0].expected_state.bots, [
     { id: 0, position: [9, 8], inventory: [] },
   ]);
@@ -649,10 +649,10 @@ test('replay compressor rewinds to earliest tick that reaches the target score',
   assert.equal(compressed.replay_target_meta.final_tick_delta, 0);
   assert.equal(compressed.ticks[0].expected_state.type, null);
   assert.equal(compressed.ticks[0].expected_state.round, null);
-  assert.equal(compressed.ticks[0].expected_state.max_rounds, null);
+  assert.equal(compressed.ticks[0].expected_state.max_rounds, 300);
   assert.equal(compressed.ticks[0].expected_state.score, 0);
-  assert.equal(compressed.ticks[0].expected_state.drop_off, null);
-  assert.deepEqual(compressed.ticks[0].expected_state.drop_offs, []);
+  assert.deepEqual(compressed.ticks[0].expected_state.drop_off, oracle.drop_off);
+  assert.deepEqual(compressed.ticks[0].expected_state.drop_offs, [oracle.drop_off]);
   assert.deepEqual(compressed.ticks[0].expected_state.bots, [
     { id: 0, position: [4, 8], inventory: [] },
     { id: 1, position: [8, 8], inventory: [] },

@@ -9,6 +9,7 @@ import { tuneProfileFromReplay } from './src/optimizer.mjs';
 import { loadOracleFile, loadScriptFile } from './src/oracle-script-io.mjs';
 import { GroceryPlanner } from './src/planner.mjs';
 import { loadProfiles, resolveProfile } from './src/profile.mjs';
+import { buildRunProvenance } from './src/run-provenance.mjs';
 import {
   ReplayLogger,
   summarizeReplay,
@@ -50,7 +51,23 @@ async function runPlayMode(args) {
   }
   const oracle = oracleLoad?.data || null;
   const script = scriptLoad?.data || null;
+  const provenance = buildRunProvenance({
+    difficulty: args.difficulty,
+    profileName,
+    profile: selectedProfile,
+    oraclePath: args.oracle,
+    oracle,
+    scriptPath: args.script,
+    script,
+  });
   const planner = new GroceryPlanner(selectedProfile, { oracle, script });
+
+  logger.log({
+    type: 'run_meta',
+    difficulty: args.difficulty,
+    profile: profileName,
+    provenance,
+  });
 
   let final = null;
   try {
@@ -74,6 +91,7 @@ async function runPlayMode(args) {
     finalItems: final?.items ?? replaySummary.itemsDelivered,
     finalOrders: final?.orders ?? replaySummary.ordersCompleted,
     replay: replayPath,
+    provenance,
     metrics: replaySummary,
   };
 
