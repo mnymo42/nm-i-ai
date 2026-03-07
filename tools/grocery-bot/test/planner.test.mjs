@@ -756,3 +756,77 @@ test('single-bot planner drops partial inventory at endgame when full completion
 
   assert.deepEqual(actions, [{ bot: 0, action: 'drop_off' }]);
 });
+
+test('medium mission planner persists mission while target and order remain valid', () => {
+  const planner = new GroceryPlanner(defaultProfiles.medium);
+  const state0 = baseState({
+    round: 0,
+    grid: { width: 12, height: 10, walls: [] },
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [5, 1], inventory: [] },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+    ],
+    drop_off: [1, 8],
+    score: 0,
+  });
+
+  planner.plan(state0);
+  const firstMission = planner.missionsByBot.get(0);
+
+  planner.plan({ ...state0, round: 1 });
+  const secondMission = planner.missionsByBot.get(0);
+
+  assert.equal(firstMission.missionType, 'collect_active');
+  assert.equal(secondMission.missionType, 'collect_active');
+  assert.equal(secondMission.targetItemId, firstMission.targetItemId);
+  assert.equal(secondMission.assignedAtRound, firstMission.assignedAtRound);
+});
+
+test('medium mission planner invalidates mission when active order changes', () => {
+  const planner = new GroceryPlanner(defaultProfiles.medium);
+  const state0 = baseState({
+    round: 0,
+    grid: { width: 12, height: 10, walls: [] },
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [5, 1], inventory: [] },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['bread'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    drop_off: [1, 8],
+    score: 0,
+  });
+
+  planner.plan(state0);
+  const firstMission = planner.missionsByBot.get(0);
+
+  const state1 = {
+    ...state0,
+    round: 1,
+    items: [
+      { id: 'bread_0', type: 'bread', position: [3, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: ['milk'], status: 'done', complete: true },
+      { id: 'o1', items_required: ['bread'], items_delivered: [], status: 'active', complete: false },
+    ],
+  };
+
+  planner.plan(state1);
+  const secondMission = planner.missionsByBot.get(0);
+
+  assert.equal(firstMission.orderId, 'o0');
+  assert.equal(secondMission.orderId, 'o1');
+  assert.equal(secondMission.targetType, 'bread');
+});

@@ -53,6 +53,9 @@ export const defaultProfiles = {
       urgency_bonus: 0.35,
       remaining_demand_priority: 1.2,
       preview_item_weight: 0.25,
+      preview_mission_concurrency: 1,
+      active_cross_zone_penalty: 0.3,
+      preview_cross_zone_penalty: 1.6,
     },
     routing: {
       horizon: 16,
@@ -76,6 +79,7 @@ export const defaultProfiles = {
       loop_break_rounds: 6,
     },
     runtime: {
+      multi_bot_strategy: 'mission_v1',
       nudge_invalid_only: true,
       nudge_planned_waits: false,
       max_consecutive_pick_failures_before_forbid: 2,
@@ -85,6 +89,11 @@ export const defaultProfiles = {
       target_lock_stall_rounds: 12,
       target_lock_forbid_ttl: 30,
       order_stall_bailout_rounds: 20,
+      mission_ttl_rounds: 6,
+      mission_stall_rounds: 4,
+      no_path_reassign_rounds: 2,
+      endgame_preview_disable_rounds: 40,
+      drop_commit_min_deliverable: 2,
     },
   },
   hard: {

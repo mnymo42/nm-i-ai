@@ -66,6 +66,17 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Verdict: `revert`
 - Notes: concept is reasonable, but current implementation is too rigid. It increased waits, forced waits, and wasted inventory in both medium and expert. Revisit later only as a softer bias, especially for higher bot counts.
 
+### Medium mission planner v1
+
+- Hypothesis: medium is plateauing because bots are fully re-tasked every tick instead of holding short-lived warehouse-style missions.
+- Change: medium-only mission layer with mission persistence, mission-level active demand reservation, one-preview-runner cap, endgame preview cutoff, idle repositioning, and replay-visible mission metrics.
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+  - replay simulate against `2026-03-07T16-14-57-783Z-medium-medium` -> `0.6978` match ratio, `0.02` wait ratio
+  - replay simulate against `2026-03-07T16-55-44-962Z-medium-medium` -> `0.73` match ratio, `0.0156` wait ratio
+- Verdict: `pending live validation`
+- Notes: implemented but not yet promoted. Only update the medium benchmark if a fresh live run beats `109` without reintroducing failed pickups or dead inventory.
+
 ## Guidance
 
 - Prefer experiments that are soft cost-shaping changes over hard role locks.

@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import {
   buildCostMatrix,
   buildTasks,
+  buildMediumMissionAssignments,
   estimateZonePenalty,
 } from '../src/planner-multibot.mjs';
+import { GridGraph } from '../src/grid-graph.mjs';
 import { defaultProfiles } from '../src/profile.mjs';
 import { buildWorldContext } from '../src/world-model.mjs';
 
@@ -29,6 +31,13 @@ function baseState(overrides = {}) {
     score: 0,
     ...overrides,
   };
+}
+
+function buildGraph(state) {
+  return new GridGraph({
+    ...state.grid,
+    walls: [...state.grid.walls],
+  });
 }
 
 test('buildTasks does not create preview pickup tasks when preview demand is already covered by inventory', () => {
@@ -122,4 +131,176 @@ test('estimateZonePenalty prefers same-zone preview picking', () => {
   const rightPenalty = estimateZonePenalty({ bot: state.bots[2], task, state, profile: defaultProfiles.medium });
 
   assert.equal(leftPenalty < rightPenalty, true);
+});
+
+test('buildMediumMissionAssignments reserves active demand so only one bot targets a single missing unit', () => {
+  const state = baseState({
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+      { id: 'milk_1', type: 'milk', position: [7, 3] },
+    ],
+  });
+
+  const missionPlan = buildMediumMissionAssignments({
+    state,
+    world: buildWorldContext(state),
+    graph: buildGraph(state),
+    profile: defaultProfiles.medium,
+    phase: 'early',
+    round: 0,
+  });
+
+  const activeMissions = [...missionPlan.missionsByBot.values()].filter((mission) => mission.missionType === 'collect_active');
+  assert.equal(activeMissions.length, 1);
+  assert.equal(missionPlan.metrics.activeMissionsAssigned, 1);
+});
+
+test('buildMediumMissionAssignments suppresses preview missions while active demand is still uncovered', () => {
+  const state = baseState({
+    orders: [
+      { id: 'o0', items_required: ['milk', 'milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+      { id: 'pasta_0', type: 'pasta', position: [5, 3] },
+    ],
+  });
+
+  const missionPlan = buildMediumMissionAssignments({
+    state,
+    world: buildWorldContext(state),
+    graph: buildGraph(state),
+    profile: defaultProfiles.medium,
+    phase: 'early',
+    round: 0,
+  });
+
+  const previewMissions = [...missionPlan.missionsByBot.values()].filter((mission) => mission.missionType === 'collect_preview');
+  assert.equal(previewMissions.length, 0);
+  assert.equal(missionPlan.metrics.previewSuppressed, true);
+});
+
+test('buildMediumMissionAssignments allows only one preview mission in medium', () => {
+  const state = baseState({
+    orders: [
+      { id: 'o0', items_required: [], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta', 'pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    items: [
+      { id: 'pasta_0', type: 'pasta', position: [1, 3] },
+      { id: 'pasta_1', type: 'pasta', position: [5, 3] },
+      { id: 'pasta_2', type: 'pasta', position: [9, 3] },
+    ],
+  });
+
+  const missionPlan = buildMediumMissionAssignments({
+    state,
+    world: buildWorldContext(state),
+    graph: buildGraph(state),
+    profile: defaultProfiles.medium,
+    phase: 'early',
+    round: 0,
+  });
+
+  const previewMissions = [...missionPlan.missionsByBot.values()].filter((mission) => mission.missionType === 'collect_preview');
+  assert.equal(previewMissions.length, 1);
+  assert.equal(missionPlan.metrics.previewMissionsAssigned, 1);
+});
+
+test('buildMediumMissionAssignments prioritizes drop missions for bots carrying active deliverables', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [6, 4], inventory: ['milk', 'bread'] },
+      { id: 1, position: [3, 1], inventory: [] },
+      { id: 2, position: [5, 1], inventory: [] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk', 'bread'], items_delivered: [], status: 'active', complete: false },
+    ],
+  });
+
+  const missionPlan = buildMediumMissionAssignments({
+    state,
+    world: buildWorldContext(state),
+    graph: buildGraph(state),
+    profile: defaultProfiles.medium,
+    phase: 'early',
+    round: 0,
+  });
+
+  assert.equal(missionPlan.missionsByBot.get(0).missionType, 'drop_active');
+  assert.equal(missionPlan.metrics.dropMissionsAssigned >= 1, true);
+});
+
+test('buildMediumMissionAssignments disables preview missions in endgame cutoff window', () => {
+  const state = baseState({
+    round: 270,
+    orders: [
+      { id: 'o0', items_required: [], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    items: [
+      { id: 'pasta_0', type: 'pasta', position: [3, 3] },
+    ],
+  });
+
+  const missionPlan = buildMediumMissionAssignments({
+    state,
+    world: buildWorldContext(state),
+    graph: buildGraph(state),
+    profile: defaultProfiles.medium,
+    phase: 'endgame',
+    round: 270,
+  });
+
+  const previewMissions = [...missionPlan.missionsByBot.values()].filter((mission) => mission.missionType === 'collect_preview');
+  assert.equal(previewMissions.length, 0);
+  assert.equal(missionPlan.metrics.previewSuppressed, true);
+});
+
+test('buildMediumMissionAssignments prefers same-zone preview item and falls back cross-zone when needed', () => {
+  const localState = baseState({
+    orders: [
+      { id: 'o0', items_required: [], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    items: [
+      { id: 'pasta_local', type: 'pasta', position: [1, 3] },
+      { id: 'pasta_far', type: 'pasta', position: [11, 3] },
+    ],
+  });
+
+  const localPlan = buildMediumMissionAssignments({
+    state: localState,
+    world: buildWorldContext(localState),
+    graph: buildGraph(localState),
+    profile: defaultProfiles.medium,
+    phase: 'early',
+    round: 0,
+  });
+  assert.equal(localPlan.missionsByBot.get(0).targetItemId, 'pasta_local');
+
+  const fallbackState = baseState({
+    orders: [
+      { id: 'o0', items_required: [], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    items: [
+      { id: 'pasta_far', type: 'pasta', position: [11, 3] },
+    ],
+  });
+
+  const fallbackPlan = buildMediumMissionAssignments({
+    state: fallbackState,
+    world: buildWorldContext(fallbackState),
+    graph: buildGraph(fallbackState),
+    profile: defaultProfiles.medium,
+    phase: 'early',
+    round: 0,
+  });
+  assert.equal(fallbackPlan.missionsByBot.get(0).targetItemId, 'pasta_far');
 });

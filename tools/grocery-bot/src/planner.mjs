@@ -13,8 +13,10 @@ import {
 import {
   buildTasks,
   buildCostMatrix,
+  buildMediumMissionAssignments,
   makeOccupancyReservations,
   actionFromTask,
+  resolveMissionAction,
   chooseFallbackAction,
 } from './planner-multibot.mjs';
 import {
@@ -315,6 +317,7 @@ export class GroceryPlanner {
     this.loopBreakRoundsByBot = new Map();
     this.loopDetectionsThisTick = 0;
     this.targetFocusByBot = new Map();
+    this.missionsByBot = new Map();
   }
 
   resetIntentState() {
@@ -328,6 +331,7 @@ export class GroceryPlanner {
     this.positionHistoryByBot = new Map();
     this.loopBreakRoundsByBot = new Map();
     this.targetFocusByBot = new Map();
+    this.missionsByBot = new Map();
   }
 
   getLastMetrics() {
@@ -337,6 +341,8 @@ export class GroceryPlanner {
   plan(state) {
     this.resetTriggered = false;
     this.loopDetectionsThisTick = 0;
+    const previousPositionByBot = new Map(this.previousPositions);
+    const previousInventoryKeyByBot = new Map(this.lastInventoryByBot);
     const previousScore = this.lastScore;
     const scoreImproved = previousScore === null || state.score > previousScore;
     const activeOrder = state.orders?.find((order) => order.status === 'active' && !order.complete) || null;
@@ -681,10 +687,125 @@ export class GroceryPlanner {
       return [finalAction];
     }
 
-    const tasks = buildTasks(state, world, this.profile, phase);
     const blockedItemsByBot = new Map(
       state.bots.map((bot) => [bot.id, this.blockedPickupByBot.get(bot.id) || new Map()]),
     );
+    if (runtime.multi_bot_strategy === 'mission_v1') {
+      const missionPlan = buildMediumMissionAssignments({
+        state,
+        world,
+        graph,
+        profile: this.profile,
+        phase,
+        round: state.round,
+        existingMissionsByBot: this.missionsByBot,
+        blockedItemsByBot,
+        previousPositionByBot,
+        previousInventoryKeyByBot,
+      });
+      this.missionsByBot = missionPlan.missionsByBot;
+
+      const reservations = makeOccupancyReservations(state);
+      const edgeReservations = new Map();
+      const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
+      const actions = [];
+      let forcedWaits = 0;
+
+      for (const bot of botsByPriority) {
+        const stallKey = `${bot.id}`;
+        const forcedWaitRemaining = this.forcedWait.get(stallKey) || 0;
+        if (forcedWaitRemaining > 0) {
+          this.forcedWait.set(stallKey, forcedWaitRemaining - 1);
+          reservePath({
+            path: [bot.position],
+            startTime: 0,
+            reservations,
+            edgeReservations,
+            horizon: this.profile.routing.horizon,
+            holdAtGoal: true,
+          });
+          actions.push({ bot: bot.id, action: 'wait' });
+          forcedWaits += 1;
+          continue;
+        }
+
+        const mission = this.missionsByBot.get(bot.id) || null;
+        let resolved = resolveMissionAction({
+          bot,
+          mission,
+          state,
+          graph,
+          reservations,
+          edgeReservations,
+          profile: this.profile,
+        });
+
+        const previous = this.previousPositions.get(stallKey);
+        const currentCoord = encodeCoord(bot.position);
+        const stalled = previous === currentCoord;
+        const stallCount = stalled ? (this.stalls.get(stallKey) || 0) + 1 : 0;
+        this.stalls.set(stallKey, stallCount);
+
+        if (stallCount >= this.profile.anti_deadlock.stall_threshold && resolved.action.startsWith('move_')) {
+          const fallback = chooseFallbackAction(bot, graph, reservations, edgeReservations, this.profile.routing.horizon);
+          resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock', noPath: false };
+          this.forcedWait.set(stallKey, this.profile.anti_deadlock.forced_wait_rounds);
+        }
+
+        this.previousPositions.set(stallKey, currentCoord);
+
+        reservePath({
+          path: resolved.nextPath,
+          startTime: 0,
+          reservations,
+          edgeReservations,
+          horizon: this.profile.routing.horizon,
+          holdAtGoal: resolved.targetType !== 'drop_off',
+        });
+
+        if (mission) {
+          mission.noPathRounds = resolved.noPath ? (mission.noPathRounds || 0) + 1 : 0;
+          this.missionsByBot.set(bot.id, mission);
+        }
+
+        if (resolved.action === 'pick_up') {
+          const existingPending = this.pendingPickups.get(bot.id);
+          const inventorySize = (bot.inventory || []).length;
+          if (!existingPending || existingPending.itemId !== resolved.itemId) {
+            this.pendingPickups.set(bot.id, {
+              itemId: resolved.itemId,
+              expectedMinInventory: inventorySize + 1,
+              resolveAfterRound: state.round + 2,
+              approachCell: [...bot.position],
+            });
+          }
+          actions.push({ bot: bot.id, action: 'pick_up', item_id: resolved.itemId });
+        } else {
+          actions.push({ bot: bot.id, action: resolved.action });
+        }
+
+        this.lastActionByBot.set(bot.id, resolved.action);
+      }
+
+      this.lastMetrics = {
+        phase,
+        taskCount: Array.from(this.missionsByBot.values()).filter((mission) => mission?.missionType !== 'idle_reposition').length,
+        forcedWaits,
+        stalledBots: Array.from(this.stalls.values()).filter((value) => value > 0).length,
+        recoveryMode,
+        noProgressRounds: this.noProgressRounds,
+        recoveryThreshold,
+        loopDetections: this.loopDetectionsThisTick,
+        approachBlacklistSize: Array.from(blockedItemsByBot.values()).reduce((sum, blocked) => sum + blocked.size, 0),
+        orderEtaAtDecision: null,
+        projectedCompletionFeasible: null,
+        ...missionPlan.metrics,
+      };
+
+      return actions;
+    }
+
+    const tasks = buildTasks(state, world, this.profile, phase);
     const costs = buildCostMatrix(state, tasks, this.profile, phase, { blockedItemsByBot });
     const { assignment } = solveMinCostAssignment(costs);
 

@@ -92,7 +92,19 @@ test('generateAnalysis includes compact multi-bot coordination metrics', () => {
       ],
     },
     actions_sent: [{ bot: 0, action: 'wait' }, { bot: 1, action: 'wait' }],
-    planner_metrics: { stalls: 1, stalledBots: 1, taskCount: 6, forcedWaits: 1 },
+    planner_metrics: {
+      stalls: 1,
+      stalledBots: 1,
+      taskCount: 6,
+      forcedWaits: 1,
+      missionTypeByBot: { 0: 'collect_active', 1: 'idle_reposition' },
+      missionReassignments: 2,
+      activeMissionsAssigned: 1,
+      previewMissionsAssigned: 0,
+      previewSuppressed: true,
+      dropMissionsAssigned: 0,
+      missionTimeouts: 1,
+    },
   });
   logger.log({
     type: 'tick',
@@ -109,7 +121,19 @@ test('generateAnalysis includes compact multi-bot coordination metrics', () => {
       ],
     },
     actions_sent: [{ bot: 0, action: 'wait' }, { bot: 1, action: 'wait' }],
-    planner_metrics: { stalls: 2, stalledBots: 2, taskCount: 8, forcedWaits: 0 },
+    planner_metrics: {
+      stalls: 2,
+      stalledBots: 2,
+      taskCount: 8,
+      forcedWaits: 0,
+      missionTypeByBot: { 0: 'drop_active', 1: 'collect_preview' },
+      missionReassignments: 1,
+      activeMissionsAssigned: 0,
+      previewMissionsAssigned: 1,
+      previewSuppressed: false,
+      dropMissionsAssigned: 1,
+      missionTimeouts: 0,
+    },
   });
   logger.log({ type: 'game_over', final_score: 0, items_delivered: 0, orders_completed: 0 });
   logger.close();
@@ -121,6 +145,13 @@ test('generateAnalysis includes compact multi-bot coordination metrics', () => {
   assert.equal(analysis.multiBotCoordination.maxStalledBots, 2);
   assert.equal(analysis.multiBotCoordination.peakTaskCount, 8);
   assert.equal(analysis.multiBotCoordination.forcedWaitActions, 1);
+  assert.deepEqual(analysis.multiBotCoordination.missionTypeByBot, { 0: 'drop_active', 1: 'collect_preview' });
+  assert.equal(analysis.multiBotCoordination.missionReassignments, 3);
+  assert.equal(analysis.multiBotCoordination.activeMissionsAssigned, 1);
+  assert.equal(analysis.multiBotCoordination.previewMissionsAssigned, 1);
+  assert.equal(analysis.multiBotCoordination.previewSuppressed, 1);
+  assert.equal(analysis.multiBotCoordination.dropMissionsAssigned, 1);
+  assert.equal(analysis.multiBotCoordination.missionTimeouts, 1);
   assert.deepEqual(analysis.multiBotCoordination.endInventoryByBot, [
     { bot: 0, inventoryCount: 1, deliverableActiveItems: 1, nonDeliverableItems: 0 },
     { bot: 1, inventoryCount: 2, deliverableActiveItems: 0, nonDeliverableItems: 2 },

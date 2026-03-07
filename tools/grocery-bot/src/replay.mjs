@@ -249,6 +249,36 @@ export function generateAnalysis(filePath) {
   const maxStalledBots = tickRows.reduce((max, row) => Math.max(max, row.planner_metrics?.stalledBots || 0), 0);
   const peakTaskCount = tickRows.reduce((max, row) => Math.max(max, row.planner_metrics?.taskCount || 0), 0);
   const forcedWaitActions = tickRows.reduce((sum, row) => sum + (row.planner_metrics?.forcedWaits || 0), 0);
+  const missionMetrics = tickRows.reduce((aggregate, row) => {
+    const metrics = row.planner_metrics || {};
+    if (metrics.missionTypeByBot && Object.keys(metrics.missionTypeByBot).length > 0) {
+      aggregate.missionTypeByBot = metrics.missionTypeByBot;
+    }
+    aggregate.missionReassignments += metrics.missionReassignments || 0;
+    aggregate.activeMissionsAssigned = Math.max(
+      aggregate.activeMissionsAssigned,
+      metrics.activeMissionsAssigned || 0,
+    );
+    aggregate.previewMissionsAssigned = Math.max(
+      aggregate.previewMissionsAssigned,
+      metrics.previewMissionsAssigned || 0,
+    );
+    aggregate.previewSuppressed += metrics.previewSuppressed ? 1 : 0;
+    aggregate.dropMissionsAssigned = Math.max(
+      aggregate.dropMissionsAssigned,
+      metrics.dropMissionsAssigned || 0,
+    );
+    aggregate.missionTimeouts += metrics.missionTimeouts || 0;
+    return aggregate;
+  }, {
+    missionTypeByBot: {},
+    missionReassignments: 0,
+    activeMissionsAssigned: 0,
+    previewMissionsAssigned: 0,
+    previewSuppressed: 0,
+    dropMissionsAssigned: 0,
+    missionTimeouts: 0,
+  });
   let endInventoryByBot = null;
   if (botCount > 1 && lastTick?.state_snapshot?.bots) {
     const activeOrder = (lastTick.state_snapshot.orders || []).find((order) => order.status === 'active' && !order.complete) || null;
@@ -300,6 +330,7 @@ export function generateAnalysis(filePath) {
       maxStalledBots,
       peakTaskCount,
       forcedWaitActions,
+      ...missionMetrics,
       endInventoryByBot,
     } : null,
     wastedInventoryAtEnd: wastedInventory,
