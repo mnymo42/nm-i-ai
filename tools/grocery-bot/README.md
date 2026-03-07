@@ -70,6 +70,23 @@ This prints:
 - `queueBound`: conservative bound using observed active-order sequence
 - `optimisticOrderMixUpperBound`: optimistic ceiling from best observed order efficiencies
 
+### 7) Generate expert oracle script
+
+```bash
+node tools/grocery-bot/generate-script.mjs \
+  --oracle tools/grocery-bot/config/oracle-expert.json \
+  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --out tools/grocery-bot/config/script-expert.json
+```
+
+The generated script includes:
+- `orders_covered`
+- `estimated_score`
+- `last_scripted_tick`
+- `cutoff_reason`
+- `per_order_estimates`
+- `aggregate_efficiency`
+
 ## Replay Viewer
 
 Start the local replay viewer:
@@ -110,7 +127,11 @@ npm run grocery-bot:test
 Recommended expert workflow:
 
 ```bash
+node tools/grocery-bot/tmp-extract-oracle.mjs
+node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json
+node -e "const d=require('fs').readFileSync('tools/grocery-bot/config/script-expert.json','utf8'); console.log(d)"
 node tools/grocery-bot/index.mjs --mode benchmark --difficulty expert --replay tools/grocery-bot/out
 node tools/grocery-bot/index.mjs --mode simulate --difficulty expert --profile expert --replay tools/grocery-bot/out/<run-id>/replay.jsonl
 node tools/grocery-bot/index.mjs --mode tune --difficulty expert --profile expert --replay tools/grocery-bot/out/<run-id>/replay.jsonl --seeds 64
+node tools/grocery-bot/index.mjs --token 'wss://game.ainm.no/ws?token=...' --profile expert --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json
 ```

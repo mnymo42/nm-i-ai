@@ -6,6 +6,7 @@
     "grocery-bot": "node tools/grocery-bot/index.mjs",
     "grocery-bot:test": "node --test tools/grocery-bot/test/*.test.mjs",
     "grocery-bot:viewer": "node tools/grocery-bot/viewer/server.mjs",
+    "grocery-bot:generate-script": "node tools/grocery-bot/generate-script.mjs",
     "test": "npm run grocery-bot:test"
   },
   "keywords": [],

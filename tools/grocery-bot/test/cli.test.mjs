@@ -67,3 +67,14 @@ test('nightmare difficulty is accepted and has a default profile', () => {
   assert.equal(args.difficulty, 'nightmare');
   assert.equal(defaultProfiles.nightmare.runtime.multi_bot_strategy, 'warehouse_v1');
 });
+
+test('parseCliArguments resolves --oracle and --script paths', () => {
+  const args = parseCliArguments([
+    '--token', 'header.payload.signature',
+    '--oracle', 'tools/grocery-bot/config/oracle-expert.json',
+    '--script', 'tools/grocery-bot/config/script-expert.json',
+  ]);
+
+  assert.match(args.oracle, /tools\/grocery-bot\/config\/oracle-expert\.json$/);
+  assert.match(args.script, /tools\/grocery-bot\/config\/script-expert\.json$/);
+});

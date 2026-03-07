@@ -48,6 +48,11 @@
 - A minimal local replay viewer is now part of the workflow:
   - `npm run grocery-bot:viewer`
   - use it to inspect queue-service-bay pileups, held deliverable inventory, and warehouse control-mode oscillation before spending more expert tokens
+- Expert oracle/script is now a first-class workflow:
+  - `tmp-extract-oracle.mjs` updates `config/oracle-expert.json`
+  - `generate-script.mjs` builds `config/script-expert.json`
+  - `src/oracle-script-evaluator.mjs` validates the generated script deterministically before it is written
+  - the current script optimizer is structurally rebuilt but still conservative on throughput (`maxActiveBots = 1` by default) while the higher-concurrency scheduler is tuned
 
 ## Current Strategy (As Implemented)
 

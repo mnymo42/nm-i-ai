@@ -66,6 +66,12 @@ node tools/grocery-bot/index.mjs --mode benchmark --difficulty medium \
 node tools/grocery-bot/index.mjs --mode benchmark --difficulty medium --profile medium_warehouse_v1 \
   --replay tools/grocery-bot/out
 
+# Generate expert oracle script
+node tools/grocery-bot/generate-script.mjs \
+  --oracle tools/grocery-bot/config/oracle-expert.json \
+  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --out tools/grocery-bot/config/script-expert.json
+
 # Run tests
 node --test tools/grocery-bot/test/*.test.mjs
 
@@ -96,6 +102,9 @@ tools/grocery-bot/
 │   ├── replay.mjs               Logging, summarize, simulate, analysis generation
 │   ├── replay-io.mjs            Shared replay parsing/layout reconstruction helpers
 │   ├── replay-viewer.mjs        Shared run listing/loading for the local replay viewer
+│   ├── oracle-script-optimizer.mjs Constraint-based oracle scheduler for scripted expert runs
+│   ├── oracle-script-evaluator.mjs Deterministic validator/score estimator for generated scripts
+│   ├── oracle-script-io.mjs     Shared oracle/script file loading for CLI + tests
 │   ├── world-model.mjs          Demand/inventory helpers
 │   ├── coords.mjs               Grid geometry, move encoding
 │   ├── grid-graph.mjs           Graph for pathfinding
@@ -104,7 +113,9 @@ tools/grocery-bot/
 │   ├── profile.mjs              Profile loading + merging
 │   └── cli.mjs                  Argument parsing
 ├── config/
-│   └── profiles.json            Tunable parameters per difficulty (source of truth)
+│   ├── profiles.json            Tunable parameters per difficulty (source of truth)
+│   ├── oracle-expert.json       Known expert orders/items for script generation
+│   └── script-expert.json       Generated expert script consumed by `--script`
 ├── out/
 │   ├── <run-id>/
 │   │   ├── replay.jsonl         Slim tick-by-tick log (layout entry + diffs) — do not delete
@@ -169,6 +180,14 @@ For each improvement iteration:
 7. Benchmark replay corpus when changing multi-bot control flow: `--mode benchmark --difficulty medium --replay tools/grocery-bot/out`
 8. If change looks good → play live to confirm actual score
 9. If score improves → run `--mode tune` against the new replay and merge params
+
+Oracle/script workflow for expert:
+1. Extract/update oracle data: `node tools/grocery-bot/tmp-extract-oracle.mjs`
+2. Generate script: `node tools/grocery-bot/generate-script.mjs --oracle ... --replay ... --out tools/grocery-bot/config/script-expert.json`
+3. Inspect metadata in `tools/grocery-bot/config/script-expert.json`
+4. Use the replay viewer to inspect handoff assumptions and drop-off queueing
+5. Play live with both flags: `--script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json`
+6. Update the oracle after the run
 
 ## Structural Policy
 

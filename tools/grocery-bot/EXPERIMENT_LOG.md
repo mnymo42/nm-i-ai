@@ -7,6 +7,23 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Easy: `118`
 - Medium: `115`
 
+## Oracle / Script Status
+
+- Expert oracle/script path is now modular:
+  - `generate-script.mjs`
+  - `src/oracle-script-optimizer.mjs`
+  - `src/oracle-script-evaluator.mjs`
+  - `src/oracle-script-io.mjs`
+- Current generator status:
+  - valid script generation works with the new constraint-based scheduler and deterministic evaluator
+  - current safe default is conservative (`maxActiveBots = 1`) to avoid stacked-start / drop-bay conflicts while the higher-throughput scheduler is still being tuned
+  - latest generated expert script metadata:
+    - `orders_covered: 2`
+    - `estimated_score: 19`
+    - `last_scripted_tick: 221`
+- Verdict: `keep scaffolding, continue tuning`
+- Notes: the architectural rewrite and validation path are in place, but the throughput target from `ORACLE_OPTIMIZER_PLAN.md` is not met yet.
+
 ## Experiments
 
 ### Count-aware preview pruning
@@ -211,6 +228,25 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
   - expert corpus benchmark to be rerun after landing the viewer-based inspection loop
 - Verdict: `implemented, pending offline benchmark and live expert validation`
 - Notes: this is the first explicit expert-focused warehouse throughput pass. The target is lower wait/stall density without reopening pickup or legality failures.
+
+### Oracle script optimizer v2
+
+- Hypothesis: expert oracle mode needs a true constraint-based scheduler with global shelf allocation, unary drop-off capacity, pipelined `N+1` pre-pick, deterministic script validation, and a clean scripted-to-live handoff.
+- Change:
+  - replaced the old greedy monolith in `generate-script.mjs` with modular oracle/script components
+  - added:
+    - global shelf allocation
+    - deterministic script evaluator
+    - richer script metadata
+    - shared oracle/script file loading
+    - scripted planner handoff specs
+    - Claude hook coverage for oracle/script/config edits
+  - added replay-aware stacked-start handling plus post-drop dock clearing
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+  - `node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json` -> pass
+- Verdict: `keep, throughput still needs tuning`
+- Notes: the rewrite is now structurally correct and test-covered, but it is intentionally conservative today (`maxActiveBots = 1`) because higher concurrency still creates invalid schedules. This is the base to tune upward from, not the final optimizer.
 
 ## Guidance
 

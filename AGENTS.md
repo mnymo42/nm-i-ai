@@ -18,6 +18,8 @@ Use this file together with [CLAUDE.md](/home/magnus/prog/nm-i-ai/CLAUDE.md) whe
 5. Prefer simulate -> analyze -> change cycles over blind live runs.
 6. For multi-bot strategy work, run `--mode benchmark --difficulty medium --replay tools/grocery-bot/out` before spending more live tokens.
 7. Use `--profile medium_warehouse_v1` when benchmarking the experimental warehouse-control branch.
+8. For expert oracle/script work, use: extract oracle -> generate script -> inspect/evaluate script -> live run with `--script` + `--oracle` -> update oracle.
+9. Use the replay viewer to inspect scripted/live handoff and drop-off queue behavior before changing the oracle scheduler again.
 
 ## Structural Policy
 
@@ -58,6 +60,8 @@ Use this file together with [CLAUDE.md](/home/magnus/prog/nm-i-ai/CLAUDE.md) whe
 - Replay and summaries: `tools/grocery-bot/src/replay.mjs`
 - Replay parsing/layout helpers: `tools/grocery-bot/src/replay-io.mjs`
 - Structure map and split backlog: `tools/grocery-bot/STRUCTURE_REVIEW.md`
+- Oracle/script optimizer: `tools/grocery-bot/generate-script.mjs`
+- Oracle/script modules: `tools/grocery-bot/src/oracle-script-optimizer.mjs`, `tools/grocery-bot/src/oracle-script-evaluator.mjs`, `tools/grocery-bot/src/oracle-script-io.mjs`
 
 ## MCP
 
