@@ -1,0 +1,16 @@
+{
+  "runId": "2026-03-07T18-00-47-256Z-medium-medium",
+  "difficulty": "medium",
+  "profile": "medium",
+  "finalScore": 2,
+  "finalItems": 2,
+  "finalOrders": 0,
+  "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-07T18-00-47-256Z-medium-medium/replay.jsonl",
+  "metrics": {
+    "ticks": 300,
+    "finalScore": 2,
+    "ordersCompleted": 0,
+    "itemsDelivered": 2,
+    "totalStalls": 832
+  }
+}
