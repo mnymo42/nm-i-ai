@@ -21,6 +21,44 @@ export function normalizeTokenInput(value) {
   return token || trimmed;
 }
 
+function decodeBase64Url(value) {
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/')
+    + '='.repeat((4 - (value.length % 4)) % 4);
+
+  try {
+    return Buffer.from(padded, 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+export function inferDifficultyFromToken(token) {
+  if (typeof token !== 'string') {
+    return null;
+  }
+
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const payloadJson = decodeBase64Url(parts[1]);
+  if (!payloadJson) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(payloadJson);
+    return typeof payload?.difficulty === 'string' ? payload.difficulty : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseArgs(argv) {
   const args = {
     token: null,
@@ -32,6 +70,7 @@ function parseArgs(argv) {
     replay: null,
     randomSeeds: 32,
   };
+  let difficultyExplicit = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
@@ -55,6 +94,7 @@ function parseArgs(argv) {
         break;
       case '--difficulty':
         args.difficulty = value;
+        difficultyExplicit = true;
         break;
       case '--profile':
         args.profile = value;
@@ -77,6 +117,10 @@ function parseArgs(argv) {
       default:
         break;
     }
+  }
+
+  if (!difficultyExplicit && args.mode === 'play' && args.token) {
+    args.difficulty = inferDifficultyFromToken(args.token) || args.difficulty;
   }
 
   return args;

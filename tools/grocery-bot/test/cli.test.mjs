@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeTokenInput, parseCliArguments } from '../src/cli.mjs';
+import { inferDifficultyFromToken, normalizeTokenInput, parseCliArguments } from '../src/cli.mjs';
 import { defaultProfiles } from '../src/profile.mjs';
+
+const hardToken = 'eyJhbGciOiJIUzI1NiJ9.eyJkaWZmaWN1bHR5IjoiaGFyZCJ9.sig';
 
 test('normalizeTokenInput keeps raw JWT tokens unchanged', () => {
   const token = 'header.payload.signature';
@@ -22,6 +24,26 @@ test('parseCliArguments accepts full websocket URL for --token', () => {
 
   assert.equal(args.token, 'header.payload.signature');
   assert.equal(args.difficulty, 'medium');
+});
+
+test('inferDifficultyFromToken reads the JWT payload difficulty', () => {
+  assert.equal(inferDifficultyFromToken(hardToken), 'hard');
+});
+
+test('parseCliArguments infers difficulty from token when not explicitly set', () => {
+  const args = parseCliArguments([
+    '--token', hardToken,
+  ]);
+
+  assert.equal(args.difficulty, 'hard');
+});
+
+test('parseCliArguments infers difficulty from websocket token URL when not explicitly set', () => {
+  const args = parseCliArguments([
+    '--token', `wss://game.ainm.no/ws?token=${hardToken}`,
+  ]);
+
+  assert.equal(args.difficulty, 'hard');
 });
 
 test('parseCliArguments accepts benchmark mode with replay path', () => {
