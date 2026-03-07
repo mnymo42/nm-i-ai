@@ -27,22 +27,6 @@ function queuePendingPickup(planner, bot, itemId, round) {
   }
 }
 
-function buildBlockedNextStepCoords(occupiedNextStep, bot) {
-  const blocked = new Set(occupiedNextStep);
-  blocked.delete(encodeCoord(bot.position));
-  return blocked;
-}
-
-function updateOccupiedNextStep(occupiedNextStep, bot, resolved) {
-  const currentKey = encodeCoord(bot.position);
-  if (resolved?.action?.startsWith('move_') && resolved.nextPath?.length >= 2) {
-    occupiedNextStep.delete(currentKey);
-    return;
-  }
-
-  occupiedNextStep.add(currentKey);
-}
-
 export function executeMissionStrategy({
   planner,
   state,
@@ -71,14 +55,12 @@ export function executeMissionStrategy({
 
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
-  const occupiedNextStep = new Set(state.bots.map((bot) => encodeCoord(bot.position)));
   const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
   const actions = [];
   let forcedWaits = 0;
 
   for (const bot of botsByPriority) {
     const stallKey = `${bot.id}`;
-    const blockedNextStepCoords = buildBlockedNextStepCoords(occupiedNextStep, bot);
     const forcedWaitRemaining = planner.forcedWait.get(stallKey) || 0;
     if (forcedWaitRemaining > 0) {
       planner.forcedWait.set(stallKey, forcedWaitRemaining - 1);
@@ -90,7 +72,6 @@ export function executeMissionStrategy({
         horizon: planner.profile.routing.horizon,
         holdAtGoal: true,
       });
-      updateOccupiedNextStep(occupiedNextStep, bot, { action: 'wait', nextPath: [bot.position] });
       actions.push({ bot: bot.id, action: 'wait' });
       forcedWaits += 1;
       continue;
@@ -105,8 +86,6 @@ export function executeMissionStrategy({
       reservations,
       edgeReservations,
       profile: planner.profile,
-      blockedNextStepCoords,
-      blockedServiceBayCoords: blockedNextStepCoords,
     });
 
     const previous = planner.previousPositions.get(stallKey);
@@ -122,7 +101,6 @@ export function executeMissionStrategy({
         reservations,
         edgeReservations,
         planner.profile.routing.horizon,
-        blockedNextStepCoords,
       );
       resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock', noPath: false };
       planner.forcedWait.set(stallKey, planner.profile.anti_deadlock.forced_wait_rounds);
@@ -138,7 +116,6 @@ export function executeMissionStrategy({
       horizon: planner.profile.routing.horizon,
       holdAtGoal: resolved.targetType !== 'drop_off',
     });
-    updateOccupiedNextStep(occupiedNextStep, bot, resolved);
 
     if (mission) {
       mission.noPathRounds = resolved.noPath ? (mission.noPathRounds || 0) + 1 : 0;
@@ -184,7 +161,7 @@ export function executeAssignedTaskStrategy({
   blockedItemsByBot,
 }) {
   const tasks = buildTasks(state, world, planner.profile, phase);
-  const costs = buildCostMatrix(state, tasks, planner.profile, phase, { blockedItemsByBot });
+  const costs = buildCostMatrix(state, tasks, planner.profile, phase);
   const { assignment } = solveMinCostAssignment(costs);
 
   const taskByBot = new Map();
@@ -197,14 +174,12 @@ export function executeAssignedTaskStrategy({
 
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
-  const occupiedNextStep = new Set(state.bots.map((bot) => encodeCoord(bot.position)));
   const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
   const actions = [];
   let forcedWaits = 0;
 
   for (const bot of botsByPriority) {
     const stallKey = `${bot.id}`;
-    const blockedNextStepCoords = buildBlockedNextStepCoords(occupiedNextStep, bot);
     const forcedWaitRemaining = planner.forcedWait.get(stallKey) || 0;
     if (forcedWaitRemaining > 0) {
       planner.forcedWait.set(stallKey, forcedWaitRemaining - 1);
@@ -216,7 +191,6 @@ export function executeAssignedTaskStrategy({
         horizon: planner.profile.routing.horizon,
         holdAtGoal: true,
       });
-      updateOccupiedNextStep(occupiedNextStep, bot, { action: 'wait', nextPath: [bot.position] });
       actions.push({ bot: bot.id, action: 'wait' });
       forcedWaits += 1;
       continue;
@@ -234,8 +208,6 @@ export function executeAssignedTaskStrategy({
         edgeReservations,
         profile: planner.profile,
         holdGoalSteps: planner.profile.routing.hold_goal_steps,
-        blockedNextStepCoords,
-        blockedServiceBayCoords: blockedNextStepCoords,
       });
     }
 
@@ -246,7 +218,6 @@ export function executeAssignedTaskStrategy({
         reservations,
         edgeReservations,
         planner.profile.routing.horizon,
-        blockedNextStepCoords,
       );
       resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'fallback' };
     }
@@ -275,7 +246,6 @@ export function executeAssignedTaskStrategy({
         reservations,
         edgeReservations,
         planner.profile.routing.horizon,
-        blockedNextStepCoords,
       );
       resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock' };
       planner.forcedWait.set(stallKey, planner.profile.anti_deadlock.forced_wait_rounds);
@@ -291,7 +261,6 @@ export function executeAssignedTaskStrategy({
       horizon: planner.profile.routing.horizon,
       holdAtGoal: resolved.targetType !== 'drop_off',
     });
-    updateOccupiedNextStep(occupiedNextStep, bot, resolved);
 
     if (resolved.action === 'pick_up') {
       queuePendingPickup(planner, bot, resolved.itemId, state.round);

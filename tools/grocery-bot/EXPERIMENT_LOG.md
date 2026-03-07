@@ -112,6 +112,20 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Verdict: `revert`
 - Notes: the idea was directionally reasonable, but this implementation over-committed and stalled the map: `1` completed order, `8` failed pickups, `5` non-scoring dropoffs`, and a `189`-tick dead zone. Revisit only as a much softer bias if at all.
 
+### Medium 109 baseline recovery
+
+- Hypothesis: the current medium branch drifted too far from the last known strong baseline (`109`), so restoring the simpler `82ee32e` multi-bot assignment/runtime behavior should recover throughput better than adding new policy layers.
+- Change: reverted medium assignment-mode task scoring and execution flow toward the `82ee32e` branch:
+  - removed zone penalty and blocked-item quarantine from assignment cost scoring
+  - removed occupied-next-step / service-bay constraints from assignment-mode planning
+  - restored the simpler assignment runtime loop while keeping client-side legality fixes in place
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+  - replay simulate against `2026-03-07T16-14-57-783Z-medium-medium` -> `0.8956` match ratio, `0.02` wait ratio
+  - replay simulate against `2026-03-07T18-22-15-796Z-medium-medium` -> `0.8133` match ratio, `0.1756` wait ratio
+- Verdict: `pending live validation`
+- Notes: this is a baseline-recovery experiment, not a new scoring idea. Promote only if a fresh medium token confirms we are back near or above the `109` run without reintroducing the old legality-collapse pattern.
+
 ## Guidance
 
 - Prefer experiments that are soft cost-shaping changes over hard role locks.

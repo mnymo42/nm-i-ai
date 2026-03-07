@@ -120,10 +120,9 @@ export function buildTasks(state, world, profile, phase) {
   return tasks;
 }
 
-export function buildCostMatrix(state, tasks, profile, phase, context = {}) {
+export function buildCostMatrix(state, tasks, profile, phase) {
   const matrix = [];
   const urgency = phase === 'endgame' ? 1.5 : phase === 'cutoff' ? 2.0 : 1;
-  const blockedItemsByBot = context.blockedItemsByBot || new Map();
 
   for (const bot of state.bots) {
     const row = [];
@@ -139,14 +138,6 @@ export function buildCostMatrix(state, tasks, profile, phase, context = {}) {
         continue;
       }
 
-      if (task.kind === 'pick_up') {
-        const blockedItems = blockedItemsByBot.get(bot.id);
-        if (blockedItems?.has(task.item.id)) {
-          row.push(1e9);
-          continue;
-        }
-      }
-
       const travelToTask = Math.max(0, manhattanDistance(bot.position, task.target) - (task.kind === 'pick_up' ? 1 : 0));
       const travelToDropOff = task.kind === 'pick_up'
         ? estimateDistanceToDropoff(task.item, state.drop_off)
@@ -156,14 +147,12 @@ export function buildCostMatrix(state, tasks, profile, phase, context = {}) {
         ? state.bots.filter((candidate) => candidate.id !== bot.id && manhattanDistance(candidate.position, task.target) < 4).length
         : 0;
       const demandBonus = task.demandScore * profile.assignment.remaining_demand_priority;
-      const zonePenalty = estimateZonePenalty({ bot, task, state, profile });
 
       const score =
         travelToTask * profile.assignment.travel_to_item +
         travelToDropOff * profile.assignment.travel_item_to_dropoff +
         congestion * profile.assignment.congestion_penalty +
         contention * profile.assignment.contention_penalty +
-        zonePenalty -
         demandBonus * urgency -
         profile.assignment.urgency_bonus * urgency;
 
@@ -190,8 +179,6 @@ export function actionFromTask({
   edgeReservations,
   profile,
   holdGoalSteps,
-  blockedNextStepCoords = null,
-  blockedServiceBayCoords = null,
 }) {
   if (task.kind === 'drop_off') {
     if (bot.position[0] === task.target[0] && bot.position[1] === task.target[1]) {
@@ -206,7 +193,6 @@ export function actionFromTask({
       edgeReservations,
       startTime: 0,
       horizon: profile.routing.horizon,
-      blockedNextStepCoords,
     });
 
     if (!path || path.length < 2) {
@@ -233,10 +219,6 @@ export function actionFromTask({
     reservations,
     edgeReservations,
     profile.routing.horizon,
-    {
-      blockedNextStepCoords,
-      blockedGoalCoords: blockedServiceBayCoords,
-    },
   );
 
   if (!target || !target.path || target.path.length < 2) {
@@ -253,14 +235,9 @@ export function chooseFallbackAction(
   reservations,
   edgeReservations,
   horizon,
-  blockedNextStepCoords = null,
 ) {
   for (const neighbor of graph.neighbors(bot.position)) {
     const moveKey = encodeCoord(neighbor);
-    if (blockedNextStepCoords?.has(moveKey)) {
-      continue;
-    }
-
     if (reservations.get(1)?.has(moveKey)) {
       continue;
     }
@@ -278,7 +255,6 @@ export function chooseFallbackAction(
       edgeReservations,
       startTime: 0,
       horizon,
-      blockedNextStepCoords,
     });
 
     if (path && path.length >= 2) {
