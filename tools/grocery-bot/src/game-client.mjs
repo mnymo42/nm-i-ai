@@ -363,7 +363,7 @@ export class GroceryGameClient {
     token,
     urlBase = 'wss://game.ainm.no/ws',
     idleTimeoutMs = 15_000,
-    minRoundSendIntervalMs = 20,
+    minRoundSendIntervalMs = 0,
   }) {
     this.url = `${urlBase}?token=${encodeURIComponent(token)}`;
     this.idleTimeoutMs = idleTimeoutMs;
