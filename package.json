@@ -7,6 +7,8 @@
     "grocery-bot:test": "node --test tools/grocery-bot/test/*.test.mjs",
     "grocery-bot:viewer": "node tools/grocery-bot/viewer/server.mjs",
     "grocery-bot:generate-script": "node tools/grocery-bot/generate-script.mjs",
+    "grocery-bot:tune-script": "node tools/grocery-bot/tune-oracle-script.mjs",
+    "grocery-bot:optimize-script": "node tools/grocery-bot/optimize-oracle-script.mjs",
     "test": "npm run grocery-bot:test"
   },
   "keywords": [],

@@ -253,3 +253,27 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Prefer experiments that are soft cost-shaping changes over hard role locks.
 - Treat `109` medium as the last known strong baseline until a higher repeatable score is achieved.
 - Update this log whenever an experiment meaningfully changes live behavior, even if the result is a failure.
+# 2026-03-07 - Oracle Script Recovery
+
+- Hypothesis: the oracle rewrite regressed because it replaced a partially effective high-throughput path with a valid but over-constrained scheduler. Restoring the old heuristic path as a benchmark and letting local search choose the best candidate should recover throughput without discarding the validated optimizer.
+- Changes:
+  - restored a separate legacy oracle generator in `src/oracle-script-legacy.mjs`
+  - added `src/oracle-script-search.mjs` to rank modular vs legacy candidates locally
+  - updated `generate-script.mjs` to auto-search and write the best locally-evaluated script by default
+  - added `tune-oracle-script.mjs` for local oracle candidate sweeps
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs`
+- Verdict: keep. This restores a throughput benchmark path and moves more expert-oracle work into deterministic local scripts instead of chat iteration.
+
+# 2026-03-07 - Oracle Optimizer Harness
+
+- Hypothesis: the expert oracle workflow should not depend on one lightweight generator call. A heavy local harness with score/tick targets and deterministic wide search will let us brute-force many candidate schedules cheaply and keep only the best `fasit`.
+- Changes:
+  - expanded `src/oracle-script-search.mjs` with wide search, deterministic candidate shuffling, and report generation
+  - added `optimize-oracle-script.mjs` to run hundreds/thousands of local candidate evaluations and write:
+    - best script JSON
+    - optimizer report JSON
+  - added tests for wide search reporting
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs`
+- Verdict: keep. This is now the preferred offline oracle entrypoint before live expert script attempts.

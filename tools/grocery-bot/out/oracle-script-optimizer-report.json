@@ -1,0 +1,334 @@
+{
+  "generated_at": "2026-03-07T22:19:18.631Z",
+  "elapsed_ms": 56289,
+  "oracle_source": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/config/oracle-expert.json",
+  "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl",
+  "strategy": "auto",
+  "iterations_requested": 100,
+  "seed": 7004,
+  "candidates_tested": 89,
+  "score_to_beat": 91,
+  "tick_to_beat": 292,
+  "best_candidate": {
+    "strategy": "modular",
+    "settings": {
+      "maxActiveBots": 1,
+      "maxTripItems": 1,
+      "previewRunnerCap": 0,
+      "previewItemCap": 2,
+      "targetCutoffTick": 299
+    },
+    "orders_covered": 2,
+    "estimated_score": 22,
+    "last_scripted_tick": 282,
+    "beats_score_target": false,
+    "beats_tick_target": true
+  },
+  "top_candidates": [
+    {
+      "rank": 1,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 0,
+        "previewItemCap": 2,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 2,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 3,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 4,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 2,
+        "previewItemCap": 4,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 5,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 4,
+        "targetCutoffTick": 260
+      },
+      "orders_covered": 2,
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
+    },
+    {
+      "rank": 6,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
+        "previewItemCap": 0,
+        "targetCutoffTick": 240
+      },
+      "orders_covered": 2,
+      "estimated_score": 20,
+      "last_scripted_tick": 223,
+      "total_waits": 1832
+    },
+    {
+      "rank": 7,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 177,
+      "total_waits": 1442
+    },
+    {
+      "rank": 8,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 196,
+      "total_waits": 1612
+    },
+    {
+      "rank": 9,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 2,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 196,
+      "total_waits": 1612
+    },
+    {
+      "rank": 10,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 2,
+        "previewItemCap": 0,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 200,
+      "total_waits": 1627
+    },
+    {
+      "rank": 11,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
+        "previewItemCap": 0,
+        "targetCutoffTick": 160
+      },
+      "orders_covered": 1,
+      "estimated_score": 13,
+      "last_scripted_tick": 151,
+      "total_waits": 1242
+    },
+    {
+      "rank": 12,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 2,
+        "previewItemCap": 2,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 1,
+      "estimated_score": 13,
+      "last_scripted_tick": 184,
+      "total_waits": 1672
+    },
+    {
+      "rank": 13,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 160
+      },
+      "orders_covered": 1,
+      "estimated_score": 12,
+      "last_scripted_tick": 149,
+      "total_waits": 1356
+    },
+    {
+      "rank": 14,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 160
+      },
+      "orders_covered": 1,
+      "estimated_score": 12,
+      "last_scripted_tick": 149,
+      "total_waits": 1356
+    },
+    {
+      "rank": 15,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
+        "previewItemCap": 4,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 1,
+      "estimated_score": 12,
+      "last_scripted_tick": 149,
+      "total_waits": 1356
+    },
+    {
+      "rank": 16,
+      "strategy": "legacy",
+      "settings": {
+        "maxTripItems": 1,
+        "prefetchDepth": 1,
+        "pathHorizon": 60,
+        "pickupHoldTicks": 3,
+        "dropHoldTicks": 0,
+        "targetCutoffTick": 160
+      },
+      "orders_covered": 0,
+      "estimated_score": 2,
+      "last_scripted_tick": 48,
+      "total_waits": 77
+    },
+    {
+      "rank": 17,
+      "strategy": "legacy",
+      "settings": {
+        "maxTripItems": 3,
+        "prefetchDepth": 1,
+        "pathHorizon": 120,
+        "pickupHoldTicks": 2,
+        "dropHoldTicks": 0,
+        "targetCutoffTick": 260
+      },
+      "orders_covered": 0,
+      "estimated_score": 2,
+      "last_scripted_tick": 50,
+      "total_waits": 296
+    },
+    {
+      "rank": 18,
+      "strategy": "legacy",
+      "settings": {
+        "maxTripItems": 3,
+        "prefetchDepth": 1,
+        "pathHorizon": 90,
+        "pickupHoldTicks": 2,
+        "dropHoldTicks": 0,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 0,
+      "estimated_score": 2,
+      "last_scripted_tick": 50,
+      "total_waits": 296
+    },
+    {
+      "rank": 19,
+      "strategy": "legacy",
+      "settings": {
+        "maxTripItems": 2,
+        "prefetchDepth": 2,
+        "pathHorizon": 120,
+        "pickupHoldTicks": 3,
+        "dropHoldTicks": 0,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 0,
+      "estimated_score": 1,
+      "last_scripted_tick": 35,
+      "total_waits": 94
+    },
+    {
+      "rank": 20,
+      "strategy": "legacy",
+      "settings": {
+        "maxTripItems": 2,
+        "prefetchDepth": 2,
+        "pathHorizon": 120,
+        "pickupHoldTicks": 3,
+        "dropHoldTicks": 2,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 0,
+      "estimated_score": 1,
+      "last_scripted_tick": 35,
+      "total_waits": 94
+    }
+  ]
+}

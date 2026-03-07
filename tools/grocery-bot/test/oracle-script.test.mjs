@@ -6,6 +6,12 @@ import assert from 'node:assert/strict';
 
 import { evaluateOracleScript } from '../src/oracle-script-evaluator.mjs';
 import { loadOracleFile, loadScriptFile } from '../src/oracle-script-io.mjs';
+import { buildLegacyOracleScript } from '../src/oracle-script-legacy.mjs';
+import {
+  buildOracleSearchReport,
+  generateBestOracleScript,
+  generateOracleScriptCandidates,
+} from '../src/oracle-script-search.mjs';
 import { buildOracleScriptWorld, normalizeOracle } from '../src/oracle-script-world.mjs';
 import { buildOrderAssignments, generateOracleScript } from '../src/oracle-script-optimizer.mjs';
 
@@ -135,6 +141,78 @@ test('generator schedules visible next-order work and never pre-picks hidden fut
 
   assert.notEqual(order1FirstPickTick, null);
   assert.ok(order1FirstPickTick >= 0, 'next visible order should receive scripted pickup work');
+});
+
+test('legacy oracle generator produces a valid script on the fixture', () => {
+  const oracle = buildFixtureOracle();
+  const replayPath = writeFixtureReplay(oracle);
+  const script = buildLegacyOracleScript({
+    oracle,
+    replayPath,
+    oracleSource: 'fixture',
+    options: { maxTripItems: 1, prefetchDepth: 1, targetCutoffTick: 40 },
+  });
+
+  assert.equal(script.strategy, 'legacy');
+  assert.equal(script.evaluation.valid, true);
+  assert.ok(script.last_scripted_tick <= 40);
+});
+
+test('oracle search returns ranked candidates and a best script', () => {
+  const oracle = buildFixtureOracle();
+  const replayPath = writeFixtureReplay(oracle);
+  const candidates = generateOracleScriptCandidates({
+    oracle,
+    replayPath,
+    oracleSource: 'fixture',
+    strategy: 'auto',
+  });
+
+  assert.ok(candidates.length > 0);
+  for (let index = 1; index < candidates.length; index += 1) {
+    const previous = candidates[index - 1].script;
+    const current = candidates[index].script;
+    assert.ok(
+      previous.orders_covered > current.orders_covered
+        || (previous.orders_covered === current.orders_covered && previous.estimated_score >= current.estimated_score),
+    );
+  }
+
+  const { best } = generateBestOracleScript({
+    oracle,
+    replayPath,
+    oracleSource: 'fixture',
+    strategy: 'auto',
+  });
+  assert.ok(best.orders_covered >= candidates[0].script.orders_covered);
+});
+
+test('wide oracle search report includes target metadata and ranked candidates', () => {
+  const oracle = buildFixtureOracle();
+  const replayPath = writeFixtureReplay(oracle);
+  const { best, candidates } = generateBestOracleScript({
+    oracle,
+    replayPath,
+    oracleSource: 'fixture',
+    strategy: 'auto',
+    candidateLimit: 12,
+    seed: 123,
+    searchSpace: 'wide',
+  });
+  const report = buildOracleSearchReport({
+    candidates,
+    scoreToBeat: 10,
+    tickToBeat: 35,
+    top: 5,
+  });
+
+  assert.ok(candidates.length > 0);
+  assert.ok(best.orders_covered >= 0);
+  assert.equal(report.candidates_tested, candidates.length);
+  assert.equal(report.score_to_beat, 10);
+  assert.equal(report.tick_to_beat, 35);
+  assert.ok(report.top_candidates.length <= 5);
+  assert.equal(typeof report.best_candidate.beats_score_target, 'boolean');
 });
 
 test('oracle/script file loaders expose parsed oracle and tickMap data', () => {
