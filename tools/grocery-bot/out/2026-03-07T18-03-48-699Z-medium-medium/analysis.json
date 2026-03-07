@@ -1,0 +1,132 @@
+{
+  "finalScore": 0,
+  "ordersCompleted": 0,
+  "itemsDelivered": 0,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 0
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 0
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 0
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 0
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 0
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 0
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 299,
+      "length": 300
+    }
+  ],
+  "failedPickups": {
+    "total": 0,
+    "byItemId": {},
+    "byItemType": {}
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 368,
+      "byReason": {
+        "conflict_same_target": 184,
+        "conflict_stationary_occupant": 184
+      }
+    },
+    "waitActions": 181,
+    "nonScoringDropoffs": 0
+  },
+  "multiBotCoordination": {
+    "botCount": 3,
+    "totalStalls": 272,
+    "maxStalledBots": 2,
+    "peakTaskCount": 11,
+    "forcedWaitActions": 1,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 2,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "bread",
+    "pasta",
+    "milk",
+    "milk",
+    "bread"
+  ]
+}

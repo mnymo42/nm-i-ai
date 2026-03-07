@@ -1,5 +1,26 @@
 import path from 'node:path';
 
+export function normalizeTokenInput(value) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('ws://') && !trimmed.startsWith('wss://')) {
+    return trimmed;
+  }
+
+  let parsed = null;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return trimmed;
+  }
+
+  const token = parsed.searchParams.get('token');
+  return token || trimmed;
+}
+
 function parseArgs(argv) {
   const args = {
     token: null,
@@ -30,7 +51,7 @@ function parseArgs(argv) {
 
     switch (key) {
       case '--token':
-        args.token = value;
+        args.token = normalizeTokenInput(value);
         break;
       case '--difficulty':
         args.difficulty = value;
