@@ -86,8 +86,9 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Validation:
   - `node --test tools/grocery-bot/test/routing.test.mjs tools/grocery-bot/test/planner-multibot.test.mjs` -> pass
   - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
-- Verdict: `pending live validation`
-- Notes: this is a warehouse-queueing fix, not a scoring-weight change. Promote only if the next medium live run materially reduces `conflict_stationary_occupant`, failed pickups, and stall cascades.
+  - live medium run `2026-03-07T18-22-15-796Z-medium-medium` -> `90`
+- Verdict: `keep for stability, not benchmark`
+- Notes: this is a warehouse-queueing fix, not a scoring-weight change. It eliminated the recent legality and pickup collapse (`0` sanitizer overrides, `0` failed pickups, `0` wasted inventory), but score remained below the `109` benchmark because wait/stall volume is still too high.
 
 ## Guidance
 

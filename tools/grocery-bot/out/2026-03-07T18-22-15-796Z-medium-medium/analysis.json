@@ -1,0 +1,178 @@
+{
+  "finalScore": 90,
+  "ordersCompleted": 9,
+  "itemsDelivered": 45,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 1
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 3
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 8
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 10
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 8
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 12
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 10
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 7
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 10
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 1
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 1
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 11
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 20,
+      "length": 21
+    },
+    {
+      "startTick": 21,
+      "endTick": 45,
+      "length": 25
+    },
+    {
+      "startTick": 48,
+      "endTick": 62,
+      "length": 15
+    },
+    {
+      "startTick": 63,
+      "endTick": 76,
+      "length": 14
+    },
+    {
+      "startTick": 85,
+      "endTick": 107,
+      "length": 23
+    },
+    {
+      "startTick": 130,
+      "endTick": 148,
+      "length": 19
+    },
+    {
+      "startTick": 164,
+      "endTick": 189,
+      "length": 26
+    },
+    {
+      "startTick": 190,
+      "endTick": 203,
+      "length": 14
+    },
+    {
+      "startTick": 212,
+      "endTick": 232,
+      "length": 21
+    },
+    {
+      "startTick": 233,
+      "endTick": 256,
+      "length": 24
+    },
+    {
+      "startTick": 257,
+      "endTick": 274,
+      "length": 18
+    },
+    {
+      "startTick": 281,
+      "endTick": 292,
+      "length": 12
+    }
+  ],
+  "failedPickups": {
+    "total": 0,
+    "byItemId": {},
+    "byItemType": {}
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 0,
+      "byReason": {}
+    },
+    "waitActions": 158,
+    "nonScoringDropoffs": 0
+  },
+  "multiBotCoordination": {
+    "botCount": 3,
+    "totalStalls": 229,
+    "maxStalledBots": 3,
+    "peakTaskCount": 12,
+    "forcedWaitActions": 11,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": []
+}
