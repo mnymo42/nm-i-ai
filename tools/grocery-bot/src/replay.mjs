@@ -30,6 +30,30 @@ function parseJsonl(filePath) {
     .map((line) => JSON.parse(line));
 }
 
+function extractLayout(rows) {
+  const layoutRow = rows.find((r) => r.type === 'layout');
+  if (layoutRow) {
+    return { grid: layoutRow.grid, drop_off: layoutRow.drop_off, max_rounds: layoutRow.max_rounds };
+  }
+  // Backward-compatible: old replays have full state_snapshot on every tick
+  const firstTick = rows.find((r) => r.type === 'tick' && r.state_snapshot?.grid);
+  if (firstTick) {
+    const s = firstTick.state_snapshot;
+    return { grid: s.grid, drop_off: s.drop_off, max_rounds: s.max_rounds };
+  }
+  return null;
+}
+
+function rebuildSnapshot(snapshot, layout) {
+  if (!layout || snapshot.grid) return snapshot;
+  return {
+    ...snapshot,
+    grid: layout.grid,
+    drop_off: layout.drop_off,
+    max_rounds: layout.max_rounds,
+  };
+}
+
 function activeOrderId(snapshot) {
   if (!snapshot?.orders || !Array.isArray(snapshot.orders)) {
     return null;
@@ -105,6 +129,124 @@ export function summarizeReplay(filePath) {
   };
 }
 
+export function generateAnalysis(filePath) {
+  const rows = parseJsonl(filePath);
+  const tickRows = rows.filter((r) => r.type === 'tick');
+
+  // Score progression by 25-tick windows
+  const scoreByWindow = [];
+  const windowSize = 25;
+  for (let start = 0; start < 300; start += windowSize) {
+    const end = start + windowSize - 1;
+    const first = tickRows.find((r) => r.tick >= start);
+    const last = [...tickRows].reverse().find((r) => r.tick <= end);
+    const startScore = first?.state_snapshot?.score ?? 0;
+    const endScore = last?.state_snapshot?.score ?? startScore;
+    scoreByWindow.push({ start, end, delta: endScore - startScore });
+  }
+
+  // Stagnation windows (25+ ticks with zero score gain)
+  const stagnationWindows = [];
+  let stagnationStart = null;
+  let prevScore = null;
+  for (const row of tickRows) {
+    const score = row.state_snapshot?.score ?? 0;
+    if (prevScore !== null && score === prevScore) {
+      if (stagnationStart === null) stagnationStart = row.tick - 1;
+    } else {
+      if (stagnationStart !== null) {
+        const length = row.tick - stagnationStart;
+        if (length >= 10) stagnationWindows.push({ startTick: stagnationStart, endTick: row.tick - 1, length });
+        stagnationStart = null;
+      }
+    }
+    prevScore = score;
+  }
+  if (stagnationStart !== null) {
+    const last = tickRows.at(-1);
+    const length = (last?.tick ?? stagnationStart) - stagnationStart + 1;
+    if (length >= 10) stagnationWindows.push({ startTick: stagnationStart, endTick: last?.tick, length });
+  }
+
+  // Failed pickups
+  const failedByItemId = {};
+  const failedByItemType = {};
+  let totalFailed = 0;
+  for (const row of tickRows) {
+    for (const result of row.pickup_result || []) {
+      if (!result.succeeded) {
+        totalFailed += 1;
+        const id = result.attempted_item_id ?? 'unknown';
+        failedByItemId[id] = (failedByItemId[id] || 0) + 1;
+      }
+    }
+    // Track item type via items array if available
+    const snapshot = row.state_snapshot;
+    for (const result of row.pickup_result || []) {
+      if (!result.succeeded) {
+        const id = result.attempted_item_id;
+        const item = (snapshot?.items || []).find((i) => i.id === id);
+        if (item?.type) failedByItemType[item.type] = (failedByItemType[item.type] || 0) + 1;
+      }
+    }
+  }
+
+  // Sanitizer overrides
+  let totalOverrides = 0;
+  const overridesByReason = {};
+  for (const row of tickRows) {
+    for (const override of row.sanitizer_overrides || []) {
+      totalOverrides += 1;
+      const reason = override.reason ?? 'unknown';
+      overridesByReason[reason] = (overridesByReason[reason] || 0) + 1;
+    }
+  }
+
+  // Wait actions and non-scoring drop_offs
+  let waitActions = 0;
+  let nonScoringDropoffs = 0;
+  for (let i = 0; i < tickRows.length; i += 1) {
+    const row = tickRows[i];
+    const nextRow = tickRows[i + 1];
+    for (const action of row.actions_sent || []) {
+      if (action.action === 'wait') waitActions += 1;
+      if (action.action === 'drop_off') {
+        const scoreBefore = row.state_snapshot?.score ?? 0;
+        const scoreAfter = nextRow?.state_snapshot?.score ?? scoreBefore;
+        if (scoreAfter === scoreBefore) nonScoringDropoffs += 1;
+      }
+    }
+  }
+
+  // Wasted inventory at game end
+  const lastTick = tickRows.at(-1);
+  const wastedInventory = (lastTick?.state_snapshot?.bots || []).flatMap((b) => b.inventory || []);
+
+  // Final result from game_over row
+  const gameOver = rows.find((r) => r.type === 'game_over');
+  const summary = summarizeReplay(filePath);
+
+  return {
+    finalScore: gameOver?.final_score ?? summary.finalScore,
+    ordersCompleted: gameOver?.orders_completed ?? summary.ordersCompleted,
+    itemsDelivered: gameOver?.items_delivered ?? summary.itemsDelivered,
+    totalTicks: tickRows.length,
+    scoreByWindow,
+    stagnationWindows,
+    failedPickups: {
+      total: totalFailed,
+      byItemId: failedByItemId,
+      byItemType: failedByItemType,
+    },
+    actionEfficiency: {
+      sanitizerOverrides: { total: totalOverrides, byReason: overridesByReason },
+      waitActions,
+      nonScoringDropoffs,
+    },
+    wastedInventoryAtEnd: wastedInventory,
+  };
+}
+
 function toActionMap(actions) {
   const map = new Map();
   for (const action of actions || []) {
@@ -116,6 +258,7 @@ function toActionMap(actions) {
 
 export function simulateReplayAgainstObserved(filePath, planner) {
   const rows = parseJsonl(filePath);
+  const layout = extractLayout(rows);
   const ticks = rows.filter((row) => row.type === 'tick');
 
   let compared = 0;
@@ -127,7 +270,8 @@ export function simulateReplayAgainstObserved(filePath, planner) {
       continue;
     }
 
-    const expected = planner.plan(tick.state_snapshot);
+    const snapshot = rebuildSnapshot(tick.state_snapshot, layout);
+    const expected = planner.plan(snapshot);
     const expectedMap = toActionMap(expected);
     const actualMap = toActionMap(tick.actions_sent || []);
 
@@ -149,8 +293,10 @@ export function simulateReplayAgainstObserved(filePath, planner) {
   return {
     compared,
     matches,
-    matchRatio,
-    waitRatio,
-    projectedScore: matchRatio * 100 - waitRatio * 10,
+    matchRatio: Number(matchRatio.toFixed(4)),
+    waitRatio: Number(waitRatio.toFixed(4)),
+    // NOTE: matchRatio measures action agreement with past run, not score.
+    // A change in strategy will lower matchRatio even if it improves score.
+    // Use live play or estimate-max to evaluate actual score impact.
   };
 }

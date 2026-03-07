@@ -50,7 +50,8 @@ export function tuneProfileFromReplay({
     const candidateProfile = mutateProfile(profile, random);
     const candidateEval = simulateReplayAgainstObserved(replayPath, new GroceryPlanner(candidateProfile));
 
-    if (candidateEval.projectedScore > bestEval.projectedScore) {
+    const score = (e) => e.matchRatio - e.waitRatio;
+    if (score(candidateEval) > score(bestEval)) {
       bestProfile = candidateProfile;
       bestEval = candidateEval;
     }

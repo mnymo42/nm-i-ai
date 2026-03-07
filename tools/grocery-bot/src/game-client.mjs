@@ -432,6 +432,7 @@ export class GroceryGameClient {
     const failedPickupHistory = [];
     const rollingWindow = 20;
     const runtime = planner?.profile?.runtime || {};
+    let layoutLogged = false;
 
     try {
       while (true) {
@@ -509,11 +510,30 @@ export class GroceryGameClient {
           projectedCompletionFeasible: baseMetrics.projectedCompletionFeasible ?? null,
         };
 
+        if (!layoutLogged && replayLogger) {
+          replayLogger.log({
+            type: 'layout',
+            grid: message.grid,
+            drop_off: message.drop_off,
+            max_rounds: message.max_rounds,
+          });
+          layoutLogged = true;
+        }
+
+        const slimSnapshot = {
+          type: message.type,
+          round: message.round,
+          score: message.score,
+          bots: message.bots,
+          items: message.items,
+          orders: message.orders,
+        };
+
         replayLogger?.log({
           type: 'tick',
           difficulty,
           tick: message.round,
-          state_snapshot: message,
+          state_snapshot: slimSnapshot,
           actions_sent: actions,
           actions_planned: plannedActions,
           sanitizer_overrides: sanitizerOverrides,

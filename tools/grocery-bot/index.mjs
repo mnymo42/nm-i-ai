@@ -8,7 +8,7 @@ import { estimateMaxScoreFromReplay } from './src/max-score-estimator.mjs';
 import { tuneProfileFromReplay } from './src/optimizer.mjs';
 import { GroceryPlanner } from './src/planner.mjs';
 import { loadProfiles, resolveProfile } from './src/profile.mjs';
-import { ReplayLogger, summarizeReplay, simulateReplayAgainstObserved } from './src/replay.mjs';
+import { ReplayLogger, summarizeReplay, simulateReplayAgainstObserved, generateAnalysis } from './src/replay.mjs';
 
 function nowStamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
@@ -63,9 +63,14 @@ async function runPlayMode(args) {
   const summaryPath = path.join(outPath, 'summary.json');
   fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
 
+  const analysis = generateAnalysis(replayPath);
+  const analysisPath = path.join(outPath, 'analysis.json');
+  fs.writeFileSync(analysisPath, JSON.stringify(analysis, null, 2));
+
   console.log(`Run completed. Score=${summary.finalScore}`);
   console.log(`Replay: ${replayPath}`);
   console.log(`Summary: ${summaryPath}`);
+  console.log(`Analysis: ${analysisPath}`);
 }
 
 function runSummaryMode(args) {
