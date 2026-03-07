@@ -7,6 +7,8 @@ import {
   getNeededTypes,
   estimateCongestion,
   estimateDistanceToDropoff,
+  isAtAnyDropOff,
+  nearestDropOff,
   closestAdjacentCell,
 } from './planner-utils.mjs';
 import {
@@ -55,7 +57,7 @@ export function buildTasks(state, world, profile, phase) {
       bot,
       activeDemand: world.activeDemand,
       phase,
-      dropOff: state.drop_off,
+      dropOff: nearestDropOff(bot.position, state),
       botCount: state.bots.length,
     })) {
       tasks.push({
@@ -63,7 +65,7 @@ export function buildTasks(state, world, profile, phase) {
         kind: 'drop_off',
         botScoped: true,
         botId: bot.id,
-        target: state.drop_off,
+        target: nearestDropOff(bot.position, state),
         item: null,
         demandScore: 4,
       });
@@ -101,7 +103,7 @@ export function buildTasks(state, world, profile, phase) {
     }
 
     const items = [...(itemsByType.get(type) || [])]
-      .sort((a, b) => estimateDistanceToDropoff(a, state.drop_off) - estimateDistanceToDropoff(b, state.drop_off))
+      .sort((a, b) => estimateDistanceToDropoff(a, state.drop_offs || state.drop_off) - estimateDistanceToDropoff(b, state.drop_offs || state.drop_off))
       .slice(0, budget);
 
     for (const item of items) {
@@ -140,8 +142,8 @@ export function buildCostMatrix(state, tasks, profile, phase) {
 
       const travelToTask = Math.max(0, manhattanDistance(bot.position, task.target) - (task.kind === 'pick_up' ? 1 : 0));
       const travelToDropOff = task.kind === 'pick_up'
-        ? estimateDistanceToDropoff(task.item, state.drop_off)
-        : Math.max(0, manhattanDistance(task.target, state.drop_off));
+        ? estimateDistanceToDropoff(task.item, state.drop_offs || state.drop_off)
+        : Math.max(0, manhattanDistance(task.target, nearestDropOff(task.target, state)));
       const congestion = estimateCongestion(task.target, state.bots.filter((candidate) => candidate.id !== bot.id));
       const contention = task.kind === 'pick_up'
         ? state.bots.filter((candidate) => candidate.id !== bot.id && manhattanDistance(candidate.position, task.target) < 4).length
@@ -181,7 +183,7 @@ export function actionFromTask({
   holdGoalSteps,
 }) {
   if (task.kind === 'drop_off') {
-    if (bot.position[0] === task.target[0] && bot.position[1] === task.target[1]) {
+    if (isAtAnyDropOff(bot.position, { drop_offs: [task.target] })) {
       return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off' };
     }
 

@@ -7,6 +7,9 @@ import {
   decrementDemand,
   estimateDistanceToDropoff,
   hasDeliverableInventory,
+  isAtAnyDropOff,
+  nearestDropOff,
+  primaryDropOff,
 } from './planner-utils.mjs';
 import {
   reserveInventoryForDemand,
@@ -118,7 +121,7 @@ function estimateActiveCloseEta({ state, remainingActiveDemand }) {
           }
 
           const cost = Math.max(0, manhattanDistance(bot.position, item.position) - 1)
-            + estimateDistanceToDropoff(item, state.drop_off)
+            + estimateDistanceToDropoff(item, state.drop_offs || state.drop_off)
             + 1;
           bestBotCost = Math.min(bestBotCost, cost);
         }
@@ -166,6 +169,7 @@ export function buildWarehouseControlContext({
   const previewWipItems = countPreviewWipItems(surplusInventory, world.previewDemand);
   const previewWipCapItems = runtime.preview_wip_cap_items ?? 2;
   const previewRunnerCap = runtime.preview_runner_cap ?? 1;
+  const activeMissionBuffer = runtime.active_mission_buffer ?? 1;
   const closeActiveEtaThreshold = runtime.close_active_eta_threshold ?? 9;
   const closeActiveRemainingThreshold = runtime.close_active_remaining_threshold ?? 2;
   const endgameDisablePreviewRounds = runtime.endgame_disable_preview_rounds ?? 40;
@@ -199,6 +203,13 @@ export function buildWarehouseControlContext({
     && previewRemainingCount > 0
     && previewWipItems < previewWipCapItems
   );
+  const activeRunnerCap = Math.max(
+    1,
+    Math.min(
+      state.bots.length,
+      runtime.active_runner_cap ?? (activeRemainingCount + activeMissionBuffer),
+    ),
+  );
 
   return {
     mode,
@@ -213,6 +224,7 @@ export function buildWarehouseControlContext({
     previewWipItems,
     previewWipCapItems,
     previewRunnerCap,
+    activeRunnerCap,
     previewAllowed,
     projectedActiveCloseEta,
   };
@@ -340,7 +352,7 @@ function allocateDropPlan({
   reservedQueueCells,
   queueDepth,
 }) {
-  const serviceCell = state.drop_off;
+  const serviceCell = nearestDropOff(bot.position, state);
   const serviceKey = encodeCoord(serviceCell);
   if (isCellAvailable(serviceCell, bot.id, occupiedByCell, reservedServiceCells)) {
     reservedServiceCells.add(serviceKey);
@@ -417,7 +429,7 @@ function pickWarehouseItem({
   let best = null;
   for (const item of pool) {
     const score = Math.max(0, manhattanDistance(bot.position, item.position) - 1)
-      + estimateDistanceToDropoff(item, state.drop_off) * 0.2;
+      + estimateDistanceToDropoff(item, state.drop_offs || state.drop_off) * 0.2;
     if (!best || score < best.score) {
       best = { item, score };
     }
@@ -429,7 +441,7 @@ function pickWarehouseItem({
 function findZoneRepositionCell(bot, state, graph, reservedQueueCells) {
   const zoneId = zoneIdForBot(state, bot.id);
   const [startX, endX] = zoneBounds(state, zoneId);
-  const preferredY = Math.max(1, Math.min(state.grid.height - 2, state.drop_off[1]));
+  const preferredY = Math.max(1, Math.min(state.grid.height - 2, primaryDropOff(state)[1]));
   const centerX = Math.max(startX, Math.min(endX, Math.floor((startX + endX) / 2)));
 
   let best = null;
@@ -449,6 +461,11 @@ function findZoneRepositionCell(bot, state, graph, reservedQueueCells) {
   }
 
   return best?.cell || [...bot.position];
+}
+
+function isActiveRunnerMission(mission) {
+  return mission?.missionType === 'pickup_active'
+    || (mission?.missionType === 'queue_service_bay' && mission?.queueFor === 'pickup_active');
 }
 
 function shouldKeepWarehouseMission({
@@ -544,6 +561,7 @@ export function buildWarehouseAssignments({
   const missionsByBot = new Map();
   const reservedServiceCells = new Set();
   const reservedQueueCells = new Set();
+  const reservedRepositionCells = new Set();
   const reservedItemIds = new Set();
   const occupiedByCell = buildOccupiedByCell(state);
   const reservedActive = cloneDemand(control.activeDemandAfterHeld);
@@ -552,6 +570,7 @@ export function buildWarehouseAssignments({
   let missionReassignments = 0;
   let missionTimeouts = 0;
   let previewRunnerCount = 0;
+  let activeRunnerCount = 0;
   let queueAssignments = 0;
   let serviceBayAssignments = 0;
 
@@ -617,11 +636,15 @@ export function buildWarehouseAssignments({
       reservedQueueCells.add(encodeCoord(existingMission.queueCell));
       queueAssignments += 1;
     }
+    if (existingMission.missionType === 'reposition_zone' && existingMission.targetCell) {
+      reservedRepositionCells.add(encodeCoord(existingMission.targetCell));
+    }
     if (existingMission.targetItemId) {
       reservedItemIds.add(existingMission.targetItemId);
     }
-    if (existingMission.missionType === 'pickup_active' || (existingMission.missionType === 'queue_service_bay' && existingMission.queueFor === 'pickup_active')) {
+    if (isActiveRunnerMission(existingMission)) {
       decrementDemand(reservedActive, existingMission.targetType);
+      activeRunnerCount += 1;
     } else if (existingMission.missionType === 'pickup_preview' || (existingMission.missionType === 'queue_service_bay' && existingMission.queueFor === 'pickup_preview')) {
       decrementDemand(reservedPreview, existingMission.targetType);
       previewRunnerCount += 1;
@@ -685,7 +708,12 @@ export function buildWarehouseAssignments({
       }
     }
 
-    if (!mission && sumCounts(reservedActive) > 0 && (bot.inventory || []).length < 3) {
+    if (
+      !mission
+      && sumCounts(reservedActive) > 0
+      && activeRunnerCount < control.activeRunnerCap
+      && (bot.inventory || []).length < 3
+    ) {
       const item = pickWarehouseItem({
         bot,
         state,
@@ -713,6 +741,7 @@ export function buildWarehouseAssignments({
         if (plan) {
           reservedItemIds.add(item.id);
           decrementDemand(reservedActive, item.type);
+          activeRunnerCount += 1;
           mission = plan.status === 'service'
             ? {
               missionType: 'pickup_active',
@@ -820,12 +849,17 @@ export function buildWarehouseAssignments({
     }
 
     if (!mission) {
+      const repositionCell = findZoneRepositionCell(bot, state, graph, new Set([
+        ...reservedQueueCells,
+        ...reservedRepositionCells,
+      ]));
+      reservedRepositionCells.add(encodeCoord(repositionCell));
       mission = {
         missionType: 'reposition_zone',
         orderId: world.activeOrder?.id ?? null,
         targetItemId: null,
         targetType: null,
-        targetCell: findZoneRepositionCell(bot, state, graph, reservedQueueCells),
+        targetCell: repositionCell,
         serviceCell: null,
         queueCell: null,
         queueFor: null,
@@ -869,6 +903,7 @@ export function buildWarehouseAssignments({
       serviceBayAssignments,
       previewSuppressed: !control.previewAllowed && control.previewDemandRemaining > 0,
       previewWipItems: control.previewWipItems,
+      activeRunnerCap: control.activeRunnerCap,
       activeDemandRemaining: control.activeDemandRemaining,
       activeDemandCoveredByHeld: control.activeDemandCoveredByHeld,
       activeDemandCoveredByAssigned: control.activeDemandCoveredByAssigned,
@@ -892,14 +927,14 @@ export function resolveWarehouseMissionAction({
   }
 
   if (mission.missionType === 'drop_active') {
-    if (bot.position[0] === state.drop_off[0] && bot.position[1] === state.drop_off[1]) {
+    if (isAtAnyDropOff(bot.position, state)) {
       return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off', noPath: false };
     }
 
     const path = findTimeAwarePath({
       graph,
       start: bot.position,
-      goal: mission.serviceCell || state.drop_off,
+      goal: mission.serviceCell || mission.targetCell || nearestDropOff(bot.position, state),
       reservations,
       edgeReservations,
       startTime: 0,

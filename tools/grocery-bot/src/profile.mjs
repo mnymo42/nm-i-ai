@@ -134,6 +134,7 @@ export const defaultProfiles = {
       loop_break_rounds: 6,
     },
     runtime: {
+      multi_bot_strategy: 'warehouse_v1',
       nudge_invalid_only: true,
       nudge_planned_waits: false,
       max_consecutive_pick_failures_before_forbid: 2,
@@ -143,6 +144,16 @@ export const defaultProfiles = {
       target_lock_stall_rounds: 12,
       target_lock_forbid_ttl: 30,
       order_stall_bailout_rounds: 20,
+      mission_ttl_rounds: 8,
+      mission_stall_rounds: 5,
+      no_path_reassign_rounds: 2,
+      endgame_disable_preview_rounds: 45,
+      preview_wip_cap_items: 2,
+      preview_runner_cap: 1,
+      active_mission_buffer: 1,
+      close_active_eta_threshold: 12,
+      close_active_remaining_threshold: 2,
+      service_bay_queue_depth: 2,
     },
   },
   expert: {
@@ -177,6 +188,7 @@ export const defaultProfiles = {
       loop_break_rounds: 6,
     },
     runtime: {
+      multi_bot_strategy: 'warehouse_v1',
       nudge_invalid_only: true,
       nudge_planned_waits: false,
       max_consecutive_pick_failures_before_forbid: 2,
@@ -186,12 +198,33 @@ export const defaultProfiles = {
       target_lock_stall_rounds: 12,
       target_lock_forbid_ttl: 30,
       order_stall_bailout_rounds: 20,
+      mission_ttl_rounds: 8,
+      mission_stall_rounds: 5,
+      no_path_reassign_rounds: 2,
+      endgame_disable_preview_rounds: 60,
+      preview_wip_cap_items: 2,
+      preview_runner_cap: 1,
+      active_mission_buffer: 2,
+      close_active_eta_threshold: 16,
+      close_active_remaining_threshold: 3,
+      service_bay_queue_depth: 2,
     },
   },
 };
 
+defaultProfiles.nightmare = JSON.parse(JSON.stringify(defaultProfiles.expert));
+defaultProfiles.nightmare.runtime.multi_bot_strategy = 'warehouse_v1';
+defaultProfiles.nightmare.runtime.endgame_disable_preview_rounds = 80;
+defaultProfiles.nightmare.runtime.preview_wip_cap_items = 3;
+defaultProfiles.nightmare.runtime.active_mission_buffer = 2;
+defaultProfiles.nightmare.runtime.close_active_eta_threshold = 20;
+defaultProfiles.nightmare.runtime.close_active_remaining_threshold = 3;
+defaultProfiles.nightmare.runtime.service_bay_queue_depth = 3;
 defaultProfiles.medium_warehouse_v1 = JSON.parse(JSON.stringify(defaultProfiles.medium));
 defaultProfiles.medium_warehouse_v1.runtime.multi_bot_strategy = 'warehouse_v1';
+defaultProfiles.hard_warehouse_v1 = JSON.parse(JSON.stringify(defaultProfiles.hard));
+defaultProfiles.expert_warehouse_v1 = JSON.parse(JSON.stringify(defaultProfiles.expert));
+defaultProfiles.nightmare_warehouse_v1 = JSON.parse(JSON.stringify(defaultProfiles.nightmare));
 
 function deepMerge(base, patch) {
   if (!patch || typeof patch !== 'object') {

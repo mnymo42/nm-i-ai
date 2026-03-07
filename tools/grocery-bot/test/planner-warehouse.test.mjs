@@ -248,3 +248,76 @@ test('warehouse assignments prefer in-zone active supply and borrow cross-zone o
   });
   assert.equal(borrowedPlan.missionsByBot.get(0).targetItemId, 'milk_far');
 });
+
+test('warehouse control caps simultaneous active runners for high-bot release control', () => {
+  const profile = structuredClone(defaultProfiles.expert);
+  profile.runtime.active_runner_cap = 2;
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [2, 1], inventory: [] },
+      { id: 2, position: [3, 1], inventory: [] },
+      { id: 3, position: [4, 1], inventory: [] },
+      { id: 4, position: [5, 1], inventory: [] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk', 'bread', 'eggs', 'juice'], items_delivered: [], status: 'active', complete: false },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [1, 3] },
+      { id: 'bread_0', type: 'bread', position: [3, 3] },
+      { id: 'eggs_0', type: 'eggs', position: [5, 3] },
+      { id: 'juice_0', type: 'juice', position: [7, 3] },
+    ],
+  });
+
+  const plan = buildWarehouseAssignments({
+    state,
+    world: buildWorldContext(state),
+    graph: buildGraph(state),
+    profile,
+    phase: 'early',
+    round: 0,
+  });
+
+  const activeRunnerCount = [...plan.missionsByBot.values()].filter((mission) => (
+    mission.missionType === 'pickup_active'
+    || (mission.missionType === 'queue_service_bay' && mission.queueFor === 'pickup_active')
+  )).length;
+  assert.equal(activeRunnerCount, 2);
+  assert.equal(plan.metrics.activeRunnerCap, 2);
+});
+
+test('warehouse assignments reserve distinct reposition targets for overflow bots', () => {
+  const profile = structuredClone(defaultProfiles.expert);
+  profile.runtime.active_runner_cap = 0;
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [1, 1], inventory: [] },
+      { id: 2, position: [1, 1], inventory: [] },
+      { id: 3, position: [1, 1], inventory: [] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [9, 3] },
+    ],
+  });
+
+  const plan = buildWarehouseAssignments({
+    state,
+    world: buildWorldContext(state),
+    graph: buildGraph(state),
+    profile,
+    phase: 'early',
+    round: 0,
+  });
+
+  const repositionTargets = [...plan.missionsByBot.values()]
+    .filter((mission) => mission.missionType === 'reposition_zone')
+    .map((mission) => `${mission.targetCell[0]},${mission.targetCell[1]}`);
+
+  assert.equal(new Set(repositionTargets).size, repositionTargets.length);
+});

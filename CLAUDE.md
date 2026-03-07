@@ -118,6 +118,14 @@ Experimental branch available but not promoted:
 - Convenience profile: `medium_warehouse_v1`
 - Keep `assignment_v1` as the live default until `warehouse_v1` beats `115` on real medium runs.
 
+High-bot defaults:
+- `hard`, `expert`, and `nightmare` now default to `warehouse_v1`
+- reason: the old assignment branch collapses structurally at `5+` bots
+
+Drop zones:
+- planner/sanitizer/protocol now support multiple drop zones through `drop_offs`
+- route selection uses nearest drop zone when multiple exist
+
 **Key parameters** (`config/profiles.json` + `out/tuned-<diff>.json`):
 - `assignment.congestion_penalty` / `contention_penalty` / `urgency_bonus` — shape bot-to-item assignment costs
 - `routing.horizon` — lookahead depth for time-aware A*

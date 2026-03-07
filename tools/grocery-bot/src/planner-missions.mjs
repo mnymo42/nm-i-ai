@@ -5,6 +5,9 @@ import {
   hasDeliverableInventory,
   countDeliverableInventory,
   estimateDistanceToDropoff,
+  isAtAnyDropOff,
+  nearestDropOff,
+  primaryDropOff,
   closestAdjacentCell,
 } from './planner-utils.mjs';
 import {
@@ -79,7 +82,7 @@ function candidateItemScore({
 
   return (
     Math.max(0, manhattanDistance(bot.position, item.position) - 1)
-    + estimateDistanceToDropoff(item, state.drop_off) * 0.2
+    + estimateDistanceToDropoff(item, state.drop_offs || state.drop_off) * 0.2
     + zoneDelta * crossZonePenalty
   );
 }
@@ -120,7 +123,7 @@ function pickMissionItem({
   let best = null;
   for (const item of pool) {
     const eta = Math.max(0, manhattanDistance(bot.position, item.position) - 1)
-      + estimateDistanceToDropoff(item, state.drop_off)
+      + estimateDistanceToDropoff(item, state.drop_offs || state.drop_off)
       + 1;
     if ((phase === 'endgame' || phase === 'cutoff') && eta > roundsLeft) {
       continue;
@@ -144,7 +147,7 @@ function pickMissionItem({
 function findIdleRepositionCell(bot, state, graph) {
   const zoneId = zoneIdForBot(state, bot.id);
   const [startX, endX] = zoneBounds(state, zoneId);
-  const preferredY = Math.max(1, Math.min(state.grid.height - 2, state.drop_off[1]));
+  const preferredY = Math.max(1, Math.min(state.grid.height - 2, primaryDropOff(state)[1]));
   const centerX = Math.max(startX, Math.min(endX, Math.floor((startX + endX) / 2)));
 
   let best = null;
@@ -260,7 +263,7 @@ function shouldKeepMission({
     }
 
     const eta = Math.max(0, manhattanDistance(bot.position, item.position) - 1)
-      + estimateDistanceToDropoff(item, state.drop_off)
+      + estimateDistanceToDropoff(item, state.drop_offs || state.drop_off)
       + 1;
     if ((phase === 'endgame' || phase === 'cutoff') && eta > roundsLeft) {
       return { keep: false, reason: 'too_late' };
@@ -429,7 +432,7 @@ export function buildMediumMissionAssignments({
         targetItemId: null,
         targetType: null,
         zoneId: zoneIdForBot(state, bot.id),
-        targetCell: [...state.drop_off],
+        targetCell: nearestDropOff(bot.position, state),
         assignedAtRound: round,
         lastProgressRound: round,
         ttl: missionTtl,
@@ -575,14 +578,14 @@ export function resolveMissionAction({
   }
 
   if (mission.missionType === 'drop_active') {
-    if (bot.position[0] === state.drop_off[0] && bot.position[1] === state.drop_off[1]) {
+    if (isAtAnyDropOff(bot.position, state)) {
       return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off', noPath: false };
     }
 
     const path = findTimeAwarePath({
       graph,
       start: bot.position,
-      goal: state.drop_off,
+      goal: mission.targetCell || nearestDropOff(bot.position, state),
       reservations,
       edgeReservations,
       startTime: 0,

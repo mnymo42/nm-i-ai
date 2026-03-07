@@ -285,6 +285,7 @@ export class GroceryGameClient {
             type: 'layout',
             grid: message.grid,
             drop_off: message.drop_off,
+            drop_offs: message.drop_offs,
             max_rounds: message.max_rounds,
           });
           layoutLogged = true;

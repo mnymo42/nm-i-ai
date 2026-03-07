@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeTokenInput, parseCliArguments } from '../src/cli.mjs';
+import { defaultProfiles } from '../src/profile.mjs';
 
 test('normalizeTokenInput keeps raw JWT tokens unchanged', () => {
   const token = 'header.payload.signature';
@@ -33,4 +34,14 @@ test('parseCliArguments accepts benchmark mode with replay path', () => {
   assert.equal(args.mode, 'benchmark');
   assert.equal(args.difficulty, 'medium');
   assert.match(args.replay, /tools\/grocery-bot\/out$/);
+});
+
+test('nightmare difficulty is accepted and has a default profile', () => {
+  const args = parseCliArguments([
+    '--token', 'header.payload.signature',
+    '--difficulty', 'nightmare',
+  ]);
+
+  assert.equal(args.difficulty, 'nightmare');
+  assert.equal(defaultProfiles.nightmare.runtime.multi_bot_strategy, 'warehouse_v1');
 });

@@ -85,7 +85,7 @@ function parseArgs(argv) {
 export function parseCliArguments(argv) {
   const args = parseArgs(argv);
 
-  const validDifficulties = new Set(['easy', 'medium', 'hard', 'expert']);
+  const validDifficulties = new Set(['easy', 'medium', 'hard', 'expert', 'nightmare']);
   if (!validDifficulties.has(args.difficulty)) {
     throw new Error(`Invalid difficulty: ${args.difficulty}`);
   }

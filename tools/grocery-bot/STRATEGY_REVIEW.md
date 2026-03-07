@@ -34,6 +34,8 @@
 - Structural refactor backlog now lives in [`STRUCTURE_REVIEW.md`](./STRUCTURE_REVIEW.md).
 - `mission_v1` is not the medium default after a live collapse to score `2`; the stable assignment path remains the baseline.
 - `warehouse_v1` now exists behind a non-default strategy flag and is intended as the next real medium architecture, but it must clear offline benchmark gates before any promotion.
+- `hard`, `expert`, and `nightmare` now default to `warehouse_v1`, because the old assignment branch is already structurally broken at `5+` bots.
+- Multi-drop-zone support is now implemented end-to-end, even though the first observed nightmare payload on `2026-03-07` still exposed only one live drop zone.
 - Offline corpus benchmarking is now part of the workflow:
   - `node tools/grocery-bot/index.mjs --mode benchmark --difficulty medium --replay tools/grocery-bot/out`
   - `node tools/grocery-bot/index.mjs --mode estimate-max --replay tools/grocery-bot/out/<run-id>/replay.jsonl`

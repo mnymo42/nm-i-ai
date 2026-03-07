@@ -4,6 +4,8 @@ import {
   hasDeliverableInventory,
   shouldScheduleDropOff,
   countDeliverableInventory,
+  isAtAnyDropOff,
+  nearestDropOff,
 } from './planner-utils.mjs';
 
 // --- Inventory / demand helpers ---
@@ -416,7 +418,7 @@ export function estimateMinActiveCompletionEta({
     return countDeliverableInventory(bot, activeDemand) > 0
       ? estimateDropEta({
         bot,
-        dropOff: state.drop_off,
+        dropOff: nearestDropOff(bot.position, state),
         graph,
         horizon: Math.max(24, profile.routing.horizon + 8),
       })
@@ -443,7 +445,7 @@ export function estimateMinActiveCompletionEta({
     if (sequence.length === 0) {
       routeCost = estimateDropEta({
         bot,
-        dropOff: state.drop_off,
+        dropOff: nearestDropOff(bot.position, state),
         graph,
         horizon: Math.max(24, profile.routing.horizon + 8),
       });
@@ -451,7 +453,7 @@ export function estimateMinActiveCompletionEta({
       const routeEval = evaluateTypeSequenceRoute({
         graph,
         start: bot.position,
-        dropOff: state.drop_off,
+        dropOff: nearestDropOff(bot.position, state),
         typeSequence: sequence,
         shelvesByType,
         horizon: Math.max(24, profile.routing.horizon + 8),
@@ -505,7 +507,9 @@ export function maybeImmediateDrop({
     botCount,
     completionInfeasible,
   });
-  const atDropoff = bot.position[0] === dropOff[0] && bot.position[1] === dropOff[1];
+  const atDropoff = Array.isArray(dropOff?.[0])
+    ? isAtAnyDropOff(bot.position, { drop_offs: dropOff })
+    : (bot.position[0] === dropOff[0] && bot.position[1] === dropOff[1]);
 
   if (atDropoff && shouldDrop) {
     return { bot: bot.id, action: 'drop_off' };
@@ -722,14 +726,14 @@ export function planSingleBotRecovery({
   const forceInventoryFlush = forcePartialDrop && inventoryCount > 0 && hasDeliverableInventory(bot, world.activeDemand);
 
   if (!suppressDropOff && roundsLeft <= 1) {
-    const atDropoff = bot.position[0] === state.drop_off[0] && bot.position[1] === state.drop_off[1];
+    const atDropoff = isAtAnyDropOff(bot.position, state);
     if (atDropoff && hasDeliverableInventory(bot, world.activeDemand)) {
       return { bot: bot.id, action: 'drop_off' };
     }
   }
 
   if (forceInventoryFlush && !suppressDropOff) {
-    const atDropoff = bot.position[0] === state.drop_off[0] && bot.position[1] === state.drop_off[1];
+    const atDropoff = isAtAnyDropOff(bot.position, state);
     if (atDropoff) {
       return { bot: bot.id, action: 'drop_off' };
     }
@@ -738,7 +742,7 @@ export function planSingleBotRecovery({
   const directDrop = suppressDropOff ? null : maybeImmediateDrop({
     bot,
     activeDemand: world.activeDemand,
-    dropOff: state.drop_off,
+    dropOff: nearestDropOff(bot.position, state),
     phase,
     botCount: state.bots.length,
     completionInfeasible,
@@ -751,7 +755,7 @@ export function planSingleBotRecovery({
     bot,
     activeDemand: world.activeDemand,
     phase,
-    dropOff: state.drop_off,
+    dropOff: nearestDropOff(bot.position, state),
     botCount: state.bots.length,
     completionInfeasible,
   }) || forceInventoryFlush;
@@ -760,7 +764,7 @@ export function planSingleBotRecovery({
     const path = findTimeAwarePath({
       graph,
       start: bot.position,
-      goal: state.drop_off,
+      goal: nearestDropOff(bot.position, state),
       reservations: new Map(),
       edgeReservations: new Map(),
       startTime: 0,
@@ -798,7 +802,7 @@ export function planSingleBotRecovery({
       const toDrop = findTimeAwarePath({
         graph,
         start: finalPickupCell,
-        goal: state.drop_off,
+        goal: nearestDropOff(finalPickupCell, state),
         reservations: new Map(),
         edgeReservations: new Map(),
         startTime: 0,

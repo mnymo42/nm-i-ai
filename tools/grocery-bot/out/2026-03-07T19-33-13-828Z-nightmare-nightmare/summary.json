@@ -1,0 +1,16 @@
+{
+  "runId": "2026-03-07T19-33-13-828Z-nightmare-nightmare",
+  "difficulty": "nightmare",
+  "profile": "nightmare",
+  "finalScore": 2,
+  "finalItems": 2,
+  "finalOrders": 0,
+  "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-07T19-33-13-828Z-nightmare-nightmare/replay.jsonl",
+  "metrics": {
+    "ticks": 500,
+    "finalScore": 2,
+    "ordersCompleted": 0,
+    "itemsDelivered": 2,
+    "totalStalls": 6593
+  }
+}

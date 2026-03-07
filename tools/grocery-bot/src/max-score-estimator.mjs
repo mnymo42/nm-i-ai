@@ -1,4 +1,5 @@
 import { encodeCoord } from './coords.mjs';
+import { getDropOffs, nearestDropOff } from './drop-zones.mjs';
 import { GridGraph } from './grid-graph.mjs';
 import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
 import { findTimeAwarePath } from './routing.mjs';
@@ -106,7 +107,7 @@ function buildGraphContext(initialState) {
 
   return {
     graph,
-    dropOff: initialState.drop_off,
+    dropOffs: getDropOffs(initialState),
     shelvesByType,
   };
 }
@@ -229,12 +230,14 @@ function expandCountsToTypes(counts) {
   return items;
 }
 
-function createTripCostEstimator({ graph, dropOff, shelvesByType, horizon }) {
+function createTripCostEstimator({ graph, dropOffs, shelvesByType, horizon }) {
   const dist = createDistanceSolver(graph, horizon);
   const tripCostCache = new Map();
 
   function movementForSequence(typeSequence) {
-    let states = new Map([[encodeCoord(dropOff), { coord: dropOff, cost: 0 }]]);
+    let states = new Map(
+      dropOffs.map((dropOff) => [encodeCoord(dropOff), { coord: dropOff, cost: 0 }]),
+    );
 
     for (const type of typeSequence) {
       const shelves = shelvesByType.get(type) || [];
@@ -270,7 +273,7 @@ function createTripCostEstimator({ graph, dropOff, shelvesByType, horizon }) {
 
     let bestMovement = Number.POSITIVE_INFINITY;
     for (const { coord, cost } of states.values()) {
-      const toDrop = dist(coord, dropOff);
+      const toDrop = dist(coord, nearestDropOff(coord, dropOffs));
       if (!Number.isFinite(toDrop)) {
         continue;
       }
@@ -478,14 +481,14 @@ export function estimateMaxScoreFromReplay(filePath) {
   } = buildObservedReplayModel(rows);
   const {
     graph,
-    dropOff,
+    dropOffs,
     shelvesByType,
   } = buildGraphContext(initialState);
 
   const horizon = Math.max(32, graph.width * graph.height);
   const tripCost = createTripCostEstimator({
     graph,
-    dropOff,
+    dropOffs,
     shelvesByType,
     horizon,
   });

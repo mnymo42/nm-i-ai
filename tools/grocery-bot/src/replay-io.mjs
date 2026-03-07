@@ -15,6 +15,7 @@ export function extractLayout(rows) {
     return {
       grid: layoutRow.grid,
       drop_off: layoutRow.drop_off,
+      drop_offs: layoutRow.drop_offs || (layoutRow.drop_off ? [layoutRow.drop_off] : undefined),
       max_rounds: layoutRow.max_rounds,
     };
   }
@@ -28,6 +29,7 @@ export function extractLayout(rows) {
   return {
     grid: snapshot.grid,
     drop_off: snapshot.drop_off,
+    drop_offs: snapshot.drop_offs || (snapshot.drop_off ? [snapshot.drop_off] : undefined),
     max_rounds: snapshot.max_rounds,
   };
 }
@@ -41,6 +43,7 @@ export function rebuildSnapshot(snapshot, layout) {
     ...snapshot,
     grid: layout.grid,
     drop_off: layout.drop_off,
+    drop_offs: layout.drop_offs || (layout.drop_off ? [layout.drop_off] : undefined),
     max_rounds: layout.max_rounds,
   };
 }

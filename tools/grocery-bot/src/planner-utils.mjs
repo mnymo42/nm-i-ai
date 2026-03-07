@@ -1,4 +1,11 @@
 import { encodeCoord, manhattanDistance } from './coords.mjs';
+import {
+  estimateDistanceToNearestDropOff,
+  getDropOffs,
+  isAtAnyDropOff,
+  nearestDropOff,
+  primaryDropOff,
+} from './drop-zones.mjs';
 import { findTimeAwarePath } from './routing.mjs';
 
 export function cloneDemand(map) {
@@ -133,8 +140,15 @@ export function estimateCongestion(cell, bots) {
 }
 
 export function estimateDistanceToDropoff(item, dropOff) {
-  return Math.max(1, manhattanDistance(item.position, dropOff) - 1);
+  return estimateDistanceToNearestDropOff(item, dropOff);
 }
+
+export {
+  getDropOffs,
+  isAtAnyDropOff,
+  nearestDropOff,
+  primaryDropOff,
+};
 
 export function pickNearestRelevantItem(bot, items, neededTypes) {
   let best = null;

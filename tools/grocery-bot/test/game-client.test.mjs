@@ -193,6 +193,23 @@ test('sanitizeActionsForState preserves drop_off for bot already occupying drop-
   assert.notEqual(byBot.get(1).action, 'move_left');
 });
 
+test('sanitizeActionsForState allows drop_off at any configured drop zone', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [5, 5], inventory: ['milk'] },
+    ],
+    items: [],
+    drop_off: [0, 0],
+    drop_offs: [[0, 0], [5, 5], [3, 3]],
+  });
+
+  const actions = sanitizeActionsForState([
+    { bot: 0, action: 'drop_off' },
+  ], state);
+
+  assert.deepEqual(actions, [{ bot: 0, action: 'drop_off' }]);
+});
+
 test('game client sends at most one payload per round', async () => {
   const sent = [];
   const client = new GroceryGameClient({ token: 'test-token', minRoundSendIntervalMs: 0 });

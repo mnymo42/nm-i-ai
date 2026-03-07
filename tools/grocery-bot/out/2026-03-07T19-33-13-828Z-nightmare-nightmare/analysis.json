@@ -1,0 +1,271 @@
+{
+  "finalScore": 2,
+  "ordersCompleted": 0,
+  "itemsDelivered": 2,
+  "totalTicks": 500,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 0
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 1
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 0
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 0
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 0
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 0
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 71,
+      "length": 72
+    },
+    {
+      "startTick": 72,
+      "endTick": 464,
+      "length": 393
+    },
+    {
+      "startTick": 465,
+      "endTick": 499,
+      "length": 35
+    }
+  ],
+  "failedPickups": {
+    "total": 311,
+    "byItemId": {
+      "item_66": 1,
+      "item_100": 2,
+      "item_26": 3,
+      "item_22": 87,
+      "item_1": 89,
+      "item_0": 41,
+      "item_2": 1,
+      "item_101": 5,
+      "item_90": 82
+    },
+    "byItemType": {
+      "lettuce": 1,
+      "tomatoes": 5,
+      "carrots": 176,
+      "butter": 41,
+      "cream": 1,
+      "oats": 5,
+      "rice": 82
+    }
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 517,
+      "byReason": {
+        "conflict_stationary_occupant": 517
+      }
+    },
+    "waitActions": 4535,
+    "nonScoringDropoffs": 2
+  },
+  "multiBotCoordination": {
+    "botCount": 20,
+    "totalStalls": 6593,
+    "maxStalledBots": 20,
+    "peakTaskCount": 30,
+    "forcedWaitActions": 1820,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "controlModeTimeline": [],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [],
+    "activeCloseEtaTimeline": [],
+    "queueAssignmentsPeak": 0,
+    "serviceBayAssignmentsPeak": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 5,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 6,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 7,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 8,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 9,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 10,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 11,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 12,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 13,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 14,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 15,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 16,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 17,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 18,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 19,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "eggs",
+    "cream",
+    "butter",
+    "tomatoes",
+    "tomatoes",
+    "carrots",
+    "apples",
+    "lettuce",
+    "lettuce"
+  ]
+}

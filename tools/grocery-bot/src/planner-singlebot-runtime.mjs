@@ -2,6 +2,8 @@ import { adjacentManhattan, moveToAction } from './coords.mjs';
 import { findTimeAwarePath } from './routing.mjs';
 import {
   hasDeliverableInventory,
+  isAtAnyDropOff,
+  nearestDropOff,
   shouldScheduleDropOff,
 } from './planner-utils.mjs';
 import {
@@ -42,7 +44,7 @@ function planSingleBot({
   const roundsLeft = Math.max(0, state.max_rounds - state.round);
 
   if (!suppressDropOff && roundsLeft <= 1) {
-    const atDropoff = bot.position[0] === state.drop_off[0] && bot.position[1] === state.drop_off[1];
+    const atDropoff = isAtAnyDropOff(bot.position, state);
     if (atDropoff && hasDeliverableInventory(bot, world.activeDemand)) {
       return { bot: bot.id, action: 'drop_off' };
     }
@@ -69,7 +71,7 @@ function planSingleBot({
 
   const resolveTypeRoundTripCost = createTypeRoundTripCostResolver({
     graph,
-    dropOff: state.drop_off,
+    dropOff: nearestDropOff(bot.position, state),
     shelvesByType,
     horizon: Math.max(24, profile.routing.horizon + 8),
     approachStats,
@@ -113,7 +115,7 @@ function planSingleBot({
   const directDrop = suppressDropOff ? null : maybeImmediateDrop({
     bot,
     activeDemand: world.activeDemand,
-    dropOff: state.drop_off,
+    dropOff: nearestDropOff(bot.position, state),
     phase,
     botCount,
     completionInfeasible,
@@ -162,7 +164,7 @@ function planSingleBot({
     const routeEval = evaluateTypeSequenceRoute({
       graph,
       start: bot.position,
-      dropOff: state.drop_off,
+      dropOff: nearestDropOff(bot.position, state),
       typeSequence: sequence,
       shelvesByType,
       horizon: Math.max(24, profile.routing.horizon + 8),
@@ -224,21 +226,21 @@ function planSingleBot({
       bot,
       activeDemand: world.activeDemand,
       phase,
-      dropOff: state.drop_off,
+      dropOff: nearestDropOff(bot.position, state),
       botCount,
       completionInfeasible,
     })) {
-      if (bot.position[0] === state.drop_off[0] && bot.position[1] === state.drop_off[1]) {
+      if (isAtAnyDropOff(bot.position, state)) {
         return { bot: bot.id, action: 'drop_off' };
       }
 
       const path = findTimeAwarePath({
-        graph,
-        start: bot.position,
-        goal: state.drop_off,
-        reservations: new Map(),
-        edgeReservations: new Map(),
-        startTime: 0,
+      graph,
+      start: bot.position,
+      goal: nearestDropOff(bot.position, state),
+      reservations: new Map(),
+      edgeReservations: new Map(),
+      startTime: 0,
         horizon: Math.max(24, profile.routing.horizon + 8),
       });
 

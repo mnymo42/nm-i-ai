@@ -1,3 +1,5 @@
+import { isAtAnyDropOff, nearestDropOff } from './drop-zones.mjs';
+
 function isSameCell(a, b) {
   return a[0] === b[0] && a[1] === b[1];
 }
@@ -115,7 +117,7 @@ function hasDeliverableInventory(bot, activeDemand) {
 function chooseFallbackTarget(bot, state) {
   const activeDemand = buildActiveDemand(state);
   if (hasDeliverableInventory(bot, activeDemand)) {
-    return state.drop_off;
+    return nearestDropOff(bot.position, state);
   }
 
   const neededTypes = new Set();
@@ -141,7 +143,7 @@ function chooseFallbackTarget(bot, state) {
     return best.position;
   }
 
-  return state.drop_off;
+  return nearestDropOff(bot.position, state);
 }
 
 function chooseNudgeAction({
@@ -201,7 +203,7 @@ function sanitizeBotActionDetailed({ bot, action, state, wallSet }) {
   }
 
   if (action.action === 'drop_off') {
-    if (isSameCell(bot.position, state.drop_off)) {
+    if (isAtAnyDropOff(bot.position, state)) {
       return { action: { bot: bot.id, action: 'drop_off' }, overrideReason: null, hadPlannedAction: true };
     }
     return { action: fallback, overrideReason: 'invalid_drop_position', hadPlannedAction: true };

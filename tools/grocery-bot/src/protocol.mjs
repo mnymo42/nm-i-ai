@@ -1,3 +1,5 @@
+import { normalizeDropOffs } from './drop-zones.mjs';
+
 const ACTIONS = new Set([
   'move_up',
   'move_down',
@@ -17,6 +19,7 @@ function assert(condition, message) {
 function normalizeGameState(payload) {
   assert(typeof payload.round === 'number', 'game_state.round is required');
   assert(payload.grid && typeof payload.grid.width === 'number' && typeof payload.grid.height === 'number', 'game_state.grid is invalid');
+  const dropOffs = normalizeDropOffs(payload);
 
   return {
     type: 'game_state',
@@ -30,7 +33,8 @@ function normalizeGameState(payload) {
     bots: payload.bots || [],
     items: payload.items || [],
     orders: payload.orders || [],
-    drop_off: payload.drop_off || [0, 0],
+    drop_off: dropOffs[0] || [0, 0],
+    drop_offs: dropOffs,
     score: payload.score ?? 0,
   };
 }

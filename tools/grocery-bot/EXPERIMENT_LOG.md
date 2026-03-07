@@ -153,6 +153,25 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Verdict: `implemented behind flag, not promoted`
 - Notes: this is now a real development branch with specs and offline tooling, but it is intentionally not the live default until it beats the `115` assignment baseline on fresh medium runs.
 
+### High-bot warehouse rollout + multi-drop support
+
+- Hypothesis: `hard`, `expert`, and `nightmare` are failing because the old assignment planner releases too much concurrent work and has no viable traffic/WIP control once bot count reaches `5+`.
+- Change:
+  - added multi-drop-zone parsing and nearest-drop routing across protocol, replay, planner, sanitizer, and estimator paths
+  - promoted `warehouse_v1` as the default multi-bot strategy for:
+    - `hard`
+    - `expert`
+    - `nightmare`
+  - added high-bot warehouse tuning:
+    - active runner cap via `active_mission_buffer` / `active_runner_cap`
+    - deeper service-bay queue depth
+    - unique reposition target reservation
+    - longer endgame preview cutoff for larger maps / 500-turn nightmare
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+- Verdict: `keep and validate live`
+- Notes: this is the first architecture change aimed directly at `5-20` bots. It is necessary because the prior defaults were already non-competitive on `hard+`. Live baselines still need to be re-established on the new branch.
+
 ## Guidance
 
 - Prefer experiments that are soft cost-shaping changes over hard role locks.
