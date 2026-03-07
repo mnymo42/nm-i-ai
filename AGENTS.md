@@ -48,6 +48,7 @@ Use this file together with [CLAUDE.md](/home/magnus/prog/nm-i-ai/CLAUDE.md) whe
 - Single-bot recovery and cooldowns: `tools/grocery-bot/src/planner-singlebot.mjs`
 - Multi-bot task generation and reservations: `tools/grocery-bot/src/planner-multibot.mjs`
 - Medium mission policy: `tools/grocery-bot/src/planner-missions.mjs`
+- Multi-bot runtime execution: `tools/grocery-bot/src/planner-multibot-runtime.mjs`
 - Client legality sanitizer: `tools/grocery-bot/src/game-client-sanitizer.mjs`
 - Shared helpers: `tools/grocery-bot/src/planner-utils.mjs`
 - Replay and summaries: `tools/grocery-bot/src/replay.mjs`

@@ -65,6 +65,7 @@ tools/grocery-bot/
 │   ├── planner-multibot.mjs     Multi-bot task generation, costs, reservations, action helpers
 │   ├── planner-multibot-common.mjs Shared multi-bot demand/zone helpers
 │   ├── planner-missions.mjs     Medium mission assignment and mission action resolution
+│   ├── planner-multibot-runtime.mjs Multi-bot runtime execution for mission/task strategies
 │   ├── planner-utils.mjs        Shared helpers (demand, phase, congestion, path utils)
 │   ├── game-client.mjs          WebSocket loop, replay logging, send guard
 │   ├── game-client-sanitizer.mjs Client-side legality sanitizer and nudge logic

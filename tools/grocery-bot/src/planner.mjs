@@ -1,26 +1,16 @@
-import { solveMinCostAssignment } from './assignment.mjs';
 import { encodeCoord, adjacentManhattan, moveToAction } from './coords.mjs';
 import { GridGraph } from './grid-graph.mjs';
-import { findTimeAwarePath, reservePath } from './routing.mjs';
+import { findTimeAwarePath } from './routing.mjs';
 import { buildWorldContext } from './world-model.mjs';
 import {
   hasDeliverableInventory,
   shouldScheduleDropOff,
   getRoundPhase,
-  getNeededTypes,
-  pickNearestRelevantItem,
 } from './planner-utils.mjs';
 import {
-  buildTasks,
-  buildCostMatrix,
-  makeOccupancyReservations,
-  actionFromTask,
-  chooseFallbackAction,
-} from './planner-multibot.mjs';
-import {
-  buildMediumMissionAssignments,
-  resolveMissionAction,
-} from './planner-missions.mjs';
+  executeMissionStrategy,
+  executeAssignedTaskStrategy,
+} from './planner-multibot-runtime.mjs';
 import {
   mapCountFromInventory,
   copyCounts,
@@ -693,242 +683,29 @@ export class GroceryPlanner {
       state.bots.map((bot) => [bot.id, this.blockedPickupByBot.get(bot.id) || new Map()]),
     );
     if (runtime.multi_bot_strategy === 'mission_v1') {
-      const missionPlan = buildMediumMissionAssignments({
+      return executeMissionStrategy({
+        planner: this,
         state,
         world,
         graph,
-        profile: this.profile,
         phase,
-        round: state.round,
-        existingMissionsByBot: this.missionsByBot,
+        recoveryMode,
+        recoveryThreshold,
         blockedItemsByBot,
         previousPositionByBot,
         previousInventoryKeyByBot,
       });
-      this.missionsByBot = missionPlan.missionsByBot;
-
-      const reservations = makeOccupancyReservations(state);
-      const edgeReservations = new Map();
-      const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
-      const actions = [];
-      let forcedWaits = 0;
-
-      for (const bot of botsByPriority) {
-        const stallKey = `${bot.id}`;
-        const forcedWaitRemaining = this.forcedWait.get(stallKey) || 0;
-        if (forcedWaitRemaining > 0) {
-          this.forcedWait.set(stallKey, forcedWaitRemaining - 1);
-          reservePath({
-            path: [bot.position],
-            startTime: 0,
-            reservations,
-            edgeReservations,
-            horizon: this.profile.routing.horizon,
-            holdAtGoal: true,
-          });
-          actions.push({ bot: bot.id, action: 'wait' });
-          forcedWaits += 1;
-          continue;
-        }
-
-        const mission = this.missionsByBot.get(bot.id) || null;
-        let resolved = resolveMissionAction({
-          bot,
-          mission,
-          state,
-          graph,
-          reservations,
-          edgeReservations,
-          profile: this.profile,
-        });
-
-        const previous = this.previousPositions.get(stallKey);
-        const currentCoord = encodeCoord(bot.position);
-        const stalled = previous === currentCoord;
-        const stallCount = stalled ? (this.stalls.get(stallKey) || 0) + 1 : 0;
-        this.stalls.set(stallKey, stallCount);
-
-        if (stallCount >= this.profile.anti_deadlock.stall_threshold && resolved.action.startsWith('move_')) {
-          const fallback = chooseFallbackAction(bot, graph, reservations, edgeReservations, this.profile.routing.horizon);
-          resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock', noPath: false };
-          this.forcedWait.set(stallKey, this.profile.anti_deadlock.forced_wait_rounds);
-        }
-
-        this.previousPositions.set(stallKey, currentCoord);
-
-        reservePath({
-          path: resolved.nextPath,
-          startTime: 0,
-          reservations,
-          edgeReservations,
-          horizon: this.profile.routing.horizon,
-          holdAtGoal: resolved.targetType !== 'drop_off',
-        });
-
-        if (mission) {
-          mission.noPathRounds = resolved.noPath ? (mission.noPathRounds || 0) + 1 : 0;
-          this.missionsByBot.set(bot.id, mission);
-        }
-
-        if (resolved.action === 'pick_up') {
-          const existingPending = this.pendingPickups.get(bot.id);
-          const inventorySize = (bot.inventory || []).length;
-          if (!existingPending || existingPending.itemId !== resolved.itemId) {
-            this.pendingPickups.set(bot.id, {
-              itemId: resolved.itemId,
-              expectedMinInventory: inventorySize + 1,
-              resolveAfterRound: state.round + 2,
-              approachCell: [...bot.position],
-            });
-          }
-          actions.push({ bot: bot.id, action: 'pick_up', item_id: resolved.itemId });
-        } else {
-          actions.push({ bot: bot.id, action: resolved.action });
-        }
-
-        this.lastActionByBot.set(bot.id, resolved.action);
-      }
-
-      this.lastMetrics = {
-        phase,
-        taskCount: Array.from(this.missionsByBot.values()).filter((mission) => mission?.missionType !== 'idle_reposition').length,
-        forcedWaits,
-        stalledBots: Array.from(this.stalls.values()).filter((value) => value > 0).length,
-        recoveryMode,
-        noProgressRounds: this.noProgressRounds,
-        recoveryThreshold,
-        loopDetections: this.loopDetectionsThisTick,
-        approachBlacklistSize: Array.from(blockedItemsByBot.values()).reduce((sum, blocked) => sum + blocked.size, 0),
-        orderEtaAtDecision: null,
-        projectedCompletionFeasible: null,
-        ...missionPlan.metrics,
-      };
-
-      return actions;
     }
 
-    const tasks = buildTasks(state, world, this.profile, phase);
-    const costs = buildCostMatrix(state, tasks, this.profile, phase, { blockedItemsByBot });
-    const { assignment } = solveMinCostAssignment(costs);
-
-    const taskByBot = new Map();
-    for (let index = 0; index < state.bots.length; index += 1) {
-      const taskIndex = assignment[index];
-      if (taskIndex >= 0 && taskIndex < tasks.length) {
-        taskByBot.set(state.bots[index].id, tasks[taskIndex]);
-      }
-    }
-
-    const reservations = makeOccupancyReservations(state);
-    const edgeReservations = new Map();
-
-    const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
-    const singleBotMode = botsByPriority.length === 1;
-    const actions = [];
-    let forcedWaits = 0;
-
-    for (const bot of botsByPriority) {
-      const stallKey = `${bot.id}`;
-      const forcedWaitRemaining = this.forcedWait.get(stallKey) || 0;
-      if (!singleBotMode && forcedWaitRemaining > 0) {
-        this.forcedWait.set(stallKey, forcedWaitRemaining - 1);
-        const forcedPath = [bot.position];
-        reservePath({
-          path: forcedPath,
-          startTime: 0,
-          reservations,
-          edgeReservations,
-          horizon: this.profile.routing.horizon,
-          holdAtGoal: true,
-        });
-        actions.push({ bot: bot.id, action: 'wait' });
-        forcedWaits += 1;
-        continue;
-      }
-
-      const task = taskByBot.get(bot.id);
-      let resolved = null;
-
-      if (task) {
-        resolved = actionFromTask({
-          bot,
-          task,
-          graph,
-          reservations,
-          edgeReservations,
-          profile: this.profile,
-          holdGoalSteps: this.profile.routing.hold_goal_steps,
-        });
-      }
-
-      if (!resolved) {
-        const fallback = chooseFallbackAction(bot, graph, reservations, edgeReservations, this.profile.routing.horizon);
-        resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'fallback' };
-      }
-
-      if (resolved.action === 'wait' && task?.kind === 'pick_up' && (bot.inventory || []).length < 3) {
-        const nearest = pickNearestRelevantItem(bot, state.items, getNeededTypes(world.activeDemand, world.previewDemand, this.profile.assignment.preview_item_weight));
-        if (nearest && adjacentManhattan(bot.position, nearest.position)) {
-          resolved = { action: 'pick_up', itemId: nearest.id, nextPath: [bot.position], targetType: 'item' };
-        }
-      }
-
-      const previous = this.previousPositions.get(stallKey);
-      const currentCoord = encodeCoord(bot.position);
-      const stalled = previous === currentCoord;
-      const stallCount = stalled ? (this.stalls.get(stallKey) || 0) + 1 : 0;
-      this.stalls.set(stallKey, stallCount);
-
-      if (!singleBotMode && stallCount >= this.profile.anti_deadlock.stall_threshold && resolved.action.startsWith('move_')) {
-        const fallback = chooseFallbackAction(bot, graph, reservations, edgeReservations, this.profile.routing.horizon);
-        resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock' };
-        this.forcedWait.set(stallKey, this.profile.anti_deadlock.forced_wait_rounds);
-      }
-
-      this.previousPositions.set(stallKey, currentCoord);
-
-      reservePath({
-        path: resolved.nextPath,
-        startTime: 0,
-        reservations,
-        edgeReservations,
-        horizon: this.profile.routing.horizon,
-        holdAtGoal: resolved.targetType !== 'drop_off',
-      });
-
-      if (resolved.action === 'pick_up') {
-        const existingPending = this.pendingPickups.get(bot.id);
-        const inventorySize = (bot.inventory || []).length;
-        if (!existingPending || existingPending.itemId !== resolved.itemId) {
-          this.pendingPickups.set(bot.id, {
-            itemId: resolved.itemId,
-            expectedMinInventory: inventorySize + 1,
-            resolveAfterRound: state.round + 2,
-            approachCell: [...bot.position],
-          });
-        }
-        actions.push({ bot: bot.id, action: 'pick_up', item_id: resolved.itemId });
-      } else {
-        actions.push({ bot: bot.id, action: resolved.action });
-      }
-
-      this.lastActionByBot.set(bot.id, resolved.action);
-    }
-
-    this.lastMetrics = {
+    return executeAssignedTaskStrategy({
+      planner: this,
+      state,
+      world,
+      graph,
       phase,
-      taskCount: tasks.length,
-      forcedWaits,
-      stalledBots: Array.from(this.stalls.values()).filter((value) => value > 0).length,
       recoveryMode,
-      noProgressRounds: this.noProgressRounds,
       recoveryThreshold,
-      loopDetections: this.loopDetectionsThisTick,
-      approachBlacklistSize: 0,
-      orderEtaAtDecision: null,
-      projectedCompletionFeasible: null,
-    };
-
-    return actions;
+      blockedItemsByBot,
+    });
   }
 }

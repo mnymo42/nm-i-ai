@@ -24,6 +24,7 @@ Purpose: keep the refactor policy concrete, track large-file exceptions, and def
 Implemented in this pass:
 - extracted multi-bot shared helpers into `src/planner-multibot-common.mjs`
 - extracted medium mission logic into `src/planner-missions.mjs`
+- extracted multi-bot runtime execution into `src/planner-multibot-runtime.mjs`
 - extracted client legality sanitizer into `src/game-client-sanitizer.mjs`
 - split planner tests into:
   - `test/planner.test.mjs`
@@ -34,10 +35,10 @@ Implemented in this pass:
 ### `src/planner.mjs`
 
 - Status: still oversized by policy
-- Reason: it still owns `GroceryPlanner` state, phase handling, single-bot orchestration, and multi-bot execution loops
+- Reason: it still owns `GroceryPlanner` state, phase handling, and the full single-bot orchestration path
 - Next split:
-  - extract multi-bot execution/runtime branch into a dedicated module
   - extract planner state/metrics update helpers from the class body
+  - move single-bot orchestration out of the planner shell
   - keep `GroceryPlanner` as the orchestration shell only
 
 ### `src/planner-missions.mjs`
