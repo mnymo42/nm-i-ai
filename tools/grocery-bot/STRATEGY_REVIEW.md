@@ -50,9 +50,10 @@
   - use it to inspect queue-service-bay pileups, held deliverable inventory, and warehouse control-mode oscillation before spending more expert tokens
 - Expert oracle/script is now a first-class workflow:
   - `tmp-extract-oracle.mjs` updates `config/oracle-expert.json`
-  - `generate-script.mjs` builds `config/script-expert.json`
+  - `generate-script.mjs` is the quick oracle pass
+  - `optimize-oracle-script.mjs` is the preferred heavy offline pass
   - `src/oracle-script-evaluator.mjs` validates the generated script deterministically before it is written
-  - the current script optimizer is structurally rebuilt but still conservative on throughput (`maxActiveBots = 1` by default) while the higher-concurrency scheduler is tuned
+  - current preferred objective is `handoff_first`: finish known oracle work earlier and let live planner take over sooner
 
 ## Current Strategy (As Implemented)
 

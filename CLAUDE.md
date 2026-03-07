@@ -72,6 +72,17 @@ node tools/grocery-bot/generate-script.mjs \
   --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
   --out tools/grocery-bot/config/script-expert.json
 
+# Run the heavy oracle optimizer (preferred before expert scripted runs)
+node tools/grocery-bot/optimize-oracle-script.mjs \
+  --oracle tools/grocery-bot/config/oracle-expert.json \
+  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --out-script tools/grocery-bot/config/script-expert.json \
+  --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json \
+  --objective handoff_first \
+  --iterations 1000 \
+  --score-to-beat 91 \
+  --ticks-to-beat 292
+
 # Run tests
 node --test tools/grocery-bot/test/*.test.mjs
 
@@ -183,7 +194,9 @@ For each improvement iteration:
 
 Oracle/script workflow for expert:
 1. Extract/update oracle data: `node tools/grocery-bot/tmp-extract-oracle.mjs`
-2. Generate script: `node tools/grocery-bot/generate-script.mjs --oracle ... --replay ... --out tools/grocery-bot/config/script-expert.json`
+2. Generate or optimize script:
+   - quick pass: `node tools/grocery-bot/generate-script.mjs --oracle ... --replay ... --out tools/grocery-bot/config/script-expert.json`
+   - real offline pass: `node tools/grocery-bot/optimize-oracle-script.mjs --oracle ... --replay ... --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json --objective handoff_first --iterations 1000 --score-to-beat 91 --ticks-to-beat 292`
 3. Inspect metadata in `tools/grocery-bot/config/script-expert.json`
 4. Use the replay viewer to inspect handoff assumptions and drop-off queueing
 5. Play live with both flags: `--script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json`

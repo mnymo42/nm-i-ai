@@ -119,6 +119,7 @@ node tools/grocery-bot/optimize-oracle-script.mjs \
   --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
   --out-script tools/grocery-bot/config/script-expert.json \
   --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json \
+  --objective handoff_first \
   --iterations 1000 \
   --score-to-beat 91 \
   --ticks-to-beat 292
@@ -129,6 +130,9 @@ This is the intended offline brute-force entrypoint. It:
 - ranks candidates by orders covered, estimated score, then finish tick
 - writes the best `fasit` script JSON
 - writes a separate report JSON with thresholds, top candidates, and optimizer metadata
+- prints progress with the current best candidate while running
+
+Use `--objective handoff_first` when the main goal is to finish known oracle work early and let the live planner score after handoff. Use `score_first` only when you explicitly want to maximize scripted score first.
 
 ## Replay Viewer
 
@@ -173,7 +177,7 @@ Recommended expert workflow:
 node tools/grocery-bot/tmp-extract-oracle.mjs
 node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json
 node tools/grocery-bot/tune-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/out/oracle-script-sweep.json
-node tools/grocery-bot/optimize-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json --iterations 1000 --score-to-beat 91 --ticks-to-beat 292
+node tools/grocery-bot/optimize-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json --objective handoff_first --iterations 1000 --score-to-beat 91 --ticks-to-beat 292
 node -e "const d=require('fs').readFileSync('tools/grocery-bot/config/script-expert.json','utf8'); console.log(d)"
 node tools/grocery-bot/index.mjs --mode benchmark --difficulty expert --replay tools/grocery-bot/out
 node tools/grocery-bot/index.mjs --mode simulate --difficulty expert --profile expert --replay tools/grocery-bot/out/<run-id>/replay.jsonl
