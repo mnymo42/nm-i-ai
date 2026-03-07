@@ -57,6 +57,24 @@ function isMoveAction(actionName) {
   return ['move_up', 'move_down', 'move_left', 'move_right'].includes(actionName);
 }
 
+function sameTargetConflictLosers(group, currentByBot) {
+  if (group.length <= 1) {
+    return [];
+  }
+
+  const stationary = group.filter((entry) => isSameCell(entry.target, currentByBot.get(entry.bot.id)));
+  const dropOffStationary = stationary.filter((entry) => entry.sanitized.action === 'drop_off');
+  const winners = dropOffStationary.length > 0 ? dropOffStationary : stationary;
+
+  if (winners.length > 0) {
+    const winnerIds = new Set(winners.map((entry) => entry.bot.id));
+    return group.filter((entry) => !winnerIds.has(entry.bot.id));
+  }
+
+  const [winner] = [...group].sort((a, b) => a.bot.id - b.bot.id);
+  return group.filter((entry) => entry.bot.id !== winner.bot.id);
+}
+
 function buildActiveDemand(state) {
   const activeOrder = (state.orders || []).find((order) => order.status === 'active' && !order.complete);
   const demand = new Map();
@@ -297,7 +315,7 @@ export function sanitizeActionsForStateDetailed(actions, state, runtime = {}) {
       continue;
     }
 
-    for (const entry of group) {
+    for (const entry of sameTargetConflictLosers(group, currentByBot)) {
       conflictReasons.set(entry.bot.id, 'conflict_same_target');
     }
   }

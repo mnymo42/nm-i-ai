@@ -173,6 +173,26 @@ test('sanitizeActionsForState prevents moving into a cell occupied by a stationa
   assert.notEqual(actions[0].action, 'move_right');
 });
 
+test('sanitizeActionsForState preserves drop_off for bot already occupying drop-off cell', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [0, 0], inventory: ['milk'] },
+      { id: 1, position: [1, 0], inventory: ['bread'] },
+    ],
+    items: [],
+    drop_off: [0, 0],
+  });
+
+  const actions = sanitizeActionsForState([
+    { bot: 0, action: 'drop_off' },
+    { bot: 1, action: 'move_left' },
+  ], state);
+
+  const byBot = new Map(actions.map((action) => [action.bot, action]));
+  assert.deepEqual(byBot.get(0), { bot: 0, action: 'drop_off' });
+  assert.notEqual(byBot.get(1).action, 'move_left');
+});
+
 test('game client sends at most one payload per round', async () => {
   const sent = [];
   const client = new GroceryGameClient({ token: 'test-token', minRoundSendIntervalMs: 0 });
