@@ -1,0 +1,614 @@
+{
+  "finalScore": 28,
+  "ordersCompleted": 3,
+  "itemsDelivered": 13,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 2
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 7
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 6
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 3
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 7
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 1
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 24,
+      "length": 25
+    },
+    {
+      "startTick": 43,
+      "endTick": 53,
+      "length": 11
+    },
+    {
+      "startTick": 54,
+      "endTick": 65,
+      "length": 12
+    },
+    {
+      "startTick": 75,
+      "endTick": 85,
+      "length": 11
+    },
+    {
+      "startTick": 86,
+      "endTick": 101,
+      "length": 16
+    },
+    {
+      "startTick": 118,
+      "endTick": 129,
+      "length": 12
+    },
+    {
+      "startTick": 138,
+      "endTick": 159,
+      "length": 22
+    },
+    {
+      "startTick": 160,
+      "endTick": 299,
+      "length": 140
+    }
+  ],
+  "failedPickups": {
+    "total": 0,
+    "byItemId": {},
+    "byItemType": {}
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 0,
+      "byReason": {}
+    },
+    "waitActions": 1074,
+    "nonScoringDropoffs": 0
+  },
+  "multiBotCoordination": {
+    "botCount": 5,
+    "totalStalls": 1100,
+    "maxStalledBots": 5,
+    "peakTaskCount": 4,
+    "forcedWaitActions": 28,
+    "missionTypeByBot": {
+      "0": "reposition_zone",
+      "1": "queue_service_bay",
+      "2": "queue_service_bay",
+      "3": "queue_service_bay",
+      "4": "reposition_zone"
+    },
+    "missionReassignments": 106,
+    "activeMissionsAssigned": 2,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 300,
+    "dropMissionsAssigned": 1,
+    "missionTimeouts": 90,
+    "controlModeTimeline": [
+      {
+        "mode": "build_active_inventory",
+        "startTick": 0,
+        "endTick": 11
+      },
+      {
+        "mode": "close_active_order",
+        "startTick": 12,
+        "endTick": 53
+      },
+      {
+        "mode": "build_active_inventory",
+        "startTick": 54,
+        "endTick": 59
+      },
+      {
+        "mode": "close_active_order",
+        "startTick": 60,
+        "endTick": 85
+      },
+      {
+        "mode": "build_active_inventory",
+        "startTick": 86,
+        "endTick": 95
+      },
+      {
+        "mode": "close_active_order",
+        "startTick": 96,
+        "endTick": 129
+      },
+      {
+        "mode": "build_active_inventory",
+        "startTick": 130,
+        "endTick": 141
+      },
+      {
+        "mode": "close_active_order",
+        "startTick": 142,
+        "endTick": 254
+      },
+      {
+        "mode": "stop_preview",
+        "startTick": 255,
+        "endTick": 299
+      }
+    ],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [
+      {
+        "tick": 0,
+        "value": 0
+      }
+    ],
+    "activeCloseEtaTimeline": [
+      {
+        "tick": 0,
+        "value": 34
+      },
+      {
+        "tick": 1,
+        "value": 33
+      },
+      {
+        "tick": 2,
+        "value": 32
+      },
+      {
+        "tick": 3,
+        "value": 31
+      },
+      {
+        "tick": 4,
+        "value": 30
+      },
+      {
+        "tick": 5,
+        "value": 29
+      },
+      {
+        "tick": 6,
+        "value": 28
+      },
+      {
+        "tick": 9,
+        "value": 27
+      },
+      {
+        "tick": 10,
+        "value": 26
+      },
+      {
+        "tick": 11,
+        "value": 25
+      },
+      {
+        "tick": 13,
+        "value": 26
+      },
+      {
+        "tick": 14,
+        "value": 27
+      },
+      {
+        "tick": 15,
+        "value": 26
+      },
+      {
+        "tick": 16,
+        "value": 25
+      },
+      {
+        "tick": 17,
+        "value": 24
+      },
+      {
+        "tick": 18,
+        "value": 23
+      },
+      {
+        "tick": 21,
+        "value": 24
+      },
+      {
+        "tick": 22,
+        "value": 23
+      },
+      {
+        "tick": 23,
+        "value": 24
+      },
+      {
+        "tick": 25,
+        "value": 23
+      },
+      {
+        "tick": 26,
+        "value": 24
+      },
+      {
+        "tick": 27,
+        "value": 25
+      },
+      {
+        "tick": 28,
+        "value": 24
+      },
+      {
+        "tick": 29,
+        "value": 23
+      },
+      {
+        "tick": 30,
+        "value": 22
+      },
+      {
+        "tick": 31,
+        "value": 21
+      },
+      {
+        "tick": 32,
+        "value": 20
+      },
+      {
+        "tick": 33,
+        "value": 19
+      },
+      {
+        "tick": 34,
+        "value": 18
+      },
+      {
+        "tick": 35,
+        "value": 17
+      },
+      {
+        "tick": 36,
+        "value": 16
+      },
+      {
+        "tick": 37,
+        "value": 15
+      },
+      {
+        "tick": 38,
+        "value": 14
+      },
+      {
+        "tick": 39,
+        "value": 0
+      },
+      {
+        "tick": 54,
+        "value": 15
+      },
+      {
+        "tick": 55,
+        "value": 14
+      },
+      {
+        "tick": 58,
+        "value": 13
+      },
+      {
+        "tick": 59,
+        "value": 14
+      },
+      {
+        "tick": 60,
+        "value": 13
+      },
+      {
+        "tick": 61,
+        "value": 12
+      },
+      {
+        "tick": 62,
+        "value": 11
+      },
+      {
+        "tick": 64,
+        "value": 12
+      },
+      {
+        "tick": 65,
+        "value": 13
+      },
+      {
+        "tick": 66,
+        "value": 14
+      },
+      {
+        "tick": 67,
+        "value": 13
+      },
+      {
+        "tick": 68,
+        "value": 14
+      },
+      {
+        "tick": 69,
+        "value": 15
+      },
+      {
+        "tick": 71,
+        "value": 14
+      },
+      {
+        "tick": 72,
+        "value": 13
+      },
+      {
+        "tick": 73,
+        "value": 12
+      },
+      {
+        "tick": 74,
+        "value": 11
+      },
+      {
+        "tick": 75,
+        "value": 10
+      },
+      {
+        "tick": 76,
+        "value": 0
+      },
+      {
+        "tick": 86,
+        "value": 23
+      },
+      {
+        "tick": 87,
+        "value": 24
+      },
+      {
+        "tick": 90,
+        "value": 23
+      },
+      {
+        "tick": 91,
+        "value": 22
+      },
+      {
+        "tick": 92,
+        "value": 21
+      },
+      {
+        "tick": 93,
+        "value": 20
+      },
+      {
+        "tick": 95,
+        "value": 21
+      },
+      {
+        "tick": 96,
+        "value": 22
+      },
+      {
+        "tick": 97,
+        "value": 23
+      },
+      {
+        "tick": 98,
+        "value": 24
+      },
+      {
+        "tick": 99,
+        "value": 25
+      },
+      {
+        "tick": 100,
+        "value": 24
+      },
+      {
+        "tick": 101,
+        "value": 25
+      },
+      {
+        "tick": 102,
+        "value": 24
+      },
+      {
+        "tick": 103,
+        "value": 23
+      },
+      {
+        "tick": 104,
+        "value": 24
+      },
+      {
+        "tick": 106,
+        "value": 23
+      },
+      {
+        "tick": 107,
+        "value": 22
+      },
+      {
+        "tick": 108,
+        "value": 21
+      },
+      {
+        "tick": 109,
+        "value": 20
+      },
+      {
+        "tick": 110,
+        "value": 19
+      },
+      {
+        "tick": 111,
+        "value": 18
+      },
+      {
+        "tick": 112,
+        "value": 17
+      },
+      {
+        "tick": 113,
+        "value": 16
+      },
+      {
+        "tick": 114,
+        "value": 15
+      },
+      {
+        "tick": 115,
+        "value": 14
+      },
+      {
+        "tick": 116,
+        "value": 0
+      },
+      {
+        "tick": 130,
+        "value": 23
+      },
+      {
+        "tick": 131,
+        "value": 22
+      },
+      {
+        "tick": 132,
+        "value": 21
+      },
+      {
+        "tick": 133,
+        "value": 20
+      },
+      {
+        "tick": 135,
+        "value": 21
+      },
+      {
+        "tick": 136,
+        "value": 22
+      },
+      {
+        "tick": 138,
+        "value": 21
+      },
+      {
+        "tick": 141,
+        "value": 20
+      },
+      {
+        "tick": 143,
+        "value": 21
+      },
+      {
+        "tick": 146,
+        "value": 20
+      },
+      {
+        "tick": 148,
+        "value": 21
+      },
+      {
+        "tick": 152,
+        "value": 22
+      },
+      {
+        "tick": 153,
+        "value": 21
+      },
+      {
+        "tick": 154,
+        "value": 0
+      }
+    ],
+    "queueAssignmentsPeak": 4,
+    "serviceBayAssignmentsPeak": 4,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "eggs",
+    "yogurt",
+    "cheese"
+  ]
+}
