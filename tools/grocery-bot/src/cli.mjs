@@ -69,6 +69,8 @@ function parseArgs(argv) {
     mode: 'play',
     replay: null,
     randomSeeds: 32,
+    oracle: null,
+    script: null,
   };
   let difficultyExplicit = false;
 
@@ -80,7 +82,7 @@ function parseArgs(argv) {
       continue;
     }
 
-    if (['--token', '--difficulty', '--profile', '--out-dir', '--config', '--mode', '--replay', '--seeds'].includes(key)) {
+    if (['--token', '--difficulty', '--profile', '--out-dir', '--config', '--mode', '--replay', '--seeds', '--oracle', '--script'].includes(key)) {
       if (value === undefined) {
         throw new Error(`Missing value for ${key}`);
       }
@@ -113,6 +115,12 @@ function parseArgs(argv) {
         break;
       case '--seeds':
         args.randomSeeds = Number(value);
+        break;
+      case '--oracle':
+        args.oracle = path.resolve(process.cwd(), value);
+        break;
+      case '--script':
+        args.script = path.resolve(process.cwd(), value);
         break;
       default:
         break;

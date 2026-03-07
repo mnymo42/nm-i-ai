@@ -28,6 +28,35 @@ function ensureDirectory(directoryPath) {
   fs.mkdirSync(directoryPath, { recursive: true });
 }
 
+function loadOracle(oraclePath) {
+  if (!oraclePath) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(oraclePath, 'utf8'));
+    console.log(`Oracle loaded: ${data.known_orders?.length || 0} known orders from ${oraclePath}`);
+    return data;
+  } catch (e) {
+    console.error(`Warning: failed to load oracle from ${oraclePath}: ${e.message}`);
+    return null;
+  }
+}
+
+function loadScript(scriptPath) {
+  if (!scriptPath) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
+    // Index by tick for O(1) lookup
+    const tickMap = new Map();
+    for (const entry of data.ticks || []) {
+      tickMap.set(entry.tick, entry.actions);
+    }
+    console.log(`Script loaded: ${tickMap.size} ticks (0-${data.last_scripted_tick}) from ${scriptPath}`);
+    return { ...data, tickMap };
+  } catch (e) {
+    console.error(`Warning: failed to load script from ${scriptPath}: ${e.message}`);
+    return null;
+  }
+}
+
 async function runPlayMode(args) {
   const profiles = loadProfiles(args.configPath);
   const selectedProfile = resolveProfile(profiles, args.difficulty, args.profile);
@@ -39,7 +68,9 @@ async function runPlayMode(args) {
 
   const replayPath = path.join(outPath, 'replay.jsonl');
   const logger = new ReplayLogger(replayPath);
-  const planner = new GroceryPlanner(selectedProfile);
+  const oracle = loadOracle(args.oracle);
+  const script = loadScript(args.script);
+  const planner = new GroceryPlanner(selectedProfile, { oracle, script });
 
   let final = null;
   try {

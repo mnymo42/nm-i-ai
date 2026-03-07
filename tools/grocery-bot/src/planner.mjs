@@ -18,8 +18,10 @@ import {
 } from './planner-singlebot.mjs';
 
 export class GroceryPlanner {
-  constructor(profile) {
+  constructor(profile, options = {}) {
     this.profile = profile;
+    this.oracle = options.oracle || null;
+    this.script = options.script || null;
     this.previousPositions = new Map();
     this.stalls = new Map();
     this.forcedWait = new Map();
@@ -65,6 +67,20 @@ export class GroceryPlanner {
   }
 
   plan(state) {
+    // Script replay: if we have precomputed actions for this tick, use them verbatim
+    if (this.script?.tickMap?.has(state.round)) {
+      const scriptedActions = this.script.tickMap.get(state.round);
+      this.lastScore = state.score;
+      this.lastMetrics = { phase: 'scripted', scripted: true };
+      // Update position tracking so handoff to live planner is smooth
+      for (const bot of state.bots) {
+        this.previousPositions.set(`${bot.id}`, encodeCoord(bot.position));
+        const inventoryKey = (bot.inventory || []).slice().sort().join('|');
+        this.lastInventoryByBot.set(bot.id, inventoryKey);
+      }
+      return scriptedActions;
+    }
+
     this.resetTriggered = false;
     this.loopDetectionsThisTick = 0;
     const previousPositionByBot = new Map(this.previousPositions);
@@ -283,6 +299,7 @@ export class GroceryPlanner {
       recoveryMode,
       recoveryThreshold,
       blockedItemsByBot,
+      oracle: this.oracle,
     });
   }
 }

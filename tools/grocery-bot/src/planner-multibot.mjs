@@ -19,7 +19,30 @@ import {
 
 export { estimateZonePenalty } from './planner-multibot-common.mjs';
 
-export function buildTasks(state, world, profile, phase) {
+function buildOracleDemand(oracle, currentTick, activeOrderId, previewOrderId) {
+  if (!oracle?.known_orders) return new Map();
+
+  const demand = new Map();
+  const knownIds = new Set();
+  if (activeOrderId) knownIds.add(activeOrderId);
+  if (previewOrderId) knownIds.add(previewOrderId);
+
+  const lookaheadTicks = 80;
+
+  for (const order of oracle.known_orders) {
+    if (knownIds.has(order.id)) continue;
+    if (order.first_seen_tick < currentTick) continue;
+    if (order.first_seen_tick > currentTick + lookaheadTicks) continue;
+
+    for (const itemType of order.items_required) {
+      demand.set(itemType, (demand.get(itemType) || 0) + 1);
+    }
+  }
+
+  return demand;
+}
+
+export function buildTasks(state, world, profile, phase, oracle, currentTick) {
   const tasks = [];
   const inventoryCounts = countInventoryByType(state.bots);
   const {
@@ -49,6 +72,21 @@ export function buildTasks(state, world, profile, phase) {
     profile.assignment.preview_item_weight,
     allowPreviewPrefetch,
   );
+
+  const oracleDemand = buildOracleDemand(
+    oracle,
+    currentTick ?? 0,
+    world.activeOrder?.id,
+    world.previewOrder?.id,
+  );
+  const oracleWeight = profile.assignment.oracle_item_weight ?? 0.15;
+  if (oracleDemand.size > 0) {
+    for (const [type, count] of oracleDemand.entries()) {
+      if (!neededTypes.has(type)) {
+        neededTypes.set(type, count * oracleWeight);
+      }
+    }
+  }
 
   for (const bot of state.bots) {
     const deliverable = hasDeliverableInventory(bot, world.activeDemand);
@@ -93,11 +131,14 @@ export function buildTasks(state, world, profile, phase) {
   for (const [type, score] of neededTypes.entries()) {
     const activeCount = activeDemand.get(type) || 0;
     const previewCount = allowPreviewPrefetch ? (previewDemand.get(type) || 0) : 0;
+    const oracleCount = oracleDemand.get(type) || 0;
     const budget = activeCount > 0
       ? activeCount + activeTaskBuffer
       : previewCount > 0
         ? previewCount + previewTaskBuffer
-        : 0;
+        : oracleCount > 0
+          ? Math.min(oracleCount, Math.ceil(state.bots.length / 3))
+          : 0;
     if (budget <= 0) {
       continue;
     }
@@ -107,6 +148,7 @@ export function buildTasks(state, world, profile, phase) {
       .slice(0, budget);
 
     for (const item of items) {
+      const sourceOrder = activeCount > 0 ? 'active' : previewCount > 0 ? 'preview' : 'oracle';
       tasks.push({
         key: `item:${item.id}`,
         kind: 'pick_up',
@@ -114,7 +156,7 @@ export function buildTasks(state, world, profile, phase) {
         item,
         botScoped: false,
         demandScore: score,
-        sourceOrder: activeCount > 0 ? 'active' : 'preview',
+        sourceOrder,
       });
     }
   }

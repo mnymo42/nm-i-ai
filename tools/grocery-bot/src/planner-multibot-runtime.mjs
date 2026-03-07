@@ -324,8 +324,9 @@ export function executeAssignedTaskStrategy({
   recoveryMode,
   recoveryThreshold,
   blockedItemsByBot,
+  oracle,
 }) {
-  const tasks = buildTasks(state, world, planner.profile, phase);
+  const tasks = buildTasks(state, world, planner.profile, phase, oracle, state.round);
   const costs = buildCostMatrix(state, tasks, planner.profile, phase);
   const { assignment } = solveMinCostAssignment(costs);
 
