@@ -1,0 +1,112 @@
+{
+  "finalScore": 19,
+  "ordersCompleted": 2,
+  "itemsDelivered": 9,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 8
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 9
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 2
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 0
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 0
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 0
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 0
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 18,
+      "length": 19
+    },
+    {
+      "startTick": 19,
+      "endTick": 36,
+      "length": 18
+    },
+    {
+      "startTick": 45,
+      "endTick": 64,
+      "length": 20
+    },
+    {
+      "startTick": 65,
+      "endTick": 299,
+      "length": 235
+    }
+  ],
+  "failedPickups": {
+    "total": 3,
+    "byItemId": {
+      "item_4": 1,
+      "item_14": 2
+    },
+    "byItemType": {
+      "butter": 1,
+      "milk": 2
+    }
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 0,
+      "byReason": {}
+    },
+    "waitActions": 13,
+    "nonScoringDropoffs": 3
+  },
+  "wastedInventoryAtEnd": [
+    "butter"
+  ]
+}
