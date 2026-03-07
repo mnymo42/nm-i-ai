@@ -1,0 +1,221 @@
+{
+  "finalScore": 91,
+  "ordersCompleted": 9,
+  "itemsDelivered": 46,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 2
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 9
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 18
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 3
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 10
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 9
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 11
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 3
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 2
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 9
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 8
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 28,
+      "length": 29
+    },
+    {
+      "startTick": 37,
+      "endTick": 51,
+      "length": 15
+    },
+    {
+      "startTick": 98,
+      "endTick": 111,
+      "length": 14
+    },
+    {
+      "startTick": 115,
+      "endTick": 132,
+      "length": 18
+    },
+    {
+      "startTick": 141,
+      "endTick": 158,
+      "length": 18
+    },
+    {
+      "startTick": 164,
+      "endTick": 175,
+      "length": 12
+    },
+    {
+      "startTick": 182,
+      "endTick": 193,
+      "length": 12
+    },
+    {
+      "startTick": 207,
+      "endTick": 218,
+      "length": 12
+    },
+    {
+      "startTick": 232,
+      "endTick": 246,
+      "length": 15
+    },
+    {
+      "startTick": 277,
+      "endTick": 291,
+      "length": 15
+    }
+  ],
+  "failedPickups": {
+    "total": 0,
+    "byItemId": {},
+    "byItemType": {}
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 19,
+      "byReason": {
+        "conflict_stationary_occupant": 19
+      }
+    },
+    "waitActions": 289,
+    "nonScoringDropoffs": 0
+  },
+  "multiBotCoordination": {
+    "botCount": 10,
+    "totalStalls": 455,
+    "maxStalledBots": 8,
+    "peakTaskCount": 26,
+    "forcedWaitActions": 102,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "controlModeTimeline": [],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [],
+    "activeCloseEtaTimeline": [],
+    "queueAssignmentsPeak": 0,
+    "serviceBayAssignmentsPeak": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 5,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 6,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 7,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 8,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 9,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "cream",
+    "onions"
+  ]
+}
