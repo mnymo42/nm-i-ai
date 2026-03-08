@@ -18,6 +18,12 @@ import {
   generateBestOracleScript,
   generateOracleScriptCandidates,
 } from '../src/oracle-script-search.mjs';
+import {
+  buildReplaySeededHandoffOptions,
+  buildReplaySeededModularOptions,
+  buildReplaySeededWaveOptions,
+  extractReplaySeedSkeleton,
+} from '../src/oracle-script-replay-seed.mjs';
 import { buildOracleScriptWorld, normalizeOracle } from '../src/oracle-script-world.mjs';
 import { buildOrderAssignments, generateOracleScript } from '../src/oracle-script-optimizer.mjs';
 
@@ -165,6 +171,36 @@ test('generator schedules visible next-order work and never pre-picks hidden fut
   assert.ok(order1FirstPickTick >= 0, 'next visible order should receive scripted pickup work');
 });
 
+test('generator can stage multiple visible future orders without skipping the active close', () => {
+  const oracle = {
+    ...buildFixtureOracle(),
+    known_orders: [
+      { id: 'order_0', items_required: ['oats'], first_seen_tick: 0 },
+      { id: 'order_1', items_required: ['milk'], first_seen_tick: 0 },
+      { id: 'order_2', items_required: ['eggs'], first_seen_tick: 0 },
+    ],
+  };
+  const replayPath = writeFixtureReplay(oracle);
+  const script = generateOracleScript({
+    oracle,
+    replayPath,
+    oracleSource: 'fixture',
+    options: {
+      targetCutoffTick: 60,
+      maxActiveBots: 2,
+      visibleOrderDepth: 3,
+      futureOrderBotCap: 1,
+      futureOrderItemCap: 2,
+      futureOrderPerOrderItemCap: 1,
+      closeOrderReserveBots: 2,
+      validate: false,
+    },
+  });
+
+  const order0 = script.per_order_estimates.find((entry) => entry.order_id === 'order_0');
+  assert.deepEqual(order0.visible_future_orders, ['order_1', 'order_2']);
+});
+
 test('legacy oracle generator produces a valid script on the fixture', () => {
   const oracle = buildFixtureOracle();
   const replayPath = writeFixtureReplay(oracle);
@@ -290,6 +326,81 @@ test('handoff-first objective prefers earlier script cutoff over slightly higher
     compareGeneratedScripts(early, late, 'handoff_first') < 0,
     true,
   );
+});
+
+test('handoff-value objective prefers higher score before earlier cutoff', () => {
+  const earlyLow = {
+    orders_covered: 2,
+    estimated_score: 20,
+    last_scripted_tick: 150,
+    aggregate_efficiency: { total_waits: 50 },
+  };
+  const lateHigh = {
+    orders_covered: 2,
+    estimated_score: 24,
+    last_scripted_tick: 180,
+    aggregate_efficiency: { total_waits: 80 },
+  };
+
+  assert.equal(compareGeneratedScripts(earlyLow, lateHigh, 'handoff_value') > 0, true);
+});
+
+test('replay seed skeleton extracts stable completion cadence from replay', () => {
+  const oracle = buildFixtureOracle();
+  const replayPath = writeReplayWithActions(oracle, [
+    {
+      type: 'tick',
+      tick: 0,
+      state_snapshot: {
+        score: 0,
+        bots: [
+          { id: 0, position: [9, 8], inventory: [] },
+          { id: 1, position: [8, 8], inventory: [] },
+          { id: 2, position: [7, 8], inventory: [] },
+        ],
+        items: oracle.items,
+        orders: [
+          { id: 'order_0', items_required: ['oats'], items_delivered: [], status: 'active', complete: false },
+        ],
+      },
+      actions_sent: [{ bot: 0, action: 'wait' }],
+    },
+    {
+      type: 'tick',
+      tick: 5,
+      state_snapshot: {
+        score: 6,
+        bots: [
+          { id: 0, position: [1, 8], inventory: [] },
+          { id: 1, position: [8, 8], inventory: [] },
+          { id: 2, position: [7, 8], inventory: [] },
+        ],
+        items: oracle.items,
+        orders: [
+          { id: 'order_0', items_required: ['oats'], items_delivered: ['oats'], status: 'complete', complete: true },
+          { id: 'order_1', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+        ],
+      },
+      actions_sent: [{ bot: 0, action: 'drop_off' }],
+    },
+  ]);
+
+  const skeleton = extractReplaySeedSkeleton({ replayPath, oracle });
+  assert.equal(skeleton.completionSequence.length, 1);
+  assert.equal(skeleton.completionSequence[0].orderId, 'order_0');
+  assert.equal(skeleton.completionSequence[0].completionTick, 5);
+});
+
+test('replay-seeded option builders are deterministic for the same replay', () => {
+  const oracle = buildFixtureOracle();
+  const replayPath = writeFixtureReplay(oracle);
+  const first = extractReplaySeedSkeleton({ replayPath, oracle });
+  const second = extractReplaySeedSkeleton({ replayPath, oracle });
+
+  assert.deepEqual(first, second);
+  assert.deepEqual(buildReplaySeededModularOptions({ skeleton: first }), buildReplaySeededModularOptions({ skeleton: second }));
+  assert.deepEqual(buildReplaySeededWaveOptions({ skeleton: first }), buildReplaySeededWaveOptions({ skeleton: second }));
+  assert.deepEqual(buildReplaySeededHandoffOptions({ skeleton: first }), buildReplaySeededHandoffOptions({ skeleton: second }));
 });
 
 test('oracle/script file loaders expose parsed oracle and tickMap data', () => {

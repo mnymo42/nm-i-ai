@@ -307,6 +307,12 @@ export const oracleScriptDefaults = {
   previewRunnerCap: 2,
   previewItemCap: 4,
   maxActiveBots: 1,
+  visibleOrderDepth: 2,
+  futureOrderBotCap: 1,
+  futureOrderItemCap: 4,
+  futureOrderPerOrderItemCap: 2,
+  closeOrderReserveBots: 1,
+  dropLaneConcurrency: 1,
   stagingCellCount: 12,
   horizon: 120,
 };

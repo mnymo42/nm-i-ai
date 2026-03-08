@@ -58,6 +58,36 @@ test('parseCliArguments accepts benchmark mode with replay path', () => {
   assert.match(args.replay, /tools\/grocery-bot\/out$/);
 });
 
+test('parseCliArguments accepts runs mode with limit', () => {
+  const args = parseCliArguments([
+    '--mode', 'runs',
+    '--difficulty', 'expert',
+    '--limit', '5',
+  ]);
+
+  assert.equal(args.mode, 'runs');
+  assert.equal(args.limit, 5);
+  assert.equal(args.difficulty, 'expert');
+});
+
+test('parseCliArguments accepts analyze mode with a replay target', () => {
+  const args = parseCliArguments([
+    '--mode', 'analyze',
+    '--difficulty', 'expert',
+    '--replay', 'tools/grocery-bot/out/example/replay.jsonl',
+  ]);
+
+  assert.equal(args.mode, 'analyze');
+  assert.match(args.replay, /tools\/grocery-bot\/out\/example\/replay\.jsonl$/);
+});
+
+test('parseCliArguments requires --script for script-info mode', () => {
+  assert.throws(
+    () => parseCliArguments(['--mode', 'script-info', '--difficulty', 'expert']),
+    /--script is required for mode=script-info/,
+  );
+});
+
 test('nightmare difficulty is accepted and has a default profile', () => {
   const args = parseCliArguments([
     '--token', 'header.payload.signature',

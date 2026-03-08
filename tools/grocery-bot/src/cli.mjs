@@ -69,6 +69,7 @@ function parseArgs(argv) {
     mode: 'play',
     replay: null,
     randomSeeds: 32,
+    limit: 10,
     oracle: null,
     script: null,
   };
@@ -82,7 +83,7 @@ function parseArgs(argv) {
       continue;
     }
 
-    if (['--token', '--difficulty', '--profile', '--out-dir', '--config', '--mode', '--replay', '--seeds', '--oracle', '--script'].includes(key)) {
+    if (['--token', '--difficulty', '--profile', '--out-dir', '--config', '--mode', '--replay', '--seeds', '--limit', '--oracle', '--script'].includes(key)) {
       if (value === undefined) {
         throw new Error(`Missing value for ${key}`);
       }
@@ -116,6 +117,9 @@ function parseArgs(argv) {
       case '--seeds':
         args.randomSeeds = Number(value);
         break;
+      case '--limit':
+        args.limit = Number(value);
+        break;
       case '--oracle':
         args.oracle = path.resolve(process.cwd(), value);
         break;
@@ -142,7 +146,7 @@ export function parseCliArguments(argv) {
     throw new Error(`Invalid difficulty: ${args.difficulty}`);
   }
 
-  const validModes = new Set(['play', 'summarize', 'simulate', 'tune', 'benchmark']);
+  const validModes = new Set(['play', 'summarize', 'simulate', 'tune', 'benchmark', 'runs', 'analyze', 'script-info']);
   validModes.add('estimate-max');
   if (!validModes.has(args.mode)) {
     throw new Error(`Invalid mode: ${args.mode}`);
@@ -154,6 +158,18 @@ export function parseCliArguments(argv) {
 
   if (['summarize', 'simulate', 'tune', 'estimate-max', 'benchmark'].includes(args.mode) && !args.replay) {
     throw new Error(`--replay is required for mode=${args.mode}`);
+  }
+
+  if (args.mode === 'analyze' && !args.replay) {
+    throw new Error('--replay is required for mode=analyze');
+  }
+
+  if (args.mode === 'script-info' && !args.script) {
+    throw new Error('--script is required for mode=script-info');
+  }
+
+  if (!Number.isFinite(args.limit) || args.limit <= 0) {
+    throw new Error(`Invalid --limit: ${args.limit}`);
   }
 
   return args;

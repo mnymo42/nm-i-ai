@@ -40,7 +40,23 @@ Live run provenance is also recorded:
 node tools/grocery-bot/index.mjs --mode summarize --difficulty hard --replay tools/grocery-bot/out/<run-id>/replay.jsonl
 ```
 
-### 3) Simulate planner against observed replay
+### 3) List recent runs
+
+```bash
+node tools/grocery-bot/index.mjs --mode runs --difficulty expert --limit 5
+```
+
+Use this instead of opening `tools/grocery-bot/out` manually when you just need recent score/order/item/stall summaries.
+
+### 4) Analyze a run or replay path
+
+```bash
+node tools/grocery-bot/index.mjs --mode analyze --replay tools/grocery-bot/out/<run-id>
+```
+
+This prints compact summary and analysis fields without reading JSON by hand.
+
+### 5) Simulate planner against observed replay
 
 ```bash
 node tools/grocery-bot/index.mjs --mode simulate --difficulty hard --profile hard --replay tools/grocery-bot/out/<run-id>/replay.jsonl
@@ -48,7 +64,7 @@ node tools/grocery-bot/index.mjs --mode simulate --difficulty hard --profile har
 
 Output is `matchRatio` (action agreement with past run) and `waitRatio`. Note: this measures agreement with past actions, not actual score improvement — use live play to confirm score impact.
 
-### 4) Tune profile from replay
+### 6) Tune profile from replay
 
 ```bash
 node tools/grocery-bot/index.mjs --mode tune --difficulty hard --profile hard --replay tools/grocery-bot/out/<run-id>/replay.jsonl --seeds 64
@@ -56,7 +72,7 @@ node tools/grocery-bot/index.mjs --mode tune --difficulty hard --profile hard --
 
 Output is written to `tools/grocery-bot/out/tuned-<difficulty>.json`.
 
-### 5) Benchmark a replay corpus
+### 7) Benchmark a replay corpus
 
 ```bash
 node tools/grocery-bot/index.mjs --mode benchmark --difficulty expert --replay tools/grocery-bot/out
@@ -64,7 +80,7 @@ node tools/grocery-bot/index.mjs --mode benchmark --difficulty expert --replay t
 
 Useful for comparing expert/hard behavior against the current corpus before spending live tokens.
 
-### 6) Estimate score ceiling from replay
+### 8) Estimate score ceiling from replay
 
 ```bash
 node tools/grocery-bot/index.mjs --mode estimate-max --replay tools/grocery-bot/out/<run-id>/replay.jsonl
@@ -74,12 +90,33 @@ This prints:
 - `queueBound`: conservative bound using observed active-order sequence
 - `optimisticOrderMixUpperBound`: optimistic ceiling from best observed order efficiencies
 
-### 7) Generate expert oracle script
+### 9) Inspect script/oracle metadata
+
+```bash
+node tools/grocery-bot/index.mjs --mode script-info \
+  --script tools/grocery-bot/config/script-expert.json \
+  --oracle tools/grocery-bot/config/oracle-expert.json
+```
+
+Use this instead of `node -e` when validating hybrid inputs.
+
+### 10) Extract the expert oracle from current-day runs
+
+```bash
+node tools/grocery-bot/extract-oracle.mjs \
+  --difficulty expert \
+  --profile expert \
+  --out tools/grocery-bot/config/oracle-expert.json
+```
+
+This is the supported replacement for the old `tmp-extract-oracle.mjs` helper.
+
+### 11) Generate expert oracle script
 
 ```bash
 node tools/grocery-bot/generate-script.mjs \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out tools/grocery-bot/config/script-expert.json
 ```
 
@@ -89,7 +126,7 @@ Optional:
 node tools/grocery-bot/generate-script.mjs \
   --strategy legacy \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out tools/grocery-bot/config/script-expert.json
 ```
 
@@ -104,23 +141,23 @@ The generated script includes:
 - `aggregate_efficiency`
 - `search.top_candidates`
 
-### 8) Sweep oracle script candidates locally
+### 12) Sweep oracle script candidates locally
 
 ```bash
 node tools/grocery-bot/tune-oracle-script.mjs \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out tools/grocery-bot/out/oracle-script-sweep.json
 ```
 
 Use this before live expert pushes. It ranks locally-generated candidates so we can spend tokens only on the strongest script.
 
-### 9) Run a heavy oracle optimization pass
+### 13) Run a heavy oracle optimization pass
 
 ```bash
 node tools/grocery-bot/optimize-oracle-script.mjs \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out-script tools/grocery-bot/config/script-expert.json \
   --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json \
   --objective handoff_first \
@@ -138,12 +175,12 @@ This is the intended offline brute-force entrypoint. It:
 
 Use `--objective handoff_first` when the main goal is to finish known oracle work early and let the live planner score after handoff. Use `score_first` only when you explicitly want to maximize scripted score first.
 
-### 10) Compress a proven replay backward
+### 14) Compress a proven replay backward
 
 ```bash
 node tools/grocery-bot/compress-oracle-script.mjs \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out-script tools/grocery-bot/config/script-expert.json \
   --out-report tools/grocery-bot/out/oracle-script-compression-report.json
 ```
@@ -156,7 +193,7 @@ This is the backward optimizer:
 
 Use this when the live/player model has already proven a good known-order prefix and you want to free ticks for a better handoff.
 
-### 11) Diff a replay transition
+### 15) Diff a replay transition
 
 ```bash
 node tools/grocery-bot/diff-replay-transition.mjs \
@@ -190,6 +227,11 @@ Use it for diagnosis before tuning:
 - inspect held deliverable inventory that is not getting cashed out
 - inspect warehouse control-mode oscillation
 
+Default inspection loop:
+1. `--mode runs` to find the replay
+2. `--mode analyze` to read compact metrics
+3. replay viewer only when tick-level inspection is needed
+
 ## Daily Rotation Warning
 
 Orders and shelf item types rotate at midnight UTC.
@@ -216,15 +258,27 @@ npm run grocery-bot:test
 Recommended expert workflow:
 
 ```bash
-node tools/grocery-bot/tmp-extract-oracle.mjs
-node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json
-node tools/grocery-bot/tune-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/out/oracle-script-sweep.json
-node tools/grocery-bot/optimize-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json --objective handoff_first --iterations 1000 --score-to-beat 91 --ticks-to-beat 292
-node tools/grocery-bot/compress-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-compression-report.json
+node tools/grocery-bot/index.mjs --mode runs --difficulty expert --limit 5
+node tools/grocery-bot/index.mjs --mode analyze --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert
+node tools/grocery-bot/extract-oracle.mjs --difficulty expert --profile expert --out tools/grocery-bot/config/oracle-expert.json
+node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json
+node tools/grocery-bot/index.mjs --mode script-info --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json
+node tools/grocery-bot/tune-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl --out tools/grocery-bot/out/oracle-script-sweep.json
+node tools/grocery-bot/optimize-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json --objective handoff_first --iterations 1000 --score-to-beat 91 --ticks-to-beat 292
+node tools/grocery-bot/compress-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-compression-report.json
 node tools/grocery-bot/diff-replay-transition.mjs --source-replay tools/grocery-bot/out/<source-run>/replay.jsonl --validation-replay tools/grocery-bot/out/<validation-run>/replay.jsonl --tick 51
-node -e "const d=require('fs').readFileSync('tools/grocery-bot/config/script-expert.json','utf8'); console.log(d)"
 node tools/grocery-bot/index.mjs --mode benchmark --difficulty expert --replay tools/grocery-bot/out
 node tools/grocery-bot/index.mjs --mode simulate --difficulty expert --profile expert --replay tools/grocery-bot/out/<run-id>/replay.jsonl
 node tools/grocery-bot/index.mjs --mode tune --difficulty expert --profile expert --replay tools/grocery-bot/out/<run-id>/replay.jsonl --seeds 64
 node tools/grocery-bot/index.mjs --token 'wss://game.ainm.no/ws?token=...' --profile expert --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json
 ```
+
+Recommended expert repeat loop:
+1. Play a normal live expert run with the best planner baseline.
+2. Use `--mode runs` and `--mode analyze` to select the best replay.
+3. Rebuild the same-day oracle if needed.
+4. Run `compress-oracle-script.mjs` on that replay to preserve the proven score with the shortest safe prefix.
+5. Inspect the result with `--mode script-info`.
+6. If needed, use `diff-replay-transition.mjs` to validate the scripted-to-live handoff.
+7. Play live with `--script` + `--oracle`, replay the prefix exactly, and let the live planner continue after handoff.
+8. Keep the new run only if total score or handoff quality improves, then repeat from that run.

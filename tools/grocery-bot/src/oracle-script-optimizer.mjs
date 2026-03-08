@@ -197,6 +197,28 @@ function reserveDropTick({ bot, tick, reservations, scriptByTick }) {
   return true;
 }
 
+function countFutureStagedItems(bots, activeOrderId) {
+  return bots.reduce((sum, bot) => {
+    if (!bot.lockedOrderId || bot.lockedOrderId === activeOrderId) {
+      return sum;
+    }
+    return sum + (bot.heldItemIds?.length || 0);
+  }, 0);
+}
+
+function countFutureStagedItemsForOrder(bots, orderId) {
+  return bots.reduce((sum, bot) => {
+    if (bot.lockedOrderId !== orderId) {
+      return sum;
+    }
+    return sum + (bot.heldItemIds?.length || 0);
+  }, 0);
+}
+
+function countFutureOrderBots(bots, activeOrderId) {
+  return bots.filter((bot) => bot.lockedOrderId && bot.lockedOrderId !== activeOrderId && (bot.heldItemIds?.length || 0) > 0).length;
+}
+
 function chooseStagingCell({
   bot,
   stageCandidates,
@@ -475,6 +497,110 @@ export function chooseBestBotForTrip({
   return best;
 }
 
+function getCloseNowBots({ bots, orderId, settings }) {
+  const heldForOrder = bots.filter((bot) => bot.lockedOrderId === orderId && (bot.heldItemIds?.length || 0) > 0);
+  const reserveCount = Math.min(
+    bots.length,
+    Math.max(settings.maxActiveBots, settings.closeOrderReserveBots, heldForOrder.length),
+  );
+  return [...bots]
+    .sort((left, right) => left.availableAt - right.availableAt || left.id - right.id)
+    .slice(0, reserveCount);
+}
+
+function getStageNextBots({ bots, closeNowBots, orderId, settings }) {
+  const closeIds = new Set(closeNowBots.map((bot) => bot.id));
+  const ordered = bots
+    .filter((bot) => !closeIds.has(bot.id) || (bot.lockedOrderId && bot.lockedOrderId !== orderId))
+    .sort((left, right) => left.availableAt - right.availableAt || left.id - right.id);
+  return ordered.slice(0, Math.min(settings.futureOrderBotCap, ordered.length));
+}
+
+function buildVisibleFutureOrders({ orderPlans, currentIndex, visibleAtTick, settings }) {
+  return orderPlans
+    .slice(currentIndex + 1)
+    .filter((order) => order.releaseTick <= visibleAtTick)
+    .slice(0, settings.visibleOrderDepth);
+}
+
+function scheduleWavePrefetch({
+  activeOrder,
+  futureOrders,
+  bots,
+  settings,
+  currentCompletionTick,
+  scriptHorizon,
+  world,
+  reservations,
+  edgeReservations,
+  scriptByTick,
+  stagingCells,
+}) {
+  if (futureOrders.length === 0) {
+    return;
+  }
+
+  const closeNowBots = getCloseNowBots({ bots, orderId: activeOrder.orderId, settings });
+  const stageBots = getStageNextBots({ bots, closeNowBots, orderId: activeOrder.orderId, settings });
+  if (stageBots.length === 0) {
+    return;
+  }
+
+  for (const order of futureOrders) {
+    if (countFutureOrderBots(bots, activeOrder.orderId) >= settings.futureOrderBotCap) {
+      break;
+    }
+    if (countFutureStagedItems(bots, activeOrder.orderId) >= settings.futureOrderItemCap) {
+      break;
+    }
+    if (countFutureStagedItemsForOrder(bots, order.orderId) >= settings.futureOrderPerOrderItemCap) {
+      continue;
+    }
+
+    const heldForOrder = new Set(
+      bots.flatMap((bot) => (bot.lockedOrderId === order.orderId ? bot.heldItemIds : [])),
+    );
+    const nextRemaining = order.allocations.filter((allocation) => !heldForOrder.has(allocation.itemId));
+    const potentialTrips = groupItemsIntoTrips(nextRemaining, settings.maxTripItems);
+
+    for (const tripItems of potentialTrips) {
+      if (countFutureOrderBots(bots, activeOrder.orderId) >= settings.futureOrderBotCap) {
+        break;
+      }
+      if (countFutureStagedItems(bots, activeOrder.orderId) >= settings.futureOrderItemCap) {
+        break;
+      }
+      const remainingPerOrderBudget = settings.futureOrderPerOrderItemCap - countFutureStagedItemsForOrder(bots, order.orderId);
+      if (remainingPerOrderBudget <= 0) {
+        break;
+      }
+      const cappedTrip = tripItems.slice(0, remainingPerOrderBudget);
+      const best = chooseBestBotForTrip({
+        bots: stageBots,
+        items: cappedTrip,
+        mode: 'stage',
+        earliestStartTick: order.releaseTick,
+        latestUsefulTick: Math.min(currentCompletionTick, scriptHorizon),
+        world,
+        reservations,
+        edgeReservations,
+        scriptByTick,
+        stagingCells,
+        horizon: settings.horizon,
+        holdUntilTick: currentCompletionTick + Math.max(2, settings.dropLaneConcurrency),
+      });
+      if (!best) {
+        continue;
+      }
+
+      best.bot.lockedOrderId = order.orderId;
+      best.bot.heldItemIds = cappedTrip.map((item) => item.itemId);
+      best.bot.inventory = cappedTrip.map((item) => item.itemType);
+      break;
+    }
+  }
+}
+
 function scheduleHeldDelivery({
   bot,
   order,
@@ -696,7 +822,7 @@ export function generateOracleScript({
     lockedOrderId: null,
     heldItemIds: [],
   }));
-  const activeBots = bots.slice(0, Math.min(settings.maxActiveBots, bots.length));
+  const activeBots = bots.slice(0, Math.min(Math.max(settings.maxActiveBots, settings.futureOrderBotCap), bots.length));
   const reservations = new Map();
   const edgeReservations = new Map();
   const scriptByTick = new Map();
@@ -727,8 +853,8 @@ export function generateOracleScript({
     const deliveredItemIds = new Set();
     let orderCompletionTick = activeStartTick;
 
-    const heldBots = bots
-      .filter((bot) => activeBots.includes(bot))
+    const closeNowBots = getCloseNowBots({ bots: activeBots, orderId: order.orderId, settings });
+    const heldBots = closeNowBots
       .filter((bot) => bot.lockedOrderId === order.orderId && bot.heldItemIds.length > 0)
       .sort((left, right) => left.availableAt - right.availableAt || left.id - right.id);
 
@@ -763,7 +889,7 @@ export function generateOracleScript({
       let scheduledAny = false;
       for (const candidateItems of candidateTrips) {
         const best = chooseBestBotForTrip({
-          bots: activeBots,
+          bots: closeNowBots,
           items: candidateItems,
           mode: 'deliver',
           earliestStartTick: activeStartTick,
@@ -805,54 +931,31 @@ export function generateOracleScript({
       break;
     }
 
-    const nextOrder = orderPlans[index + 1];
-    const previewTrips = [];
-    if (nextOrder && nextOrder.releaseTick <= orderCompletionTick) {
-      const nextRemaining = nextOrder.allocations.filter((allocation) => {
-        return !bots.some((bot) => bot.heldItemIds.includes(allocation.itemId));
-      });
-      const potentialTrips = groupItemsIntoTrips(nextRemaining, settings.maxTripItems);
-      const previewTripLimit = Math.min(
-        settings.previewRunnerCap,
-        Math.ceil(settings.previewItemCap / settings.maxTripItems),
-        potentialTrips.length,
-      );
-      previewTrips.push(...potentialTrips.slice(0, previewTripLimit));
-    }
-
-    for (const tripItems of previewTrips) {
-      const previewReleaseTick = nextOrder.releaseTick;
-      for (const candidateItems of expandTripsForFallback(tripItems)) {
-        const best = chooseBestBotForTrip({
-          bots: activeBots,
-          items: candidateItems,
-          mode: 'stage',
-          earliestStartTick: previewReleaseTick,
-          latestUsefulTick: Math.min(orderCompletionTick, scriptHorizon),
-          world,
-          reservations,
-          edgeReservations,
-          scriptByTick,
-          stagingCells,
-          horizon: settings.horizon,
-          holdUntilTick: orderCompletionTick + 2,
-          stationaryHoldUntil,
-        });
-        if (!best) {
-          continue;
-        }
-
-        best.bot.lockedOrderId = nextOrder.orderId;
-        best.bot.heldItemIds = candidateItems.map((item) => item.itemId);
-        best.bot.inventory = candidateItems.map((item) => item.itemType);
-        reserveStationaryRange(reservations, best.bot.position, best.bot.availableAt, stationaryHoldUntil);
-      }
-    }
+    const visibleFutureOrders = buildVisibleFutureOrders({
+      orderPlans,
+      currentIndex: index,
+      visibleAtTick: orderCompletionTick,
+      settings,
+    });
+    scheduleWavePrefetch({
+      activeOrder: order,
+      futureOrders: visibleFutureOrders,
+      bots: activeBots,
+      settings,
+      currentCompletionTick: orderCompletionTick,
+      scriptHorizon,
+      world,
+      reservations,
+      edgeReservations,
+      scriptByTick,
+      stagingCells,
+    });
 
     perOrderEstimates.push({
       order_id: order.orderId,
       planned_completion_tick: orderCompletionTick,
       assigned_shelf_ids: order.allocations.map((allocation) => allocation.itemId),
+      visible_future_orders: visibleFutureOrders.map((futureOrder) => futureOrder.orderId),
     });
     previousCompletionTick = orderCompletionTick + 1;
 

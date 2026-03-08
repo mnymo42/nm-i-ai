@@ -35,12 +35,14 @@ Latest hard run:
 - `2026-03-07T19-54-02-292Z-hard-hard` -> score `28`, orders `3`, items `13` (first valid hard baseline, still throughput-limited)
 
 Latest expert runs:
-- Historical reference:
-  - `2026-03-07T16-52-29-717Z-expert-expert` -> score `33`, orders `3`, items `18`
 - Current UTC-day baseline:
-  - `2026-03-08T10-34-25-486Z-expert-expert` -> score `38`, orders `4`, items `18` (reproduced)
-  - key changes: idle bot parking, preview picker cap, drop-off priority boost
-- Previous UTC-day baseline:
+  - `2026-03-08T10-50-21-635Z-expert-expert` -> score `89`, orders `9`, items `44`
+  - key changes: preview picker cap, drop-off priority boost, aisle-based parking slots
+- Supporting current-day runs:
+  - `2026-03-08T10-34-25-486Z-expert-expert` -> score `38`, orders `4`, items `18`
+  - `2026-03-08T10-39-20-479Z-expert-expert` -> score `38`, orders `4`, items `18`
+- Historical references:
+  - `2026-03-07T16-52-29-717Z-expert-expert` -> score `33`, orders `3`, items `18`
   - `2026-03-08T00-03-58-975Z-expert-expert` -> score `13`, orders `1`, items `8`
 
 ## Quick Commands
@@ -54,6 +56,13 @@ node tools/grocery-bot/index.mjs --token $TOKEN --difficulty easy --profile easy
 # Summarize a replay (no token needed)
 node tools/grocery-bot/index.mjs --mode summarize --difficulty easy \
   --replay tools/grocery-bot/out/<run-id>/replay.jsonl
+
+# List recent runs without opening files manually
+node tools/grocery-bot/index.mjs --mode runs --difficulty expert --limit 5
+
+# Read compact run analysis from a run directory or replay path
+node tools/grocery-bot/index.mjs --mode analyze \
+  --replay tools/grocery-bot/out/<run-id>
 
 # Simulate planner changes against a saved replay (no token, fast feedback)
 node tools/grocery-bot/index.mjs --mode simulate --difficulty easy --profile easy \
@@ -75,16 +84,27 @@ node tools/grocery-bot/index.mjs --mode benchmark --difficulty medium \
 node tools/grocery-bot/index.mjs --mode benchmark --difficulty medium --profile medium_warehouse_v1 \
   --replay tools/grocery-bot/out
 
+# Inspect script/oracle metadata without `node -e`
+node tools/grocery-bot/index.mjs --mode script-info \
+  --script tools/grocery-bot/config/script-expert.json \
+  --oracle tools/grocery-bot/config/oracle-expert.json
+
+# Extract a fresh expert oracle from current-day replays
+node tools/grocery-bot/extract-oracle.mjs \
+  --difficulty expert \
+  --profile expert \
+  --out tools/grocery-bot/config/oracle-expert.json
+
 # Generate expert oracle script
 node tools/grocery-bot/generate-script.mjs \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out tools/grocery-bot/config/script-expert.json
 
 # Run the heavy oracle optimizer (preferred before expert scripted runs)
 node tools/grocery-bot/optimize-oracle-script.mjs \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out-script tools/grocery-bot/config/script-expert.json \
   --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json \
   --objective handoff_first \
@@ -95,7 +115,7 @@ node tools/grocery-bot/optimize-oracle-script.mjs \
 # Compress a proven replay prefix backward
 node tools/grocery-bot/compress-oracle-script.mjs \
   --oracle tools/grocery-bot/config/oracle-expert.json \
-  --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
   --out-script tools/grocery-bot/config/script-expert.json \
   --out-report tools/grocery-bot/out/oracle-script-compression-report.json
 
@@ -205,29 +225,44 @@ Drop zones:
 For each improvement iteration:
 1. Read `out/<run-id>/analysis.json` — compact score/pickup/stall summary, fast to read
 2. Use the **replay-analyzer** subagent (`.claude/agents/replay-analyzer.md`) for deep replay digs
-3. Read the relevant planner file (not all of planner.mjs — pick the right module):
+3. Prefer supported inspection commands over `node -e`:
+   - `node tools/grocery-bot/index.mjs --mode runs --difficulty expert --limit 5`
+   - `node tools/grocery-bot/index.mjs --mode analyze --replay tools/grocery-bot/out/<run-id>`
+   - `node tools/grocery-bot/index.mjs --mode script-info --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json`
+   - use the replay viewer for tick-level inspection
+4. Read the relevant planner file (not all of planner.mjs — pick the right module):
    - Strategy changes → `planner.mjs` (planSingleBot + GroceryPlanner)
    - Recovery/cooldown bugs → `planner-singlebot.mjs`
    - Multi-bot routing/assignment → `planner-multibot.mjs`
-4. Make the targeted change
-5. Run tests: `node --test tools/grocery-bot/test/*.test.mjs`
-6. Simulate offline: `--mode simulate` against the latest replay (measures action agreement, not score)
-7. Benchmark replay corpus when changing multi-bot control flow: `--mode benchmark --difficulty medium --replay tools/grocery-bot/out`
-8. If change looks good → play live to confirm actual score
-9. If score improves → run `--mode tune` against the new replay and merge params
+5. Make the targeted change
+6. Run tests: `node --test tools/grocery-bot/test/*.test.mjs`
+7. Simulate offline: `--mode simulate` against the latest replay (measures action agreement, not score)
+8. Benchmark replay corpus when changing multi-bot control flow: `--mode benchmark --difficulty medium --replay tools/grocery-bot/out`
+9. If change looks good → play live to confirm actual score
+10. If score improves → run `--mode tune` against the new replay and merge params
 
 Oracle/script workflow for expert:
 1. After UTC rollover, treat old `oracle-expert.json` and `script-expert.json` as stale until rebuilt from the new day.
-2. Extract/update oracle data: `node tools/grocery-bot/tmp-extract-oracle.mjs`
+2. Extract/update oracle data: `node tools/grocery-bot/extract-oracle.mjs --difficulty expert --profile expert --out tools/grocery-bot/config/oracle-expert.json`
 3. Generate or optimize script:
    - quick pass: `node tools/grocery-bot/generate-script.mjs --oracle ... --replay ... --out tools/grocery-bot/config/script-expert.json`
    - real offline pass: `node tools/grocery-bot/optimize-oracle-script.mjs --oracle ... --replay ... --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-optimizer-report.json --objective handoff_first --iterations 1000 --score-to-beat 91 --ticks-to-beat 292`
    - replay-tightening pass: `node tools/grocery-bot/compress-oracle-script.mjs --oracle ... --replay ... --out-script tools/grocery-bot/config/script-expert.json --out-report tools/grocery-bot/out/oracle-script-compression-report.json`
-4. Inspect metadata in `tools/grocery-bot/config/script-expert.json`
+4. Inspect metadata with `node tools/grocery-bot/index.mjs --mode script-info --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json`
 5. Use the replay viewer to inspect handoff assumptions and drop-off queueing
 6. For replay-derived scripts, use `diff-replay-transition.mjs` to locate the first drift before trusting a longer replay prefix
 7. Play live with both flags: `--script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json`
 8. Update the oracle after the run
+
+Recommended expert iteration loop:
+1. Play a normal live expert run with the best current planner baseline.
+2. Use `--mode runs` and `--mode analyze` to select the best replay candidate.
+3. Rebuild the same-day oracle if needed.
+4. Run `compress-oracle-script.mjs` on the chosen replay to preserve the proven score with the shortest safe prefix.
+5. Inspect the compressed result with `--mode script-info`.
+6. If there is any sign of drift, validate the handoff with `diff-replay-transition.mjs`.
+7. Play live with `--script` + `--oracle`, replay the prefix exactly, then let the live planner take over after `last_scripted_tick`.
+8. Keep the run only if total score or handoff quality improves, then repeat from that new best replay.
 
 Run provenance:
 - Every live run now records commit, dirty state, profile hash, and oracle/script hashes in `summary.json`.
@@ -267,11 +302,10 @@ Current structure map and file-size exceptions live in `tools/grocery-bot/STRUCT
 Full analysis in `tools/grocery-bot/STRATEGY_REVIEW.md`. Priority order:
 
 1. **Freeze easy winner** — treat the current `118` build as the baseline until medium work proves a better shared change
-2. **Push medium into the 200s** — current benchmark is `115`, which is a stable baseline but not the architectural ceiling
-3. **Prove or reject `warehouse_v1` offline first** — use benchmark mode, replay metrics, and specs before live tokens
-4. **Reduce multi-bot stall cascades** — focus on released-work control, service-bay queueing, and order-close cadence
-5. **Tune expert on warehouse_v1** — use the replay viewer plus corpus benchmark before spending more expert tokens
-6. **Rebuild expert for the new UTC day** — use `2026-03-08T00-03-58-975Z-expert-expert` as the active baseline and stop trusting previous-day oracle/script assets
+2. **Push expert past 89 first** — current same-day baseline is healthy enough to support hybrid/oracle work
+3. **Keep `assignment_v1` as the active expert path** — `warehouse_v1` remains archived/experimental for offline medium work
+4. **Use supported inspection commands** — `runs`, `analyze`, `script-info`, and the viewer replace routine `node -e` inspection
+5. **Rebuild same-day oracle/script on top of the 89-point baseline** — do not reuse previous-day oracle/script assets without rebuild
 
 ## Next Session
 

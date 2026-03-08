@@ -1,5 +1,11 @@
 import { buildLegacyOracleScript } from './oracle-script-legacy.mjs';
 import { generateOracleScript } from './oracle-script-optimizer.mjs';
+import {
+  buildReplaySeededHandoffOptions,
+  buildReplaySeededModularOptions,
+  buildReplaySeededWaveOptions,
+  extractReplaySeedSkeleton,
+} from './oracle-script-replay-seed.mjs';
 
 function scoreScript(script) {
   return {
@@ -13,6 +19,18 @@ function scoreScript(script) {
 export function compareGeneratedScripts(left, right, objective = 'score_first') {
   const leftScore = scoreScript(left);
   const rightScore = scoreScript(right);
+  if (objective === 'handoff_value') {
+    if (rightScore.estimatedScore !== leftScore.estimatedScore) {
+      return rightScore.estimatedScore - leftScore.estimatedScore;
+    }
+    if (leftScore.lastScriptedTick !== rightScore.lastScriptedTick) {
+      return leftScore.lastScriptedTick - rightScore.lastScriptedTick;
+    }
+    if (rightScore.ordersCovered !== leftScore.ordersCovered) {
+      return rightScore.ordersCovered - leftScore.ordersCovered;
+    }
+    return leftScore.waits - rightScore.waits;
+  }
   if (rightScore.ordersCovered !== leftScore.ordersCovered) {
     return rightScore.ordersCovered - leftScore.ordersCovered;
   }
@@ -32,6 +50,27 @@ export function compareGeneratedScripts(left, right, objective = 'score_first') 
     }
   }
   return leftScore.waits - rightScore.waits;
+}
+
+function buildReplaySeededCandidateOptions({ oracle, replayPath }) {
+  if (!replayPath) {
+    return [];
+  }
+  const skeleton = extractReplaySeedSkeleton({ replayPath, oracle });
+  return [
+    ...buildReplaySeededModularOptions({ skeleton }).map((options) => ({
+      family: 'replay_seeded_modular',
+      options,
+    })),
+    ...buildReplaySeededWaveOptions({ skeleton }).map((options) => ({
+      family: 'replay_seeded_wave',
+      options,
+    })),
+    ...buildReplaySeededHandoffOptions({ skeleton }).map((options) => ({
+      family: 'replay_seeded_handoff',
+      options,
+    })),
+  ];
 }
 
 function cartesianProduct(valuesByKey) {
@@ -167,7 +206,10 @@ export function generateOracleScriptCandidates({
       ? legacyBaseOptions.slice(0, Math.ceil(candidateLimit / (strategy === 'auto' ? 2 : 1)))
       : legacyBaseOptions)
     : [];
-  const totalPlanned = modularOptionsToRun.length + legacyOptionsToRun.length;
+  const replaySeededOptions = (strategy === 'auto' || strategy === 'modular') && replayPath
+    ? buildReplaySeededCandidateOptions({ oracle, replayPath })
+    : [];
+  const totalPlanned = modularOptionsToRun.length + legacyOptionsToRun.length + replaySeededOptions.length;
 
   function emitProgress(latestStrategy) {
     const bestScore = bestSoFar ? {
@@ -211,6 +253,31 @@ export function generateOracleScriptCandidates({
         progressCompleted += 1;
         emitProgress('modular');
       }
+    }
+  }
+
+  for (const seeded of replaySeededOptions) {
+    const merged = { ...seeded.options, ...modularOptions };
+    try {
+      const script = generateOracleScript({
+        oracle,
+        replayPath,
+        oracleSource,
+        options: merged,
+      });
+      candidates.push({
+        strategy: seeded.family,
+        options: merged,
+        script: { ...script, strategy: seeded.family, settings: merged },
+      });
+      if (!bestSoFar || compareGeneratedScripts(bestSoFar, { ...script, strategy: seeded.family, settings: merged }, objective) > 0) {
+        bestSoFar = { ...script, strategy: seeded.family, settings: merged };
+      }
+    } catch {
+      // Replay-seeded candidates are opportunistic.
+    } finally {
+      progressCompleted += 1;
+      emitProgress(seeded.family);
     }
   }
 

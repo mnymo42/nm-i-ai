@@ -1,204 +1,204 @@
 {
-  "generated_at": "2026-03-08T11:35:46.654Z",
-  "elapsed_ms": 513625,
+  "generated_at": "2026-03-08T11:51:58.210Z",
+  "elapsed_ms": 62609,
   "oracle_source": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/config/oracle-expert.json",
   "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl",
   "strategy": "auto",
-  "objective": "handoff_first",
-  "iterations_requested": 1000,
+  "objective": "handoff_value",
+  "iterations_requested": 150,
   "seed": 7004,
-  "candidates_tested": 906,
-  "score_to_beat": 89,
-  "tick_to_beat": 298,
+  "candidates_tested": 155,
+  "score_to_beat": 19,
+  "tick_to_beat": 176,
   "best_candidate": {
     "strategy": "modular",
     "settings": {
-      "maxActiveBots": 2,
-      "maxTripItems": 2,
+      "maxActiveBots": 1,
+      "maxTripItems": 1,
       "previewRunnerCap": 0,
-      "previewItemCap": 0,
-      "targetCutoffTick": 160
+      "previewItemCap": 2,
+      "targetCutoffTick": 299
     },
     "orders_covered": 2,
-    "estimated_score": 19,
-    "last_scripted_tick": 160,
-    "beats_score_target": false,
-    "beats_tick_target": true
+    "estimated_score": 22,
+    "last_scripted_tick": 282,
+    "beats_score_target": true,
+    "beats_tick_target": false
   },
   "top_candidates": [
     {
       "rank": 1,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 2,
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
         "previewRunnerCap": 0,
-        "previewItemCap": 0,
-        "targetCutoffTick": 160
+        "previewItemCap": 2,
+        "targetCutoffTick": 299
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 160,
-      "total_waits": 1310
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
     },
     {
       "rank": 2,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 2,
-        "previewRunnerCap": 0,
-        "previewItemCap": 2,
-        "targetCutoffTick": 160
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 299
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 160,
-      "total_waits": 1310
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
     },
     {
       "rank": 3,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 2,
-        "previewRunnerCap": 3,
-        "previewItemCap": 0,
-        "targetCutoffTick": 160
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 299
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 160,
-      "total_waits": 1310
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
     },
     {
       "rank": 4,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
+        "maxActiveBots": 1,
         "maxTripItems": 1,
-        "previewRunnerCap": 0,
-        "previewItemCap": 2,
-        "targetCutoffTick": 160
+        "previewRunnerCap": 2,
+        "previewItemCap": 4,
+        "targetCutoffTick": 299
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 160,
-      "total_waits": 1310
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
     },
     {
       "rank": 5,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 1,
-        "previewRunnerCap": 0,
-        "previewItemCap": 6,
-        "targetCutoffTick": 160
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 4,
+        "targetCutoffTick": 260
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 160,
-      "total_waits": 1310
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
     },
     {
       "rank": 6,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 1,
-        "previewRunnerCap": 0,
-        "previewItemCap": 4,
-        "targetCutoffTick": 180
+        "maxActiveBots": 1,
+        "maxTripItems": 3,
+        "previewRunnerCap": 2,
+        "previewItemCap": 0,
+        "targetCutoffTick": 260
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 176,
-      "total_waits": 1432
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
     },
     {
       "rank": 7,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 2,
-        "previewRunnerCap": 2,
-        "previewItemCap": 0,
-        "targetCutoffTick": 180
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 3,
+        "previewItemCap": 6,
+        "targetCutoffTick": 260
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 176,
-      "total_waits": 1432
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
     },
     {
       "rank": 8,
       "strategy": "modular",
       "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 1,
-        "previewRunnerCap": 0,
-        "previewItemCap": 2,
-        "targetCutoffTick": 180
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 6,
+        "targetCutoffTick": 260
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 176,
-      "total_waits": 1432
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
     },
     {
       "rank": 9,
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
-        "maxTripItems": 2,
-        "previewRunnerCap": 0,
+        "maxTripItems": 3,
+        "previewRunnerCap": 2,
         "previewItemCap": 4,
-        "targetCutoffTick": 180
+        "targetCutoffTick": 240
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 176,
-      "total_waits": 1432
+      "estimated_score": 20,
+      "last_scripted_tick": 223,
+      "total_waits": 1832
     },
     {
       "rank": 10,
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
-        "maxTripItems": 1,
-        "previewRunnerCap": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
         "previewItemCap": 0,
-        "targetCutoffTick": 180
+        "targetCutoffTick": 240
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 176,
-      "total_waits": 1432
+      "estimated_score": 20,
+      "last_scripted_tick": 223,
+      "total_waits": 1832
     },
     {
       "rank": 11,
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
-        "maxTripItems": 2,
-        "previewRunnerCap": 0,
-        "previewItemCap": 6,
-        "targetCutoffTick": 180
+        "maxTripItems": 3,
+        "previewRunnerCap": 2,
+        "previewItemCap": 4,
+        "targetCutoffTick": 260
       },
       "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 176,
-      "total_waits": 1432
+      "estimated_score": 20,
+      "last_scripted_tick": 242,
+      "total_waits": 1982
     },
     {
       "rank": 12,
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
-        "maxTripItems": 1,
-        "previewRunnerCap": 0,
-        "previewItemCap": 0,
+        "maxTripItems": 2,
+        "previewRunnerCap": 3,
+        "previewItemCap": 2,
         "targetCutoffTick": 180
       },
       "orders_covered": 2,
@@ -211,6 +211,36 @@
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
+        "maxTripItems": 1,
+        "previewRunnerCap": 0,
+        "previewItemCap": 4,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 176,
+      "total_waits": 1432
+    },
+    {
+      "rank": 14,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 1,
+        "previewItemCap": 4,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 177,
+      "total_waits": 1442
+    },
+    {
+      "rank": 15,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
         "maxTripItems": 3,
         "previewRunnerCap": 0,
         "previewItemCap": 6,
@@ -222,13 +252,13 @@
       "total_waits": 1442
     },
     {
-      "rank": 14,
+      "rank": 16,
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
         "maxTripItems": 3,
-        "previewRunnerCap": 0,
-        "previewItemCap": 0,
+        "previewRunnerCap": 3,
+        "previewItemCap": 6,
         "targetCutoffTick": 180
       },
       "orders_covered": 2,
@@ -237,7 +267,7 @@
       "total_waits": 1442
     },
     {
-      "rank": 15,
+      "rank": 17,
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
@@ -252,43 +282,13 @@
       "total_waits": 1612
     },
     {
-      "rank": 16,
-      "strategy": "modular",
-      "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 2,
-        "previewRunnerCap": 0,
-        "previewItemCap": 6,
-        "targetCutoffTick": 200
-      },
-      "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 196,
-      "total_waits": 1612
-    },
-    {
-      "rank": 17,
+      "rank": 18,
       "strategy": "modular",
       "settings": {
         "maxActiveBots": 2,
         "maxTripItems": 1,
         "previewRunnerCap": 2,
-        "previewItemCap": 0,
-        "targetCutoffTick": 200
-      },
-      "orders_covered": 2,
-      "estimated_score": 19,
-      "last_scripted_tick": 196,
-      "total_waits": 1612
-    },
-    {
-      "rank": 18,
-      "strategy": "modular",
-      "settings": {
-        "maxActiveBots": 2,
-        "maxTripItems": 2,
-        "previewRunnerCap": 2,
-        "previewItemCap": 0,
+        "previewItemCap": 6,
         "targetCutoffTick": 200
       },
       "orders_covered": 2,
@@ -303,7 +303,7 @@
         "maxActiveBots": 2,
         "maxTripItems": 2,
         "previewRunnerCap": 0,
-        "previewItemCap": 4,
+        "previewItemCap": 6,
         "targetCutoffTick": 200
       },
       "orders_covered": 2,
@@ -317,7 +317,7 @@
       "settings": {
         "maxActiveBots": 2,
         "maxTripItems": 2,
-        "previewRunnerCap": 0,
+        "previewRunnerCap": 3,
         "previewItemCap": 2,
         "targetCutoffTick": 200
       },

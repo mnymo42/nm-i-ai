@@ -1,11 +1,11 @@
 {
   "description": "Oracle-optimized script for expert",
   "bot_count": 10,
-  "generated_at": "2026-03-08T11:29:25.235Z",
+  "generated_at": "2026-03-08T11:30:36.583Z",
   "oracle_source": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/config/oracle-expert.json",
   "orders_covered": 2,
   "estimated_score": 19,
-  "last_scripted_tick": 160,
+  "last_scripted_tick": 176,
   "cutoff_reason": "target_cutoff_reached",
   "per_order_estimates": [
     {
@@ -28,12 +28,22 @@
         "item_3",
         "item_1"
       ]
+    },
+    {
+      "order_id": "order_2",
+      "planned_completion_tick": 175,
+      "assigned_shelf_ids": [
+        "item_72",
+        "item_73",
+        "item_86",
+        "item_13"
+      ]
     }
   ],
   "aggregate_efficiency": {
-    "total_waits": 1310,
-    "total_picks": 12,
-    "total_drops": 12,
+    "total_waits": 1432,
+    "total_picks": 14,
+    "total_drops": 13,
     "average_items_per_trip": 1
   },
   "evaluation": {
@@ -41,10 +51,10 @@
     "invalid": null,
     "finalScore": 19,
     "ordersCovered": 2,
-    "lastScriptedTick": 160,
-    "waitActions": 1310,
-    "pickActions": 12,
-    "dropActions": 12,
+    "lastScriptedTick": 176,
+    "waitActions": 1432,
+    "pickActions": 14,
+    "dropActions": 13,
     "perOrder": [
       {
         "id": "order_0",
@@ -125,6 +135,14 @@
         "bot": 1,
         "dropped": [
           "pasta"
+        ]
+      },
+      {
+        "tick": 174,
+        "type": "non_scoring_drop",
+        "bot": 0,
+        "dropped": [
+          "rice"
         ]
       }
     ],
@@ -7035,7 +7053,7 @@
           },
           {
             "bot": 1,
-            "action": "wait"
+            "action": "move_right"
           },
           {
             "bot": 2,
@@ -7080,7 +7098,7 @@
           },
           {
             "bot": 1,
-            "action": "wait"
+            "action": "move_right"
           },
           {
             "bot": 2,
@@ -7125,7 +7143,7 @@
           },
           {
             "bot": 1,
-            "action": "wait"
+            "action": "move_up"
           },
           {
             "bot": 2,
@@ -7170,7 +7188,7 @@
           },
           {
             "bot": 1,
-            "action": "wait"
+            "action": "move_up"
           },
           {
             "bot": 2,
@@ -7215,7 +7233,7 @@
           },
           {
             "bot": 1,
-            "action": "wait"
+            "action": "move_up"
           },
           {
             "bot": 2,
@@ -7260,7 +7278,7 @@
           },
           {
             "bot": 1,
-            "action": "wait"
+            "action": "move_up"
           },
           {
             "bot": 2,
@@ -7305,7 +7323,7 @@
           },
           {
             "bot": 1,
-            "action": "wait"
+            "action": "move_up"
           },
           {
             "bot": 2,
@@ -7350,7 +7368,729 @@
           },
           {
             "bot": 1,
+            "action": "move_up"
+          },
+          {
+            "bot": 2,
             "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 161,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "wait"
+          },
+          {
+            "bot": 1,
+            "action": "move_up"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 162,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_right"
+          },
+          {
+            "bot": 1,
+            "action": "move_up"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 163,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_right"
+          },
+          {
+            "bot": 1,
+            "action": "pick_up",
+            "item_id": "item_13"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 164,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_right"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 165,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_up"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 166,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_up"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 167,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "pick_up",
+            "item_id": "item_76"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 168,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_down"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 169,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_down"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 170,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_down"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 171,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_left"
+          },
+          {
+            "bot": 1,
+            "action": "move_down"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 172,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_left"
+          },
+          {
+            "bot": 1,
+            "action": "move_left"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 173,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_left"
+          },
+          {
+            "bot": 1,
+            "action": "move_left"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 174,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "drop_off"
+          },
+          {
+            "bot": 1,
+            "action": "move_up"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 175,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "move_up"
+          },
+          {
+            "bot": 1,
+            "action": "move_right"
+          },
+          {
+            "bot": 2,
+            "action": "wait"
+          },
+          {
+            "bot": 3,
+            "action": "wait"
+          },
+          {
+            "bot": 4,
+            "action": "wait"
+          },
+          {
+            "bot": 5,
+            "action": "wait"
+          },
+          {
+            "bot": 6,
+            "action": "wait"
+          },
+          {
+            "bot": 7,
+            "action": "wait"
+          },
+          {
+            "bot": 8,
+            "action": "wait"
+          },
+          {
+            "bot": 9,
+            "action": "wait"
+          }
+        ]
+      },
+      {
+        "tick": 176,
+        "actions": [
+          {
+            "bot": 0,
+            "action": "wait"
+          },
+          {
+            "bot": 1,
+            "action": "move_right"
           },
           {
             "bot": 2,
@@ -7387,7 +8127,7 @@
         ]
       }
     ],
-    "sanitizerOverrideCount": 0
+    "sanitizerOverrideCount": 2
   },
   "ticks": [
     {
@@ -14296,7 +15036,7 @@
         },
         {
           "bot": 1,
-          "action": "wait"
+          "action": "move_right"
         },
         {
           "bot": 2,
@@ -14341,7 +15081,7 @@
         },
         {
           "bot": 1,
-          "action": "wait"
+          "action": "move_right"
         },
         {
           "bot": 2,
@@ -14386,7 +15126,7 @@
         },
         {
           "bot": 1,
-          "action": "wait"
+          "action": "move_up"
         },
         {
           "bot": 2,
@@ -14431,7 +15171,7 @@
         },
         {
           "bot": 1,
-          "action": "wait"
+          "action": "move_up"
         },
         {
           "bot": 2,
@@ -14476,7 +15216,7 @@
         },
         {
           "bot": 1,
-          "action": "wait"
+          "action": "move_up"
         },
         {
           "bot": 2,
@@ -14521,7 +15261,7 @@
         },
         {
           "bot": 1,
-          "action": "wait"
+          "action": "move_up"
         },
         {
           "bot": 2,
@@ -14566,7 +15306,7 @@
         },
         {
           "bot": 1,
-          "action": "wait"
+          "action": "move_up"
         },
         {
           "bot": 2,
@@ -14611,7 +15351,729 @@
         },
         {
           "bot": 1,
+          "action": "move_up"
+        },
+        {
+          "bot": 2,
           "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 161,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "wait"
+        },
+        {
+          "bot": 1,
+          "action": "move_up"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 162,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_right"
+        },
+        {
+          "bot": 1,
+          "action": "move_up"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 163,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_right"
+        },
+        {
+          "bot": 1,
+          "action": "pick_up",
+          "item_id": "item_13"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 164,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_right"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 165,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_up"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 166,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_up"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 167,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "pick_up",
+          "item_id": "item_76"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 168,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_down"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 169,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_down"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 170,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_down"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 171,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_left"
+        },
+        {
+          "bot": 1,
+          "action": "move_down"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 172,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_left"
+        },
+        {
+          "bot": 1,
+          "action": "move_left"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 173,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_left"
+        },
+        {
+          "bot": 1,
+          "action": "move_left"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 174,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "drop_off"
+        },
+        {
+          "bot": 1,
+          "action": "move_up"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 175,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "move_up"
+        },
+        {
+          "bot": 1,
+          "action": "move_right"
+        },
+        {
+          "bot": 2,
+          "action": "wait"
+        },
+        {
+          "bot": 3,
+          "action": "wait"
+        },
+        {
+          "bot": 4,
+          "action": "wait"
+        },
+        {
+          "bot": 5,
+          "action": "wait"
+        },
+        {
+          "bot": 6,
+          "action": "wait"
+        },
+        {
+          "bot": 7,
+          "action": "wait"
+        },
+        {
+          "bot": 8,
+          "action": "wait"
+        },
+        {
+          "bot": 9,
+          "action": "wait"
+        }
+      ]
+    },
+    {
+      "tick": 176,
+      "actions": [
+        {
+          "bot": 0,
+          "action": "wait"
+        },
+        {
+          "bot": 1,
+          "action": "move_right"
         },
         {
           "bot": 2,
@@ -14651,21 +16113,21 @@
   "strategy": "modular",
   "settings": {
     "maxActiveBots": 2,
-    "maxTripItems": 2,
+    "maxTripItems": 1,
     "previewRunnerCap": 0,
-    "previewItemCap": 0,
-    "targetCutoffTick": 160
+    "previewItemCap": 4,
+    "targetCutoffTick": 180
   },
   "optimization_meta": {
     "optimizer": "optimize-oracle-script",
     "strategy": "auto",
     "objective": "handoff_first",
-    "iterations_requested": 1000,
-    "candidates_tested": 906,
-    "score_to_beat": 89,
-    "ticks_to_beat": 298,
+    "iterations_requested": 150,
+    "candidates_tested": 135,
+    "score_to_beat": 19,
+    "ticks_to_beat": 176,
     "seed": 7004,
-    "elapsed_ms": 513625,
+    "elapsed_ms": 74965,
     "rank": 1,
     "top_candidates": [
       {
@@ -14673,30 +16135,30 @@
         "strategy": "modular",
         "settings": {
           "maxActiveBots": 2,
-          "maxTripItems": 2,
+          "maxTripItems": 1,
           "previewRunnerCap": 0,
-          "previewItemCap": 0,
-          "targetCutoffTick": 160
+          "previewItemCap": 4,
+          "targetCutoffTick": 180
         },
         "orders_covered": 2,
         "estimated_score": 19,
-        "last_scripted_tick": 160,
-        "total_waits": 1310
+        "last_scripted_tick": 176,
+        "total_waits": 1432
       },
       {
         "rank": 2,
         "strategy": "modular",
         "settings": {
           "maxActiveBots": 2,
-          "maxTripItems": 2,
+          "maxTripItems": 3,
           "previewRunnerCap": 0,
-          "previewItemCap": 2,
-          "targetCutoffTick": 160
+          "previewItemCap": 6,
+          "targetCutoffTick": 180
         },
         "orders_covered": 2,
         "estimated_score": 19,
-        "last_scripted_tick": 160,
-        "total_waits": 1310
+        "last_scripted_tick": 177,
+        "total_waits": 1442
       },
       {
         "rank": 3,
@@ -14704,119 +16166,119 @@
         "settings": {
           "maxActiveBots": 2,
           "maxTripItems": 2,
-          "previewRunnerCap": 3,
+          "previewRunnerCap": 1,
           "previewItemCap": 0,
-          "targetCutoffTick": 160
+          "targetCutoffTick": 200
         },
         "orders_covered": 2,
         "estimated_score": 19,
-        "last_scripted_tick": 160,
-        "total_waits": 1310
+        "last_scripted_tick": 196,
+        "total_waits": 1612
       },
       {
         "rank": 4,
         "strategy": "modular",
         "settings": {
           "maxActiveBots": 2,
-          "maxTripItems": 1,
+          "maxTripItems": 2,
           "previewRunnerCap": 0,
-          "previewItemCap": 2,
-          "targetCutoffTick": 160
+          "previewItemCap": 6,
+          "targetCutoffTick": 200
         },
         "orders_covered": 2,
         "estimated_score": 19,
-        "last_scripted_tick": 160,
-        "total_waits": 1310
+        "last_scripted_tick": 196,
+        "total_waits": 1612
       },
       {
         "rank": 5,
         "strategy": "modular",
         "settings": {
           "maxActiveBots": 2,
-          "maxTripItems": 1,
-          "previewRunnerCap": 0,
-          "previewItemCap": 6,
-          "targetCutoffTick": 160
+          "maxTripItems": 3,
+          "previewRunnerCap": 2,
+          "previewItemCap": 0,
+          "targetCutoffTick": 200
         },
         "orders_covered": 2,
         "estimated_score": 19,
-        "last_scripted_tick": 160,
-        "total_waits": 1310
+        "last_scripted_tick": 200,
+        "total_waits": 1627
       },
       {
         "rank": 6,
         "strategy": "modular",
         "settings": {
-          "maxActiveBots": 2,
+          "maxActiveBots": 1,
           "maxTripItems": 1,
-          "previewRunnerCap": 0,
-          "previewItemCap": 4,
-          "targetCutoffTick": 180
+          "previewRunnerCap": 1,
+          "previewItemCap": 0,
+          "targetCutoffTick": 220
         },
         "orders_covered": 2,
         "estimated_score": 19,
-        "last_scripted_tick": 176,
-        "total_waits": 1432
+        "last_scripted_tick": 220,
+        "total_waits": 1997
       },
       {
         "rank": 7,
         "strategy": "modular",
         "settings": {
-          "maxActiveBots": 2,
+          "maxActiveBots": 1,
           "maxTripItems": 2,
-          "previewRunnerCap": 2,
-          "previewItemCap": 0,
-          "targetCutoffTick": 180
+          "previewRunnerCap": 3,
+          "previewItemCap": 6,
+          "targetCutoffTick": 220
         },
         "orders_covered": 2,
         "estimated_score": 19,
-        "last_scripted_tick": 176,
-        "total_waits": 1432
+        "last_scripted_tick": 220,
+        "total_waits": 1997
       },
       {
         "rank": 8,
         "strategy": "modular",
         "settings": {
           "maxActiveBots": 2,
-          "maxTripItems": 1,
+          "maxTripItems": 3,
           "previewRunnerCap": 0,
-          "previewItemCap": 2,
-          "targetCutoffTick": 180
+          "previewItemCap": 0,
+          "targetCutoffTick": 240
         },
         "orders_covered": 2,
-        "estimated_score": 19,
-        "last_scripted_tick": 176,
-        "total_waits": 1432
+        "estimated_score": 20,
+        "last_scripted_tick": 223,
+        "total_waits": 1832
       },
       {
         "rank": 9,
         "strategy": "modular",
         "settings": {
-          "maxActiveBots": 2,
+          "maxActiveBots": 1,
           "maxTripItems": 2,
-          "previewRunnerCap": 0,
+          "previewRunnerCap": 1,
           "previewItemCap": 4,
-          "targetCutoffTick": 180
+          "targetCutoffTick": 260
         },
         "orders_covered": 2,
-        "estimated_score": 19,
-        "last_scripted_tick": 176,
-        "total_waits": 1432
+        "estimated_score": 21,
+        "last_scripted_tick": 259,
+        "total_waits": 2350
       },
       {
         "rank": 10,
         "strategy": "modular",
         "settings": {
-          "maxActiveBots": 2,
-          "maxTripItems": 1,
+          "maxActiveBots": 1,
+          "maxTripItems": 3,
           "previewRunnerCap": 2,
           "previewItemCap": 0,
-          "targetCutoffTick": 180
+          "targetCutoffTick": 260
         },
         "orders_covered": 2,
-        "estimated_score": 19,
-        "last_scripted_tick": 176,
-        "total_waits": 1432
+        "estimated_score": 21,
+        "last_scripted_tick": 259,
+        "total_waits": 2350
       }
     ]
   }

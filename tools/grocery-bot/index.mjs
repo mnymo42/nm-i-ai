@@ -11,6 +11,11 @@ import { GroceryPlanner } from './src/planner.mjs';
 import { loadProfiles, resolveProfile } from './src/profile.mjs';
 import { buildRunProvenance } from './src/run-provenance.mjs';
 import {
+  buildReplayAnalysisReport,
+  buildRunListing,
+  buildScriptInfoReport,
+} from './src/workflow-tools.mjs';
+import {
   ReplayLogger,
   summarizeReplay,
   simulateReplayAgainstObserved,
@@ -155,6 +160,29 @@ function runBenchmarkMode(args) {
   console.log(JSON.stringify(benchmark, null, 2));
 }
 
+function runRunsMode(args) {
+  const listing = buildRunListing({
+    outDir: args.outDir,
+    difficulty: args.difficulty,
+    profile: args.profile,
+    limit: args.limit,
+  });
+  console.log(JSON.stringify(listing, null, 2));
+}
+
+function runAnalyzeMode(args) {
+  const report = buildReplayAnalysisReport(args.replay);
+  console.log(JSON.stringify(report, null, 2));
+}
+
+function runScriptInfoMode(args) {
+  const report = buildScriptInfoReport({
+    scriptPath: args.script,
+    oraclePath: args.oracle,
+  });
+  console.log(JSON.stringify(report, null, 2));
+}
+
 async function main() {
   const args = parseCliArguments(process.argv.slice(2));
 
@@ -185,6 +213,21 @@ async function main() {
 
   if (args.mode === 'benchmark') {
     runBenchmarkMode(args);
+    return;
+  }
+
+  if (args.mode === 'runs') {
+    runRunsMode(args);
+    return;
+  }
+
+  if (args.mode === 'analyze') {
+    runAnalyzeMode(args);
+    return;
+  }
+
+  if (args.mode === 'script-info') {
+    runScriptInfoMode(args);
   }
 }
 

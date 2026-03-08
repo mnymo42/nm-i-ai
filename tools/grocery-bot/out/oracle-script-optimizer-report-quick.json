@@ -1,0 +1,330 @@
+{
+  "generated_at": "2026-03-08T11:30:55.046Z",
+  "elapsed_ms": 74965,
+  "oracle_source": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/config/oracle-expert.json",
+  "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl",
+  "strategy": "auto",
+  "objective": "handoff_first",
+  "iterations_requested": 150,
+  "seed": 7004,
+  "candidates_tested": 135,
+  "score_to_beat": 19,
+  "tick_to_beat": 176,
+  "best_candidate": {
+    "strategy": "modular",
+    "settings": {
+      "maxActiveBots": 2,
+      "maxTripItems": 1,
+      "previewRunnerCap": 0,
+      "previewItemCap": 4,
+      "targetCutoffTick": 180
+    },
+    "orders_covered": 2,
+    "estimated_score": 19,
+    "last_scripted_tick": 176,
+    "beats_score_target": false,
+    "beats_tick_target": false
+  },
+  "top_candidates": [
+    {
+      "rank": 1,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 1,
+        "previewRunnerCap": 0,
+        "previewItemCap": 4,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 176,
+      "total_waits": 1432
+    },
+    {
+      "rank": 2,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 177,
+      "total_waits": 1442
+    },
+    {
+      "rank": 3,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 196,
+      "total_waits": 1612
+    },
+    {
+      "rank": 4,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 2,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 196,
+      "total_waits": 1612
+    },
+    {
+      "rank": 5,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 2,
+        "previewItemCap": 0,
+        "targetCutoffTick": 200
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 200,
+      "total_waits": 1627
+    },
+    {
+      "rank": 6,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 220
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 220,
+      "total_waits": 1997
+    },
+    {
+      "rank": 7,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 3,
+        "previewItemCap": 6,
+        "targetCutoffTick": 220
+      },
+      "orders_covered": 2,
+      "estimated_score": 19,
+      "last_scripted_tick": 220,
+      "total_waits": 1997
+    },
+    {
+      "rank": 8,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 2,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
+        "previewItemCap": 0,
+        "targetCutoffTick": 240
+      },
+      "orders_covered": 2,
+      "estimated_score": 20,
+      "last_scripted_tick": 223,
+      "total_waits": 1832
+    },
+    {
+      "rank": 9,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 4,
+        "targetCutoffTick": 260
+      },
+      "orders_covered": 2,
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
+    },
+    {
+      "rank": 10,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 3,
+        "previewRunnerCap": 2,
+        "previewItemCap": 0,
+        "targetCutoffTick": 260
+      },
+      "orders_covered": 2,
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
+    },
+    {
+      "rank": 11,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 3,
+        "previewItemCap": 6,
+        "targetCutoffTick": 260
+      },
+      "orders_covered": 2,
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
+    },
+    {
+      "rank": 12,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 6,
+        "targetCutoffTick": 260
+      },
+      "orders_covered": 2,
+      "estimated_score": 21,
+      "last_scripted_tick": 259,
+      "total_waits": 2350
+    },
+    {
+      "rank": 13,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 0,
+        "previewItemCap": 2,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 14,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 15,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 16,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 1,
+        "previewRunnerCap": 2,
+        "previewItemCap": 4,
+        "targetCutoffTick": 299
+      },
+      "orders_covered": 2,
+      "estimated_score": 22,
+      "last_scripted_tick": 282,
+      "total_waits": 2558
+    },
+    {
+      "rank": 17,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 1,
+        "previewItemCap": 0,
+        "targetCutoffTick": 160
+      },
+      "orders_covered": 1,
+      "estimated_score": 12,
+      "last_scripted_tick": 149,
+      "total_waits": 1356
+    },
+    {
+      "rank": 18,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 0,
+        "previewItemCap": 6,
+        "targetCutoffTick": 160
+      },
+      "orders_covered": 1,
+      "estimated_score": 12,
+      "last_scripted_tick": 149,
+      "total_waits": 1356
+    },
+    {
+      "rank": 19,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 3,
+        "previewRunnerCap": 0,
+        "previewItemCap": 4,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 1,
+      "estimated_score": 12,
+      "last_scripted_tick": 149,
+      "total_waits": 1356
+    },
+    {
+      "rank": 20,
+      "strategy": "modular",
+      "settings": {
+        "maxActiveBots": 1,
+        "maxTripItems": 2,
+        "previewRunnerCap": 3,
+        "previewItemCap": 6,
+        "targetCutoffTick": 180
+      },
+      "orders_covered": 1,
+      "estimated_score": 12,
+      "last_scripted_tick": 149,
+      "total_waits": 1356
+    }
+  ]
+}

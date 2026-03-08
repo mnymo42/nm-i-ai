@@ -351,3 +351,49 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
   - Scoring through ALL 12 windows (was dead after tick 150)
   - Only gap: tick 200-224 window scored just +2
 - Notes: the parking system produces consistent scoring throughout the full 300-tick game. Remaining bottleneck is 10-18 tick stagnation windows between deliveries and the 32-tick opening ramp-up. Score of 89 is close to the previous UTC-day high of 91 (different map/seed), proving the approach generalizes.
+
+# 2026-03-08 - Workflow Cleanup + Supported Inspection Commands
+
+- Hypothesis: replay analysis and expert hybrid work are slower than necessary because the active workflow still relies on ad hoc `node -e` snippets, `tmp-*` helpers, and stale docs. Supported read-only commands plus a stable oracle extractor should reduce context churn and keep the repo centered on the live 89-point expert baseline.
+- Changes:
+  - added supported read-only workflow helpers in `src/workflow-tools.mjs`
+  - added `index.mjs` modes:
+    - `runs`
+    - `analyze`
+    - `script-info`
+  - added stable oracle extraction via `extract-oracle.mjs` and `src/oracle-extract.mjs`
+  - kept `tmp-extract-oracle.mjs` as a compatibility wrapper instead of the active entrypoint
+  - updated startup/runbook docs to point at:
+    - `2026-03-08T10-50-21-635Z-expert-expert` as the current expert baseline
+    - `assignment_v1` as the active expert path
+    - `warehouse_v1` and replay-handoff as archived/experimental workflow surfaces
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+- Verdict: keep
+- Notes: this is a workflow-surface cleanup, not a strategy change. It preserves the current expert baseline while making the next oracle/compressor pass cheaper to inspect and reason about.
+
+# 2026-03-08 - Offline Expert Wave Staging + Replay-Seeded Search
+
+- Hypothesis: the offline expert oracle stack is capped by two structural limits: it only stages the immediate next order, and its search mostly explores generic parameter grids instead of starting from the proven `89` replay structure. Bounded multi-order wave staging plus replay-seeded candidates should improve score before handoff without spending live tokens.
+- Changes:
+  - extended modular oracle settings with wave-level controls:
+    - `visibleOrderDepth`
+    - `futureOrderBotCap`
+    - `futureOrderItemCap`
+    - `futureOrderPerOrderItemCap`
+    - `closeOrderReserveBots`
+    - `dropLaneConcurrency`
+  - updated `src/oracle-script-optimizer.mjs` to:
+    - reserve a close-now bot lane for the active order
+    - build a rolling frontier of visible future orders
+    - pre-stage bounded future work across more than one visible order
+    - keep staged future inventory attached to the target order for later handoff
+  - added replay-seeded skeleton extraction plus seeded option families in `src/oracle-script-replay-seed.mjs`
+  - updated `src/oracle-script-search.mjs` with:
+    - `handoff_value` objective
+    - replay-seeded modular/wave/handoff candidate families
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+  - `node tools/grocery-bot/optimize-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert-eval.json --out-report tools/grocery-bot/out/oracle-script-optimizer-report-eval.json --objective handoff_value --iterations 150 --score-to-beat 19 --ticks-to-beat 176` -> best candidate `22` score, `2` orders, tick `282`
+- Verdict: keep and iterate
+- Notes: this improves the offline best score over the previous quick baseline (`19` -> `22`), proving the new search surface can beat the old result. It does not yet improve cutoff tick, so the next follow-up should focus on replay-seeded candidates that preserve more of the early `89`-run cadence instead of just raising pre-handoff score.

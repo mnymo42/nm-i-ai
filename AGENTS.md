@@ -12,7 +12,11 @@ Use this file together with [CLAUDE.md](/home/magnus/prog/nm-i-ai/CLAUDE.md) whe
 ## Grocery Bot Workflow
 
 1. Read `tools/grocery-bot/out/<run-id>/analysis.json` before touching planner code.
-2. Use targeted `node -e` scripts or summarize/simulate modes instead of manually reading full replay logs.
+2. Use supported workflow commands before ad hoc scripts:
+   - `node tools/grocery-bot/index.mjs --mode runs --difficulty expert --limit 5`
+   - `node tools/grocery-bot/index.mjs --mode analyze --replay tools/grocery-bot/out/<run-id>`
+   - `node tools/grocery-bot/index.mjs --mode script-info --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json`
+   - use the replay viewer before writing new one-off inspectors
 3. Make the smallest planner change that matches replay evidence.
 4. Run `node --test tools/grocery-bot/test/*.test.mjs`.
 5. Prefer simulate -> analyze -> change cycles over blind live runs.
@@ -22,6 +26,16 @@ Use this file together with [CLAUDE.md](/home/magnus/prog/nm-i-ai/CLAUDE.md) whe
 9. After UTC rollover, treat old `oracle-expert.json` and `script-expert.json` as stale until rebuilt from the new day.
 10. Use the replay viewer plus `diff-replay-transition.mjs` to inspect scripted/live handoff and first replay drift before changing the oracle scheduler again.
 11. Read `tools/grocery-bot/NEXT_SESSION_PROMPT.md` at startup when resuming strategy work after a break.
+
+Expert iteration loop:
+1. Play a normal live expert run with the best current planner baseline.
+2. Pick the best replay with `--mode runs` and `--mode analyze`.
+3. Rebuild the same-day oracle if needed with `extract-oracle.mjs`.
+4. Run `compress-oracle-script.mjs` on the chosen replay to keep the proven score with the shortest safe prefix.
+5. Inspect the result with `--mode script-info`.
+6. If replay fidelity is uncertain, validate the handoff with `diff-replay-transition.mjs`.
+7. Play live with `--script` + `--oracle`, replay the prefix exactly, and let the live planner take over after `last_scripted_tick`.
+8. Keep the new run only if total score or handoff quality improves, then repeat from that new best run.
 
 ## Structural Policy
 
@@ -63,6 +77,7 @@ Use this file together with [CLAUDE.md](/home/magnus/prog/nm-i-ai/CLAUDE.md) whe
 - Replay parsing/layout helpers: `tools/grocery-bot/src/replay-io.mjs`
 - Structure map and split backlog: `tools/grocery-bot/STRUCTURE_REVIEW.md`
 - Oracle/script optimizer: `tools/grocery-bot/generate-script.mjs`
+- Oracle extraction: `tools/grocery-bot/extract-oracle.mjs`
 - Heavy oracle optimizer: `tools/grocery-bot/optimize-oracle-script.mjs`
 - Replay compression optimizer: `tools/grocery-bot/compress-oracle-script.mjs`
 - Replay drift debugger: `tools/grocery-bot/diff-replay-transition.mjs`

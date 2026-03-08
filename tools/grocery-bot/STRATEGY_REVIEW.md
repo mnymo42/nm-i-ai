@@ -8,7 +8,7 @@ Daily caveat:
 
 - Best repeatable easy score: `118`
 - Current medium benchmark: `115`
-- Current UTC-day expert baseline: `13`
+- Current UTC-day expert baseline: `89`
 - Verified runs:
   - `tools/grocery-bot/out/2026-03-07T15-56-13-035Z-easy-easy`
   - `tools/grocery-bot/out/2026-03-07T16-00-36-191Z-easy-easy`
@@ -28,9 +28,9 @@ Daily caveat:
 - Expert historical references:
   - `tools/grocery-bot/out/2026-03-07T16-52-29-717Z-expert-expert` -> score `33`, `3` orders, `18` items
   - `tools/grocery-bot/out/2026-03-07T19-21-18-326Z-expert-expert` -> score `11`, `1` order, `6` items
-- New UTC-day expert baseline:
-  - `tools/grocery-bot/out/2026-03-08T00-03-58-975Z-expert-expert` -> score `13`, `1` order, `8` items
-  - use this as the starting point for current-day expert tuning and oracle rebuild
+- Current UTC-day expert baseline:
+  - `tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert` -> score `89`, `9` orders, `44` items
+  - use this as the working baseline for current-day expert tuning and oracle rebuild
 
 ## What Changed To Reach 118
 
@@ -41,14 +41,14 @@ Daily caveat:
 ## Current Position
 
 - Easy is no longer the active bottleneck.
-- Medium is now the active bottleneck.
-- Expert is still the main upside target, but the old `33` run is now a historical reference, not the active current-day baseline.
-- The current target is no longer just `>116`; it is to turn the stable `115` branch into an architecture that can climb toward the high `200`s on medium.
+- Expert is now the active upside target.
+- The current target is no longer recovering from `13`; it is to preserve the live `89` baseline and build the first strong same-day hybrid path on top of it.
+- Medium and `warehouse_v1` are still relevant, but they are not the startup-critical workflow for this session.
 - Detailed experiment history now lives in [`EXPERIMENT_LOG.md`](./EXPERIMENT_LOG.md).
 - Structural refactor backlog now lives in [`STRUCTURE_REVIEW.md`](./STRUCTURE_REVIEW.md).
 - `mission_v1` is not the medium default after a live collapse to score `2`; the stable assignment path remains the baseline.
 - `warehouse_v1` now exists behind a non-default strategy flag and is intended as the next real medium architecture, but it must clear offline benchmark gates before any promotion.
-- `hard`, `expert`, and `nightmare` now default to `warehouse_v1`, because the old assignment branch is already structurally broken at `5+` bots.
+- `hard` and `expert` still default to `assignment_v1` in code. `nightmare` defaults to `warehouse_v1`.
 - Multi-drop-zone support is now implemented end-to-end, even though the first observed nightmare payload on `2026-03-07` still exposed only one live drop zone.
 - Offline corpus benchmarking is now part of the workflow:
   - `node tools/grocery-bot/index.mjs --mode benchmark --difficulty medium --replay tools/grocery-bot/out`
@@ -57,12 +57,17 @@ Daily caveat:
   - `npm run grocery-bot:viewer`
   - use it to inspect queue-service-bay pileups, held deliverable inventory, and warehouse control-mode oscillation before spending more expert tokens
 - Expert oracle/script is now a first-class workflow:
-  - `tmp-extract-oracle.mjs` updates `config/oracle-expert.json`
+  - `extract-oracle.mjs` updates `config/oracle-expert.json`
   - `generate-script.mjs` is the quick oracle pass
   - `optimize-oracle-script.mjs` is the preferred heavy offline pass
   - `compress-oracle-script.mjs` is the replay-tightening pass for proven prefixes
   - `src/oracle-script-evaluator.mjs` validates the generated script deterministically before it is written
   - current preferred objective is `handoff_first`: finish known oracle work earlier and let live planner take over sooner
+- Supported inspection workflow is now:
+  - `index.mjs --mode runs`
+  - `index.mjs --mode analyze`
+  - `index.mjs --mode script-info`
+  - replay viewer only when tick-level inspection is needed
 - Replay/handoff status at the end of the previous UTC day:
   - replay-derived handoff is instrumented and provenance-tagged
   - `diff-replay-transition.mjs` exists for replay drift debugging
@@ -74,13 +79,21 @@ Daily caveat:
 
 ## Immediate Next-Day Plan
 
-1. Treat `tools/grocery-bot/out/2026-03-08T00-03-58-975Z-expert-expert` as the new expert baseline.
+1. Treat `tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert` as the current expert baseline.
 2. Rebuild `tools/grocery-bot/config/oracle-expert.json` from the new day before any more oracle/script work.
-3. Tune the live expert planner first:
-   - reduce preview/non-deliverable hoarding
-   - increase active-order completion and drop cadence
-   - reduce stationary-occupant conflicts at 10 bots
-4. Reintroduce hybrid replay/oracle only after the new-day expert planner is healthier.
+3. Keep the live `assignment_v1` expert path as the baseline and treat `warehouse_v1` plus replay-handoff as archived/experimental.
+4. Reintroduce hybrid replay/oracle on top of the `89` run, not on top of the stale `13` run.
+
+## Expert Repeat Loop
+
+1. Play a normal live expert run with the best current planner baseline.
+2. Use `index.mjs --mode runs` and `index.mjs --mode analyze` to choose the best replay.
+3. Rebuild the same-day oracle if needed.
+4. Run `compress-oracle-script.mjs` on that replay to keep the proven score with the shortest safe prefix.
+5. Inspect the compressed script with `index.mjs --mode script-info`.
+6. If replay fidelity is uncertain, validate the handoff with `diff-replay-transition.mjs`.
+7. Play live with `--script` + `--oracle`, replay the prefix exactly, and let the live planner continue after `last_scripted_tick`.
+8. Keep the new run only if total score or handoff quality improves, then repeat from that run.
 
 ## Current Strategy (As Implemented)
 
