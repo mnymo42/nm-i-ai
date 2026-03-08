@@ -513,3 +513,37 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
     - `promotable_shortlist`: empty
 - Verdict: keep
 - Notes: this did not beat the opening baseline, but it removed ambiguity: the current opening families are still too weak, and the report now says so directly instead of hiding that behind late-score winners.
+
+# 2026-03-08 - Pair Release + Teamed Opening Capacity (`opening_capacity_v1`)
+
+- Hypothesis: the expert opening may improve if bots are released from the 10-bot stack in deliberate pairs, staged into bottom/buffer lanes, then assigned into small close-now and future-order teams instead of entering the generic opening pool immediately.
+- Changes:
+  - added `opening_capacity_v1` replay-seeded family in `src/oracle-script-replay-seed.mjs`
+  - added opening-capacity settings in `src/oracle-script-world.mjs`
+  - added stack-release and team-cap support in `src/oracle-script-optimizer.mjs`:
+    - pair release cadence variants
+    - bottom/buffer/fanout alignment targets
+    - future-order bot caps per next known order
+    - opening metadata on emitted scripts
+  - extended opening audit output in `src/opening-audit.mjs` with:
+    - `score_at_tick_60`
+    - `score_at_tick_80`
+    - `score_at_tick_100`
+    - `score_at_tick_120`
+    - `handoff_readiness`
+  - added specs in:
+    - `test/oracle-script-opening-capacity.test.mjs`
+    - `test/oracle-script.test.mjs`
+    - `test/opening-audit.test.mjs`
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> 22 pass
+  - direct opening-capacity variant evaluation on `2026-03-08T10-50-21-635Z-expert-expert` -> all tested variants invalidated before ranking
+  - reran `opening_100` batch; best result stayed `replay_seeded_handoff_rewind` at `22` by tick `103`
+- Verdict: partial keep, not promotable
+- Notes:
+  - the family is structurally implemented and valid on fixture coverage
+  - on the real expert map the current release logic still dead-ends at the stack mouth
+  - latest observed real-map failure modes are opening collisions such as:
+    - tick `4`: two bots target same cell `24,15`
+    - tick `6`: two bots target same cell `25,16`
+  - next iteration should replace the pathfinder-assisted release with a true tick-by-tick conveyor release plan for the first 10-15 ticks

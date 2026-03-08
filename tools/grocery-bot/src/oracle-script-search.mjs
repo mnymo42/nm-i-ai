@@ -8,6 +8,7 @@ import {
   buildReplaySeededBucketOptions,
   buildReplaySeededDropLaneOptions,
   buildReplaySeededHandoffOptions,
+  buildReplaySeededOpeningCapacityOptions,
   buildReplaySeededModularOptions,
   buildReplaySeededOpeningBucketOptions,
   buildReplaySeededRewindTicks,
@@ -196,6 +197,10 @@ function buildReplaySeededCandidateOptions({ oracle, replayPath }) {
     })),
     ...buildReplaySeededAislePartitionOptions({ skeleton }).map((options) => ({
       family: 'opening_aisle_partition',
+      options,
+    })),
+    ...buildReplaySeededOpeningCapacityOptions({ skeleton }).map((options) => ({
+      family: 'opening_capacity_v1',
       options,
     })),
     ...buildReplaySeededHandoffOptions({ skeleton }).map((options) => ({

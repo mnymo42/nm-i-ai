@@ -147,6 +147,7 @@ function scheduleMoveSequence({
   edgeReservations,
   scriptByTick,
   horizon,
+  blockedNextStepCoords = null,
   reserveGoal = true,
 }) {
   const path = findPathToAnyGoal({
@@ -157,6 +158,7 @@ function scheduleMoveSequence({
     edgeReservations,
     startTime,
     horizon,
+    blockedNextStepCoords,
   });
 
   if (!path) {
@@ -179,6 +181,230 @@ function scheduleMoveSequence({
 
   bot.position = [...path[path.length - 1]];
   return startTime + path.length - 1;
+}
+
+function isReservedAt(reservations, time, coord) {
+  return reservations.get(time)?.has(encodeCoord(coord)) || false;
+}
+
+function reserveDirectedStep({ bot, destination, tick, reservations, edgeReservations, scriptByTick }) {
+  reserveCell(reservations, tick + 1, destination);
+  if (!edgeReservations.has(tick + 1)) {
+    edgeReservations.set(tick + 1, new Set());
+  }
+  edgeReservations.get(tick + 1).add(`${encodeCoord(bot.position)}>${encodeCoord(destination)}`);
+  setBotAction(scriptByTick, tick, bot.id, moveToAction(bot.position, destination));
+  bot.position = [...destination];
+  bot.availableAt = tick + 1;
+}
+
+function countBotsLockedToOrder(bots, orderId) {
+  return bots.filter((bot) => bot.lockedOrderId === orderId && (bot.heldItemIds?.length || 0) > 0).length;
+}
+
+function buildOpeningAlignmentTargets(origin, pairIndex, settings) {
+  const spacing = Math.max(1, settings.openingPairSpacing || 2);
+  const laneX = Math.max(1, origin[0] - 3 - (pairIndex * spacing));
+  const bottomY = origin[1];
+  const bufferY = Math.max(1, origin[1] - 1);
+  const alignment = settings.openingAlignmentTarget || 'bottom_row';
+
+  if (alignment === 'buffer_row') {
+    return {
+      leftTarget: [laneX, bottomY],
+      upTarget: [laneX, bufferY],
+      finalUpTarget: [laneX, bufferY],
+    };
+  }
+
+  if (alignment === 'left_heavy_bottom_fanout') {
+    return {
+      leftTarget: [laneX, bottomY],
+      upTarget: [Math.max(1, laneX - 1), bufferY],
+      finalUpTarget: [Math.max(1, laneX - 1), bottomY],
+    };
+  }
+
+  return {
+    leftTarget: [laneX, bottomY],
+    upTarget: [laneX, bufferY],
+    finalUpTarget: [laneX, bottomY],
+  };
+}
+
+function findPairStartTick({
+  pairIndex,
+  settings,
+  origin,
+  reservations,
+  previousStartTick,
+}) {
+  if (pairIndex === 0) {
+    return 0;
+  }
+
+  if (settings.openingPairReleaseCadence === 'immediate') {
+    return previousStartTick + 2;
+  }
+  if (settings.openingPairReleaseCadence === 'wait_turn') {
+    return previousStartTick + 3;
+  }
+
+  let tick = previousStartTick + 2;
+  const leftExit = [origin[0] - 1, origin[1]];
+  const upExit = [origin[0], Math.max(1, origin[1] - 1)];
+  while (
+    isReservedAt(reservations, tick + 1, leftExit)
+    || isReservedAt(reservations, tick + 1, upExit)
+    || isReservedAt(reservations, tick + 2, leftExit)
+    || isReservedAt(reservations, tick + 2, upExit)
+  ) {
+    tick += 1;
+  }
+  return tick;
+}
+
+function spreadBotsFromStacksOpeningCapacity({
+  bots,
+  world,
+  reservations,
+  edgeReservations,
+  scriptByTick,
+  stationaryHoldUntil,
+  horizon,
+  settings,
+}) {
+  const groups = new Map();
+  for (const bot of bots) {
+    const key = encodeCoord(bot.position);
+    const existing = groups.get(key) || [];
+    existing.push(bot);
+    groups.set(key, existing);
+  }
+
+  const phaseSteps = [];
+  for (const group of groups.values()) {
+    if (group.length <= 1) {
+      continue;
+    }
+
+    const sorted = [...group].sort((left, right) => left.id - right.id);
+    const origin = [...sorted[0].position];
+    let previousPairStartTick = -2;
+
+    for (let pairIndex = 0; pairIndex < Math.ceil(sorted.length / 2); pairIndex += 1) {
+      const leftBot = sorted[pairIndex * 2];
+      const upBot = sorted[pairIndex * 2 + 1] || null;
+      const pairStartTick = findPairStartTick({
+        pairIndex,
+        settings,
+        origin,
+        reservations,
+        previousStartTick: previousPairStartTick,
+      });
+      previousPairStartTick = pairStartTick;
+      const targets = buildOpeningAlignmentTargets(origin, pairIndex, settings);
+
+      if (leftBot) {
+        if (pairStartTick > leftBot.availableAt) {
+          reserveStationaryRange(reservations, leftBot.position, leftBot.availableAt, pairStartTick);
+        }
+        reserveDirectedStep({
+          bot: leftBot,
+          destination: [origin[0] - 1, origin[1]],
+          tick: pairStartTick,
+          reservations,
+          edgeReservations,
+          scriptByTick,
+        });
+        const arrivalTick = scheduleMoveSequence({
+          bot: leftBot,
+          goals: [targets.leftTarget],
+          startTime: leftBot.availableAt,
+          graph: world.graph,
+          reservations,
+          edgeReservations,
+          scriptByTick,
+          horizon,
+          reserveGoal: true,
+        });
+        if (arrivalTick !== null) {
+          leftBot.availableAt = arrivalTick + 1;
+          phaseSteps.push({
+            phase: 'release_pairs',
+            bot: leftBot.id,
+            pairIndex,
+            startTick: pairStartTick,
+            target: targets.leftTarget,
+          });
+        }
+      }
+
+      if (upBot) {
+        if (pairStartTick > upBot.availableAt) {
+          reserveStationaryRange(reservations, upBot.position, upBot.availableAt, pairStartTick);
+        }
+        reserveDirectedStep({
+          bot: upBot,
+          destination: [origin[0], Math.max(1, origin[1] - 1)],
+          tick: pairStartTick,
+          reservations,
+          edgeReservations,
+          scriptByTick,
+        });
+        const upperArrivalTick = scheduleMoveSequence({
+          bot: upBot,
+          goals: [targets.upTarget],
+          startTime: upBot.availableAt,
+          graph: world.graph,
+          reservations,
+          edgeReservations,
+          scriptByTick,
+          horizon,
+          reserveGoal: true,
+        });
+        if (upperArrivalTick !== null) {
+          upBot.availableAt = upperArrivalTick + 1;
+          phaseSteps.push({
+            phase: 'release_pairs',
+            bot: upBot.id,
+            pairIndex,
+            startTick: pairStartTick,
+            target: targets.upTarget,
+          });
+          if (encodeCoord(targets.finalUpTarget) !== encodeCoord(targets.upTarget)) {
+            const alignTick = scheduleMoveSequence({
+              bot: upBot,
+              goals: [targets.finalUpTarget],
+              startTime: upBot.availableAt,
+              graph: world.graph,
+              reservations,
+              edgeReservations,
+              scriptByTick,
+              horizon,
+              reserveGoal: true,
+            });
+            if (alignTick !== null) {
+              upBot.availableAt = alignTick + 1;
+              phaseSteps.push({
+                phase: 'align_staging_lanes',
+                bot: upBot.id,
+                pairIndex,
+                startTick: upperArrivalTick + 1,
+                target: targets.finalUpTarget,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (const bot of bots) {
+    reserveStationaryRange(reservations, bot.position, bot.availableAt, stationaryHoldUntil);
+  }
+
+  return phaseSteps;
 }
 
 function reservePickupTick({ bot, tick, reservations, scriptByTick, itemId }) {
@@ -520,7 +746,16 @@ function getCloseNowBots({ bots, orderId, settings }) {
     settings.closeNowBotCap ?? reserveFloor,
   );
   return [...bots]
-    .sort((left, right) => left.availableAt - right.availableAt || left.id - right.id)
+    .sort((left, right) => {
+      if (settings.openingCapacityV1) {
+        const dropDelta = manhattanDistance(left.position, settings.dropOff || left.position)
+          - manhattanDistance(right.position, settings.dropOff || right.position);
+        if (dropDelta !== 0) {
+          return dropDelta;
+        }
+      }
+      return left.availableAt - right.availableAt || left.id - right.id;
+    })
     .slice(0, reserveCount);
 }
 
@@ -534,7 +769,9 @@ function getStageNextBots({ bots, closeNowBots, orderId, settings }) {
 }
 
 function buildVisibleFutureOrders({ orderPlans, currentIndex, visibleAtTick, settings }) {
-  const depth = settings.stageHiddenKnownOrders ? settings.knownOrderDepth : settings.visibleOrderDepth;
+  const depth = settings.stageHiddenKnownOrders
+    ? (settings.openingFutureOrderDepth ?? settings.knownOrderDepth)
+    : settings.visibleOrderDepth;
   return orderPlans
     .slice(currentIndex + 1)
     .filter((order) => settings.stageHiddenKnownOrders || order.releaseTick <= visibleAtTick)
@@ -565,6 +802,8 @@ function scheduleWavePrefetch({
   }
 
   for (const order of futureOrders) {
+    const orderIndex = futureOrders.findIndex((futureOrder) => futureOrder.orderId === order.orderId);
+    const perOrderBotCap = settings.openingFutureOrderBotCaps?.[orderIndex] ?? settings.futureOrderBotCaps?.[orderIndex] ?? settings.futureOrderBotCap;
     if (countFutureOrderBots(bots, activeOrder.orderId) >= settings.futureOrderBotCap) {
       break;
     }
@@ -578,6 +817,9 @@ function scheduleWavePrefetch({
     const heldForOrder = new Set(
       bots.flatMap((bot) => (bot.lockedOrderId === order.orderId ? bot.heldItemIds : [])),
     );
+    if (countBotsLockedToOrder(bots, order.orderId) >= perOrderBotCap) {
+      continue;
+    }
     const nextRemaining = order.allocations.filter((allocation) => !heldForOrder.has(allocation.itemId));
     const potentialTrips = groupItemsIntoTrips(nextRemaining, settings.maxTripItems);
 
@@ -586,6 +828,9 @@ function scheduleWavePrefetch({
         break;
       }
       if (countFutureStagedItems(bots, activeOrder.orderId) >= settings.futureOrderItemCap) {
+        break;
+      }
+      if (countBotsLockedToOrder(bots, order.orderId) >= perOrderBotCap) {
         break;
       }
       const remainingPerOrderBudget = settings.futureOrderPerOrderItemCap - countFutureStagedItemsForOrder(bots, order.orderId);
@@ -824,6 +1069,7 @@ export function generateOracleScript({
   const settings = { ...oracleScriptDefaults, ...options };
   const normalizedOracle = normalizeOracle(oracle);
   const world = buildOracleScriptWorld({ oracle: normalizedOracle, replayPath });
+  settings.dropOff = world.dropOff;
   const orderPlans = buildOrderAssignments(normalizedOracle, world.itemsByType, world.dropOff)
     .map((orderPlan) => ({
       ...orderPlan,
@@ -860,15 +1106,29 @@ export function generateOracleScript({
   const scriptHorizon = Math.min(settings.targetCutoffTick, world.maxRounds - 1);
   const stationaryHoldUntil = Math.min(world.maxRounds, settings.targetCutoffTick + 4);
 
-  spreadBotsFromStacks({
-    bots: activeBots,
-    world,
-    reservations,
-    edgeReservations,
-    scriptByTick,
-    stationaryHoldUntil,
-    horizon: settings.horizon,
-  });
+  const openingPhaseSteps = settings.openingCapacityV1
+    ? spreadBotsFromStacksOpeningCapacity({
+      bots: activeBots,
+      world,
+      reservations,
+      edgeReservations,
+      scriptByTick,
+      stationaryHoldUntil,
+      horizon: settings.horizon,
+      settings,
+    })
+    : [];
+  if (!settings.openingCapacityV1) {
+    spreadBotsFromStacks({
+      bots: activeBots,
+      world,
+      reservations,
+      edgeReservations,
+      scriptByTick,
+      stationaryHoldUntil,
+      horizon: settings.horizon,
+    });
+  }
   let previousCompletionTick = 0;
   let cutoffReason = null;
 
@@ -985,6 +1245,8 @@ export function generateOracleScript({
       order_id: order.orderId,
       planned_completion_tick: orderCompletionTick,
       assigned_shelf_ids: order.allocations.map((allocation) => allocation.itemId),
+      close_now_bot_ids: closeNowBots.map((bot) => bot.id),
+      future_order_bot_caps: settings.openingFutureOrderBotCaps ?? settings.futureOrderBotCaps ?? null,
       visible_future_orders: visibleFutureOrders.map((futureOrder) => futureOrder.orderId),
       stage_hidden_known_orders: settings.stageHiddenKnownOrders,
     });
@@ -1029,6 +1291,18 @@ export function generateOracleScript({
         ? 'target_cutoff_reached'
         : 'schedule_exhausted'),
     per_order_estimates: perOrderEstimates,
+    opening_strategy: settings.openingCapacityV1 ? {
+      family: 'opening_capacity_v1',
+      phases: ['release_pairs', 'align_staging_lanes', 'team_pick_current', 'team_stage_known_future', 'handoff_ready'],
+      variant: {
+        openingPairReleaseCadence: settings.openingPairReleaseCadence,
+        openingAlignmentTarget: settings.openingAlignmentTarget,
+        openingTeamSplit: settings.openingTeamSplit,
+        openingFutureOrderDepth: settings.openingFutureOrderDepth ?? settings.knownOrderDepth,
+        openingFutureOrderBotCaps: settings.openingFutureOrderBotCaps ?? settings.futureOrderBotCaps ?? null,
+      },
+      steps: openingPhaseSteps,
+    } : null,
     aggregate_efficiency: emittedAggregate,
     evaluation,
     ticks: emittedTicks,

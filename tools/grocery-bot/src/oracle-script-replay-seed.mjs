@@ -249,6 +249,54 @@ export function buildReplaySeededAislePartitionOptions({ skeleton }) {
   }));
 }
 
+export function buildReplaySeededOpeningCapacityOptions({ skeleton }) {
+  const teamSplits = [
+    [4, 3, 3, 0],
+    [3, 3, 2, 2],
+    [4, 2, 2, 2],
+  ];
+  const alignments = ['bottom_row', 'buffer_row', 'left_heavy_bottom_fanout'];
+  const cadences = ['immediate', 'wait_turn', 'occupancy_clear'];
+  const variants = [];
+
+  for (const targetCutoffTick of [100, 110, 120]) {
+    for (const openingAlignmentTarget of alignments) {
+      for (const openingPairReleaseCadence of cadences) {
+        for (const openingTeamSplit of teamSplits) {
+          variants.push({
+            maxActiveBots: Math.min(10, Math.max(8, skeleton.activeBotCount + 4)),
+            closeNowBotCap: openingTeamSplit[0],
+            stageBotCap: Math.max(0, openingTeamSplit[1] + openingTeamSplit[2]),
+            maxTripItems: 2,
+            previewRunnerCap: 2,
+            previewItemCap: 8,
+            visibleOrderDepth: Math.min(5, skeleton.visibleOrderDepth + 2),
+            knownOrderDepth: 8,
+            openingFutureOrderDepth: 2,
+            stageHiddenKnownOrders: true,
+            futureOrderBotCap: Math.max(0, openingTeamSplit[1] + openingTeamSplit[2]),
+            futureOrderItemCap: 8,
+            futureOrderPerOrderItemCap: 2,
+            futureOrderBotCaps: [openingTeamSplit[1], openingTeamSplit[2]],
+            closeOrderReserveBots: openingTeamSplit[0],
+            dropLaneConcurrency: 1,
+            openingFocus: true,
+            openingCapacityV1: true,
+            openingPairReleaseCadence,
+            openingAlignmentTarget,
+            openingTeamSplit,
+            openingFutureOrderBotCaps: [openingTeamSplit[1], openingTeamSplit[2]],
+            openingPairSpacing: 2,
+            targetCutoffTick,
+          });
+        }
+      }
+    }
+  }
+
+  return sampleEvenly(variants, 6);
+}
+
 export function buildReplaySeededScoreTargets({ replayPath }) {
   const rows = snapshotRows(replayPath);
   const milestones = [];

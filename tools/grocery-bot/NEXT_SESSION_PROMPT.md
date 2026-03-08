@@ -55,6 +55,11 @@ Do first:
      - cause: `drop_lane_or_congestion_gap`
      - candidate opening profile: `0` score by tick `120`, no pickups or drops
      - meaning: the next fix should be diagnosis-driven opening capacity, not broader family search
+   - `opening_capacity_v1` has now been implemented and tested offline:
+     - fixture coverage passes
+     - real expert variants still invalidate at the stack mouth before ranking
+     - `opening_100` best result is still `replay_seeded_handoff_rewind` at `22` by tick `103`
+     - meaning: the next step is a true tick-by-tick conveyor release for the first 10-15 ticks, not more pathfinder-assisted pair-release variants
 5. Follow the repeat loop:
    - live planner baseline run
    - pick best replay with `runs` + `analyze`

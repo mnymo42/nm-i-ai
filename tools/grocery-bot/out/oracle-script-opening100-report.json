@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-08T13:31:10.604Z",
+  "generated_at": "2026-03-08T13:53:19.997Z",
   "oracle_source": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/config/oracle-expert.json",
   "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl",
   "baseline": {
@@ -22,6 +22,10 @@
     "first_drop_tick": 31,
     "first_score_tick": 32,
     "final_score": 29,
+    "score_at_tick_60": 10,
+    "score_at_tick_80": 19,
+    "score_at_tick_100": 22,
+    "score_at_tick_120": 29,
     "productive_bot_ticks": 805,
     "wasted_bot_ticks": 417,
     "pickup_saturation": 21,
@@ -1600,7 +1604,12 @@
         "drop_lane_occupied": false,
         "active_order_id": "order_3"
       }
-    ]
+    ],
+    "handoff_readiness": {
+      "stranded_inventory": 7,
+      "bots_near_drop": 0,
+      "staged_future_bots": 2
+    }
   },
   "opening_profile": {
     "script_strategy": "replay_seeded_handoff_rewind",
@@ -1609,6 +1618,10 @@
     "first_drop_tick": null,
     "first_score_tick": null,
     "final_score": 0,
+    "score_at_tick_60": 0,
+    "score_at_tick_80": 0,
+    "score_at_tick_100": 0,
+    "score_at_tick_120": 0,
     "productive_bot_ticks": 33,
     "wasted_bot_ticks": 87,
     "pickup_saturation": 0,
@@ -1744,7 +1757,12 @@
         "drop_lane_occupied": false,
         "active_order_id": "order_0"
       }
-    ]
+    ],
+    "handoff_readiness": {
+      "stranded_inventory": 0,
+      "bots_near_drop": 0,
+      "staged_future_bots": 0
+    }
   },
   "first_divergence_tick": 0,
   "first_divergence": {
@@ -1784,7 +1802,7 @@
   "parallel": 9,
   "jobs_requested": 18,
   "jobs_completed": 18,
-  "elapsed_ms": 227847,
+  "elapsed_ms": 231058,
   "best_job": {
     "id": 8,
     "seed": 7012,
@@ -1792,8 +1810,8 @@
     "strategy": "replay_seeded_handoff_rewind",
     "estimated_score": 22,
     "last_scripted_tick": 103,
-    "out_script": "/tmp/oracle-batch-IIZdIo/script-8.json",
-    "out_report": "/tmp/oracle-batch-IIZdIo/report-8.json"
+    "out_script": "/tmp/oracle-batch-lRQbqb/script-8.json",
+    "out_report": "/tmp/oracle-batch-lRQbqb/report-8.json"
   },
   "best_by_objective": [
     {
@@ -2322,97 +2340,6 @@
       "wasted_bot_ticks": 0,
       "productive_bot_tick_ratio": null,
       "rank": 6,
-      "id": 14,
-      "seed": 7018,
-      "objective": "score_by_tick_100",
-      "strategy": "replay_seeded_handoff_rewind",
-      "estimated_score": 22,
-      "last_scripted_tick": 103,
-      "baseline_match": true,
-      "baseline_beat": false,
-      "promotable": false,
-      "first_divergence_tick": 0,
-      "first_divergence": {
-        "tick": 0,
-        "cause": "drop_lane_or_congestion_gap",
-        "differences": [
-          "blocked_bot_ticks"
-        ],
-        "baseline": {
-          "tick": 0,
-          "score": 0,
-          "productive_bot_ticks": 2,
-          "waiting_bot_ticks": 8,
-          "blocked_bot_ticks": 0,
-          "carrying_deliverable_bots": 0,
-          "staged_future_bots": 0,
-          "pickup_actions": 0,
-          "drop_actions": 0,
-          "drop_lane_occupied": false,
-          "active_order_id": "order_0"
-        },
-        "candidate": {
-          "tick": 0,
-          "score": 0,
-          "productive_bot_ticks": 2,
-          "waiting_bot_ticks": 8,
-          "blocked_bot_ticks": 1,
-          "carrying_deliverable_bots": 0,
-          "staged_future_bots": 0,
-          "pickup_actions": 0,
-          "drop_actions": 0,
-          "drop_lane_occupied": false,
-          "active_order_id": "order_0"
-        }
-      },
-      "triage": {
-        "baseline_match": true,
-        "baseline_beat": false,
-        "promotable": false,
-        "penalties": [
-          "excess_stranded_inventory"
-        ],
-        "metrics": {
-          "score_at_tick_100": 22,
-          "tick_to_40": null,
-          "tick_to_60": null,
-          "tick_to_80": null,
-          "tick_to_targets": {
-            "40": null,
-            "60": null,
-            "80": null
-          },
-          "stranded_inventory": 5,
-          "bots_near_drop": 1,
-          "average_bot_spread": 10,
-          "dead_opening_ticks": 32,
-          "productive_bot_ticks": 0,
-          "wasted_bot_ticks": 0,
-          "productive_bot_tick_ratio": null
-        }
-      },
-      "total_waits": 374,
-      "out_script": "script-14.json",
-      "out_report": "report-14.json"
-    },
-    {
-      "score_at_tick_100": 22,
-      "tick_to_40": null,
-      "tick_to_60": null,
-      "tick_to_80": null,
-      "tick_to_targets": {
-        "40": null,
-        "60": null,
-        "80": null
-      },
-      "stranded_inventory": 5,
-      "bots_near_drop": 1,
-      "average_bot_spread": 10,
-      "dead_opening_ticks": 32,
-      "productive_bot_ticks": 0,
-      "wasted_bot_ticks": 0,
-      "productive_bot_tick_ratio": null,
-      "rank": 7,
       "id": 10,
       "seed": 7014,
       "objective": "score_by_tick_100",
@@ -2485,6 +2412,97 @@
       "total_waits": 374,
       "out_script": "script-10.json",
       "out_report": "report-10.json"
+    },
+    {
+      "score_at_tick_100": 22,
+      "tick_to_40": null,
+      "tick_to_60": null,
+      "tick_to_80": null,
+      "tick_to_targets": {
+        "40": null,
+        "60": null,
+        "80": null
+      },
+      "stranded_inventory": 5,
+      "bots_near_drop": 1,
+      "average_bot_spread": 10,
+      "dead_opening_ticks": 32,
+      "productive_bot_ticks": 0,
+      "wasted_bot_ticks": 0,
+      "productive_bot_tick_ratio": null,
+      "rank": 7,
+      "id": 14,
+      "seed": 7018,
+      "objective": "score_by_tick_100",
+      "strategy": "replay_seeded_handoff_rewind",
+      "estimated_score": 22,
+      "last_scripted_tick": 103,
+      "baseline_match": true,
+      "baseline_beat": false,
+      "promotable": false,
+      "first_divergence_tick": 0,
+      "first_divergence": {
+        "tick": 0,
+        "cause": "drop_lane_or_congestion_gap",
+        "differences": [
+          "blocked_bot_ticks"
+        ],
+        "baseline": {
+          "tick": 0,
+          "score": 0,
+          "productive_bot_ticks": 2,
+          "waiting_bot_ticks": 8,
+          "blocked_bot_ticks": 0,
+          "carrying_deliverable_bots": 0,
+          "staged_future_bots": 0,
+          "pickup_actions": 0,
+          "drop_actions": 0,
+          "drop_lane_occupied": false,
+          "active_order_id": "order_0"
+        },
+        "candidate": {
+          "tick": 0,
+          "score": 0,
+          "productive_bot_ticks": 2,
+          "waiting_bot_ticks": 8,
+          "blocked_bot_ticks": 1,
+          "carrying_deliverable_bots": 0,
+          "staged_future_bots": 0,
+          "pickup_actions": 0,
+          "drop_actions": 0,
+          "drop_lane_occupied": false,
+          "active_order_id": "order_0"
+        }
+      },
+      "triage": {
+        "baseline_match": true,
+        "baseline_beat": false,
+        "promotable": false,
+        "penalties": [
+          "excess_stranded_inventory"
+        ],
+        "metrics": {
+          "score_at_tick_100": 22,
+          "tick_to_40": null,
+          "tick_to_60": null,
+          "tick_to_80": null,
+          "tick_to_targets": {
+            "40": null,
+            "60": null,
+            "80": null
+          },
+          "stranded_inventory": 5,
+          "bots_near_drop": 1,
+          "average_bot_spread": 10,
+          "dead_opening_ticks": 32,
+          "productive_bot_ticks": 0,
+          "wasted_bot_ticks": 0,
+          "productive_bot_tick_ratio": null
+        }
+      },
+      "total_waits": 374,
+      "out_script": "script-14.json",
+      "out_report": "report-14.json"
     },
     {
       "score_at_tick_100": 22,

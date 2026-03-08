@@ -82,6 +82,8 @@ test('opening audit extracts deterministic replay baseline metrics', () => {
   assert.equal(first.opening_baseline.first_drop_tick, 1);
   assert.equal(first.opening_baseline.first_score_tick, 1);
   assert.equal(first.opening_baseline.final_score, 4);
+  assert.equal(first.opening_baseline.score_at_tick_60, 4);
+  assert.equal(first.opening_baseline.handoff_readiness.stranded_inventory, 0);
   assert.deepEqual(first.opening_baseline, second.opening_baseline);
 });
 
@@ -94,6 +96,8 @@ test('opening audit finds earliest divergence against weaker candidate', () => {
   assert.equal(report.first_divergence.cause, 'idle_or_work_release_gap');
   assert.ok(report.first_divergence.differences.includes('productive_bot_ticks'));
   assert.equal(report.opening_profile.first_pickup_tick, null);
+  assert.equal(report.opening_profile.score_at_tick_100, 0);
+  assert.equal(report.opening_profile.handoff_readiness.stranded_inventory, 0);
 });
 
 test('workflow opening audit wrapper returns the same divergence summary', () => {

@@ -25,6 +25,7 @@ import {
   buildReplaySeededDropLaneOptions,
   buildReplaySeededHandoffOptions,
   buildReplaySeededModularOptions,
+  buildReplaySeededOpeningCapacityOptions,
   buildReplaySeededOpeningBucketOptions,
   buildReplaySeededRewindTicks,
   buildReplaySeededScoreTargets,
@@ -96,6 +97,28 @@ function writeReplayWithActions(oracle, tickRows) {
   ];
   fs.writeFileSync(replayPath, rows.map((row) => JSON.stringify(row)).join('\n'));
   return replayPath;
+}
+
+function writeStackedStartReplay(oracle, botCount = 4, start = [9, 8]) {
+  const bots = Array.from({ length: botCount }, (_, id) => ({
+    id,
+    position: [...start],
+    inventory: [],
+  }));
+  return writeReplayWithActions(oracle, [
+    {
+      type: 'tick',
+      tick: 0,
+      state_snapshot: {
+        score: 0,
+        bots,
+        items: oracle.items,
+        orders: [],
+      },
+      actions_sent: bots.map((bot) => ({ bot: bot.id, action: 'wait' })),
+      sanitizer_overrides: [],
+    },
+  ]);
 }
 
 test('global shelf allocation uses each shelf at most once on real oracle fixture', () => {
@@ -553,6 +576,9 @@ test('replay-seeded option builders are deterministic for the same replay', () =
   assert.ok(firstBucket.every((options) => options.knownOrderDepth >= options.visibleOrderDepth));
   const openingBucket = buildReplaySeededOpeningBucketOptions({ skeleton: first });
   assert.ok(openingBucket.every((options) => options.openingFocus === true));
+  const openingCapacity = buildReplaySeededOpeningCapacityOptions({ skeleton: first });
+  assert.ok(openingCapacity.every((options) => options.openingCapacityV1 === true));
+  assert.ok(openingCapacity.every((options) => Array.isArray(options.openingTeamSplit)));
   const dropLane = buildReplaySeededDropLaneOptions({ skeleton: first });
   assert.ok(dropLane.every((options) => options.dropLaneScheduler === true));
   const aislePartition = buildReplaySeededAislePartitionOptions({ skeleton: first });

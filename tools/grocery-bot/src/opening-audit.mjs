@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { manhattanDistance } from './coords.mjs';
 import { loadOracleFile, loadScriptFile } from './oracle-script-io.mjs';
 import { evaluateOracleScript } from './oracle-script-evaluator.mjs';
 import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
@@ -70,10 +71,30 @@ function buildReplayOpeningProfile(replayPath, maxTick = 120) {
       active_order_id: activeOrder?.id || null,
     };
   });
-  return summarizeOpeningProfile(perTick, maxTick);
+  const lastSnapshot = ticks.at(-1)?.state_snapshot || {};
+  const dropOff = ticks.at(0)?.drop_off || null;
+  return {
+    ...summarizeOpeningProfile(perTick, maxTick),
+    handoff_readiness: {
+      stranded_inventory: (lastSnapshot.bots || []).reduce((sum, bot) => sum + ((bot.inventory || []).length), 0),
+      bots_near_drop: dropOff ? (lastSnapshot.bots || []).filter((bot) => manhattanDistance(bot.position, dropOff) <= 2).length : 0,
+      staged_future_bots: perTick.at(-1)?.staged_future_bots ?? 0,
+    },
+  };
 }
 
 function summarizeOpeningProfile(perTick, maxTick = 120) {
+  function scoreAtTick(targetTick) {
+    let score = 0;
+    for (const tick of perTick) {
+      if (tick.tick > targetTick) {
+        break;
+      }
+      score = tick.score;
+    }
+    return score;
+  }
+
   const firstPickupTick = perTick.find((tick) => tick.pickup_actions > 0)?.tick ?? null;
   const firstDropTick = perTick.find((tick) => tick.drop_actions > 0)?.tick ?? null;
   const firstScoreTick = perTick.find((tick) => tick.score > 0)?.tick ?? null;
@@ -84,6 +105,10 @@ function summarizeOpeningProfile(perTick, maxTick = 120) {
     first_drop_tick: firstDropTick,
     first_score_tick: firstScoreTick,
     final_score: finalScore,
+    score_at_tick_60: scoreAtTick(60),
+    score_at_tick_80: scoreAtTick(80),
+    score_at_tick_100: scoreAtTick(100),
+    score_at_tick_120: scoreAtTick(120),
     productive_bot_ticks: perTick.reduce((sum, tick) => sum + tick.productive_bot_ticks, 0),
     wasted_bot_ticks: perTick.reduce((sum, tick) => sum + tick.waiting_bot_ticks + tick.blocked_bot_ticks, 0),
     pickup_saturation: perTick.reduce((sum, tick) => sum + tick.pickup_actions, 0),
@@ -107,6 +132,11 @@ function buildScriptOpeningProfile({ oraclePath, scriptPath, maxTick = 120 }) {
   return {
     script_strategy: scriptLoad.data.strategy || null,
     ...summarizeOpeningProfile(perTick, maxTick),
+    handoff_readiness: {
+      stranded_inventory: (evaluated.finalBots || []).reduce((sum, bot) => sum + ((bot.inventory || []).length), 0),
+      bots_near_drop: (evaluated.finalBots || []).filter((bot) => manhattanDistance(bot.position, evaluated.dropOff || [0, 0]) <= 2).length,
+      staged_future_bots: perTick.at(-1)?.staged_future_bots ?? 0,
+    },
   };
 }
 
@@ -192,4 +222,3 @@ export function writeOpeningAuditReport({ oraclePath, replayPath, scriptPath, ou
   fs.writeFileSync(path.resolve(outPath), `${JSON.stringify(report, null, 2)}\n`);
   return report;
 }
-

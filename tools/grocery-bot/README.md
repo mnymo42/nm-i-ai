@@ -242,6 +242,8 @@ Available presets:
 - `tick_to_60`
 - `tick_to_80`
 
+The `opening_100` preset now also evaluates `opening_capacity_v1`, the pair-release + teamed-order opening family. Current status: implemented and test-covered, but the real expert variants still invalidate at the stack mouth, so they are not yet promotable.
+
 ### 14) Compress a proven replay backward
 
 ```bash

@@ -1,7 +1,7 @@
 {
   "description": "Compressed replay-derived script for expert",
   "strategy": "replay_seeded_handoff_rewind",
-  "generated_at": "2026-03-08T13:28:57.648Z",
+  "generated_at": "2026-03-08T13:51:05.000Z",
   "oracle_source": null,
   "orders_covered": null,
   "estimated_score": 22,
@@ -119129,7 +119129,7 @@
     "score_to_beat": null,
     "ticks_to_beat": null,
     "seed": 7012,
-    "elapsed_ms": 100861,
+    "elapsed_ms": 101986,
     "rank": 1,
     "top_candidates": [
       {
