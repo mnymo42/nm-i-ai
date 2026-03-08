@@ -94,11 +94,21 @@ Expected impact if fixed: <estimated score improvement>
 ### 8. Recommended next step
 One specific code change to make first, referencing the exact file and function in `tools/grocery-bot/src/`.
 
+## Key source files (for recommendations)
+
+- `src/planner.mjs` — GroceryPlanner class, planSingleBot, strategy dispatch
+- `src/planner-singlebot.mjs` — single-bot evaluation, recovery, cooldowns
+- `src/planner-multibot.mjs` — multi-bot task generation, costs, reservations, parking
+- `src/planner-multibot-runtime.mjs` — multi-bot runtime execution
+- `src/planner-utils.mjs` — shared helpers (demand, phase, congestion)
+- `src/routing.mjs` — time-aware A* + path reservations
+- `src/game-client-sanitizer.mjs` — client-side legality sanitizer
+- `config/profiles.json` — tunable parameters per difficulty
+
 ## Important notes
 
 - Be precise — cite tick numbers and counts, not vague descriptions
 - Focus on the highest-leverage finding, not an exhaustive list
 - For multi-bot difficulties, always check whether bots are routing into each other
 - The tuner only mutates assignment/routing parameters — behavioral bugs in planner logic cannot be fixed by tuning alone
-- Planner is split across files: strategy/GroceryPlanner → `planner.mjs`, recovery/cooldowns → `planner-singlebot.mjs`, multi-bot → `planner-multibot.mjs`
 - If the replay is from a single-bot (easy) run, skip the multi-bot coordination section
