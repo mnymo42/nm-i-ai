@@ -95,73 +95,28 @@ function renderBoard(snapshot, layout, plannerMetrics) {
 
   const walls = new Set((layout.grid.walls || []).map(([x, y]) => `${x},${y}`));
   const drops = new Set((layout.drop_offs || []).map(([x, y]) => `${x},${y}`));
-  // Emoji map for item types (customize as needed)
-  // Expanded emoji map for more item types
-  // Expanded and normalized emoji mapping for all known item types.
-  // Add new types as needed; keys must be lowercase and match replay data.
+  // Emoji mapping based on CURRENT game specification (March 2026)
+  // Current game item types from live replay: apples, eggs, flour, bananas, cheese, cream,
+  // cereal, rice, pasta, oats, butter, bread, onions, milk, tomatoes, yogurt
   const ITEM_EMOJIS = {
-    apple: '🍎',
-    banana: '🍌',
-    bread: '🍞',
-    milk: '🥛',
-    cheese: '🧀',
-    egg: '🥚',
-    fish: '🐟',
-    meat: '🥩',
-    orange: '🍊',
-    tomato: '🍅',
-    lettuce: '🥬',
-    carrot: '🥕',
-    onion: '🧅',
-    potato: '🥔',
-    grape: '🍇',
-    lemon: '🍋',
-    pepper: '🫑',
-    cucumber: '🥒',
-    chicken: '🍗',
-    beef: '🥩',
-    pork: '🍖',
-    shrimp: '🦐',
-    rice: '🍚',
-    pasta: '🍝',
-    cereal: '🥣',
-    yogurt: '🍦', // explicitly present in replay (use different emoji than milk)
-    butter: '🧈', // explicitly present in replay
-    cheese: '🧀', // explicitly present in replay
-    milk: '🥛',   // explicitly present in replay
-    cream: '🥤', // present in medium replays
-    eggs: '🥚',  // present in medium replays (eggs vs egg)
-    icecream: '🍦',
-    chocolate: '🍫',
-    coffee: '☕',
-    tea: '🍵',
-    water: '💧',
-    soda: '🥤',
-    juice: '🧃',
-    beer: '🍺',
-    wine: '🍷',
-    applejuice: '🧃',
-    pear: '🍐',
-    kiwi: '🥝',
-    pineapple: '🍍',
-    watermelon: '🍉',
-    strawberry: '🍓',
-    blueberry: '🫐',
-    raspberry: '🍇',
-    blackberry: '🍇',
-    mushroom: '🍄',
-    corn: '🌽',
-    pea: '🫛',
-    bean: '🫘',
-    garlic: '🧄',
-    chili: '🌶️',
-    pumpkin: '🎃',
-    avocado: '🥑',
-    broccoli: '🥦',
-    spinach: '🥬',
-    cabbage: '🥬',
-    radish: '🌶️',
-    beet: '🧃',
+    // Core items from current game (verified in replay data)
+    apples: '🍎',     // plural form used in game
+    eggs: '🥚',       // plural form used in game
+    flour: '🌾',      // flour for baking
+    bananas: '🍌',    // plural form used in game
+    cheese: '🧀',     // cheese blocks
+    cream: '🥛',      // heavy cream (different from milk)
+    cereal: '🥣',     // breakfast cereal
+    rice: '🍚',       // cooked rice
+    pasta: '🍝',      // pasta noodles
+    oats: '🌾',       // oat grains (using grain emoji)
+    butter: '🧈',     // butter spread
+    bread: '🍞',      // bread loaf  
+    onions: '🧅',     // plural form used in game 
+    milk: '🐮',       // milk carton
+    tomatoes: '🍅',   // plural form used in game
+    yogurt: '🍦',     // yogurt container
+    
     // fallback for unknown types
     default: '🛒',
   };
@@ -335,9 +290,14 @@ function renderTick() {
   elements.ordersView.innerHTML = orders.map((order) => {
     const isActive = order.status === 'active' && !order.complete;
     const assignedBots = bots.filter((bot) => missionByBot[bot.id]?.includes(order.id));
+    const requiredItems = order.items_required || [];
+    const deliveredItems = order.items_delivered || [];
+    const progress = deliveredItems.length;
+    const total = requiredItems.length;
     return `<div style="border:1px solid #888;padding:4px;margin-bottom:2px;background:${isActive ? '#fffde7' : '#ececec'}">
-      <b>Order ${order.id}</b> ${isActive ? '🟢' : '⚪'}<br>
-      Items: ${order.items.map((it) => (ITEM_EMOJIS[it.type] || ITEM_EMOJIS.default)).join(' ')}<br>
+      <b>Order ${order.id}</b> ${isActive ? '🟢' : '⚪'} (${progress}/${total})<br>
+      Required: ${requiredItems.map((it) => (ITEM_EMOJIS[it] || ITEM_EMOJIS.default)).join(' ')}<br>
+      Delivered: ${deliveredItems.map((it) => (ITEM_EMOJIS[it] || ITEM_EMOJIS.default)).join(' ')}<br>
       Bots: ${assignedBots.map((b) => `🤖${b.id}`).join(' ')}
     </div>`;
   }).join('');
