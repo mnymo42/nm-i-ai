@@ -158,6 +158,10 @@ export const defaultProfiles = {
     },
   },
   expert: {
+    opener: {
+      enabled: true,
+      max_ticks: 12,
+    },
     assignment: {
       travel_to_item: 1.0,
       travel_item_to_dropoff: 1.5,

@@ -1,7 +1,9 @@
-import { encodeCoord } from './coords.mjs';
+import { encodeCoord, moveToAction, manhattanDistance } from './coords.mjs';
 import { GridGraph } from './grid-graph.mjs';
 import { buildWorldContext } from './world-model.mjs';
 import { getRoundPhase } from './planner-utils.mjs';
+import { findTimeAwarePath, reservePath } from './routing.mjs';
+import { getDropOffs } from './drop-zones.mjs';
 import {
   executeMissionStrategy,
   executeAssignedTaskStrategy,
@@ -55,7 +57,7 @@ export class GroceryPlanner {
     
     // Opener phase state
     this.openerActive = true;
-    this.openerBotsInPosition = false;
+    this.openerPaths = null;
     this.openerTargetPositions = null;
     this.openerTick = 0;
   }
@@ -150,74 +152,62 @@ export class GroceryPlanner {
     this._botDetails = new Map();
     const assumptionMismatch = this.validateOracleAndScriptAssumptions(state);
     let scriptFallbackMetrics = null;
-    // Only run opener phase for multi-bot games (2+ bots), not during script replay or single-bot/test
+    // Only run opener phase when enabled in profile, for multi-bot games, not during script replay
     const isMultiBot = state.bots.length > 1;
     const isScripted = !this.scriptDisabled && this.script?.tickMap?.has(state.round);
-    if (this.openerActive && isMultiBot && !isScripted) {
+    const openerEnabled = this.profile.opener?.enabled === true;
+    const openerMaxTicks = this.profile.opener?.max_ticks ?? 15;
+    if (openerEnabled && this.openerActive && isMultiBot && !isScripted && this.openerTick < openerMaxTicks) {
       if (!this.openerTargetPositions) {
-        // Compute target positions for opener (staggered beneath aisles, closest to drop-off)
-        this.openerTargetPositions = computeOpenerTargets(state);
+        const itemWalls = state.items.map(i => i.position);
+        const openerGraph = new GridGraph({ ...state.grid, walls: [...state.grid.walls, ...itemWalls] });
+        const dropOff = getDropOffs(state)[0] || [0, 0];
+        this.openerTargetPositions = computeOpenerTargets(state, openerGraph, dropOff);
       }
-      const openerActions = computeOpenerActions(state, this.openerTargetPositions, this.openerTick);
-      this.openerBotsInPosition = checkOpenerBotsInPosition(state, this.openerTargetPositions);
-      this.openerTick += 1;
-      if (this.openerBotsInPosition) {
+      // Each tick: route each bot toward its target using single-step A*
+      const itemWalls = state.items.map(i => i.position);
+      const openerGraph = new GridGraph({ ...state.grid, walls: [...state.grid.walls, ...itemWalls] });
+      const reservations = new Map();
+      const edgeReservations = new Map();
+      const allDone = state.bots.every((bot, i) => {
+        const target = this.openerTargetPositions[i];
+        return !target || (bot.position[0] === target[0] && bot.position[1] === target[1]);
+      });
+      if (allDone) {
         this.openerActive = false;
-        // Reset opener state for next game if needed
-        this.openerTargetPositions = null;
-        this.openerTick = 0;
-      }
-      return openerActions;
-    }
-
-    function computeOpenerTargets(state) {
-      // Example: Place bots in staggered formation beneath each aisle, closest to drop-off
-      // This is a placeholder; real logic should analyze drop-off and aisle layout
-      const dropOff = (state.drop_offs && state.drop_offs[0]) || [0, 0];
-      const width = state.grid.width;
-      const height = state.grid.height;
-      // Place bots in a line below each aisle, as close to drop-off as possible
-      const targets = [];
-      for (let x = 1; x < width - 1; x += 2) {
-        targets.push([x, Math.min(height - 2, dropOff[1] + 2)]);
-      }
-      return targets.slice(0, state.bots.length);
-    }
-
-    function computeOpenerActions(state, targets, tick) {
-      // Move each bot toward its assigned target position
-      const actions = [];
-      for (let i = 0; i < state.bots.length; ++i) {
-        const bot = state.bots[i];
-        const target = targets[i];
-        if (!target) {
-          actions.push({ bot_id: bot.id, action: 'wait' });
-          continue;
+      } else {
+        // Process farthest-from-target bots first so they can route through
+        const botOrder = state.bots.map((bot, i) => {
+          const target = this.openerTargetPositions[i];
+          const atTarget = target && bot.position[0] === target[0] && bot.position[1] === target[1];
+          const dist = target ? manhattanDistance(bot.position, target) : 0;
+          return { bot, i, target, atTarget, dist };
+        }).sort((a, b) => b.dist - a.dist);
+        const actionMap = new Map();
+        for (const { bot, i, target, atTarget } of botOrder) {
+          if (!target || atTarget) {
+            reservePath({ path: [bot.position], startTime: 0, reservations, edgeReservations, horizon: 6, holdAtGoal: true });
+            actionMap.set(bot.id, { bot: bot.id, action: 'wait' });
+            continue;
+          }
+          const openerHorizon = Math.max(30, manhattanDistance(bot.position, target) + 10);
+          const path = findTimeAwarePath({
+            graph: openerGraph, start: bot.position, goal: target,
+            reservations, edgeReservations, startTime: 0, horizon: openerHorizon,
+          });
+          if (path && path.length >= 2) {
+            reservePath({ path, startTime: 0, reservations, edgeReservations, horizon: openerHorizon, holdAtGoal: false });
+            actionMap.set(bot.id, { bot: bot.id, action: moveToAction(path[0], path[1]) });
+          } else {
+            reservePath({ path: [bot.position], startTime: 0, reservations, edgeReservations, horizon: 6, holdAtGoal: true });
+            actionMap.set(bot.id, { bot: bot.id, action: 'wait' });
+          }
         }
-        const [bx, by] = bot.position;
-        const [tx, ty] = target;
-        let move = null;
-        if (bx < tx) move = 'right';
-        else if (bx > tx) move = 'left';
-        else if (by < ty) move = 'down';
-        else if (by > ty) move = 'up';
-        else move = 'wait';
-        actions.push({ bot_id: bot.id, action: move });
+        const actions = state.bots.map(bot => actionMap.get(bot.id));
+        this.openerTick += 1;
+        this.lastMetrics = { phase: 'opener', openerTick: this.openerTick, botDetails: {} };
+        return actions;
       }
-      return actions;
-    }
-
-    function checkOpenerBotsInPosition(state, targets) {
-      // Return true if all bots are at their target positions
-      for (let i = 0; i < state.bots.length; ++i) {
-        const bot = state.bots[i];
-        const target = targets[i];
-        if (!target) continue;
-        if (bot.position[0] !== target[0] || bot.position[1] !== target[1]) {
-          return false;
-        }
-      }
-      return true;
     }
     // Script replay: if we have precomputed actions for this tick, use them verbatim
     if (!this.scriptDisabled && this.script?.tickMap?.has(state.round)) {
@@ -403,32 +393,10 @@ export class GroceryPlanner {
     this.lastActiveOrderId = activeOrderId;
 
     const shelfWalls = state.items.map((item) => item.position);
-    // Define strict one-way roads (example: vertical conveyor up left, down right)
-    const oneWayRoads = buildOneWayRoads(state);
     const graph = new GridGraph({
       ...state.grid,
       walls: [...state.grid.walls, ...shelfWalls],
-      oneWayRoads,
     });
-    // --- Strict One-Way Road System ---
-    function buildOneWayRoads(state) {
-      // Example: create a conveyor system with up/down/left/right lanes
-      // This is a placeholder; real logic should analyze the map and desired road layout
-      const roads = {};
-      const width = state.grid.width;
-      const height = state.grid.height;
-      // Example: leftmost column is up only, rightmost is down only
-      for (let y = 1; y < height - 1; ++y) {
-        roads[`1,${y}`] = ['up'];
-        roads[`${width - 2},${y}`] = ['down'];
-      }
-      // Example: top row is right only, bottom row is left only
-      for (let x = 1; x < width - 1; ++x) {
-        roads[`${x},1`] = ['right'];
-        roads[`${x},${height - 2}`] = ['left'];
-      }
-      return roads;
-    }
     const world = buildWorldContext(state);
 
     if (state.bots.length === 1) {
@@ -585,4 +553,57 @@ export class GroceryPlanner {
     }
     return actions;
   }
+}
+
+function computeOpenerTargets(state, graph, dropOff) {
+  // Build item-aware graph (items block movement)
+  const itemWalls = state.items.map(i => i.position);
+  const aisleGraph = new GridGraph({
+    ...state.grid,
+    walls: [...state.grid.walls, ...itemWalls],
+  });
+
+  // Find open corridor rows (fully walkable except borders)
+  const corridorRows = [];
+  for (let y = 1; y < state.grid.height - 1; y++) {
+    let open = true;
+    for (let x = 1; x < state.grid.width - 1; x++) {
+      if (!aisleGraph.isWalkable([x, y])) { open = false; break; }
+    }
+    if (open) corridorRows.push(y);
+  }
+
+  // Find true aisle columns: walkable columns flanked by item/wall columns
+  const itemXs = new Set(state.items.map(i => i.position[0]));
+  const aisleColumns = [];
+  if (corridorRows.length >= 2) {
+    const shelfTop = corridorRows[corridorRows.length - 2] + 1;
+    const shelfBot = corridorRows[corridorRows.length - 1] - 1;
+    for (let x = 1; x < state.grid.width - 1; x++) {
+      let walkable = true;
+      for (let y = shelfTop; y <= shelfBot; y++) {
+        if (!aisleGraph.isWalkable([x, y])) { walkable = false; break; }
+      }
+      // Must have items/walls on at least one side to be a real aisle
+      const hasItemNeighbor = itemXs.has(x - 1) || itemXs.has(x + 1);
+      if (walkable && hasItemNeighbor) aisleColumns.push(x);
+    }
+  }
+
+  // Build targets: use the corridor just above drop-off row, overflow to middle corridor
+  // Skip the drop-off row itself (bots would block deliveries)
+  const dropRow = dropOff[1];
+  const bottomCorridors = corridorRows.filter(y => y < dropRow);
+  const botCorridor = bottomCorridors[bottomCorridors.length - 1] || dropRow - 1;
+  const midCorridor = bottomCorridors.length >= 2 ? bottomCorridors[bottomCorridors.length - 2] : null;
+  let targets = aisleColumns.map(x => [x, botCorridor]);
+  if (midCorridor && targets.length < state.bots.length) {
+    for (const x of aisleColumns) {
+      if (targets.length >= state.bots.length) break;
+      targets.push([x, midCorridor]);
+    }
+  }
+  // Sort farthest from drop-off first (bot 0 gets longest path, leaves spawn first)
+  targets.sort((a, b) => manhattanDistance(b, dropOff) - manhattanDistance(a, dropOff));
+  return targets.slice(0, state.bots.length);
 }
