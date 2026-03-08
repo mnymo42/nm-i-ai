@@ -1,13 +1,14 @@
 import { solveMinCostAssignment } from './assignment.mjs';
 import { encodeCoord, adjacentManhattan } from './coords.mjs';
 import { reservePath } from './routing.mjs';
-import { getNeededTypes, pickNearestRelevantItem } from './planner-utils.mjs';
+import { getNeededTypes, pickNearestRelevantItem, nearestDropOff, hasDeliverableInventory } from './planner-utils.mjs';
 import {
   buildTasks,
   buildCostMatrix,
   makeOccupancyReservations,
   actionFromTask,
   chooseFallbackAction,
+  chooseParkingAction,
 } from './planner-multibot.mjs';
 import {
   buildMediumMissionAssignments,
@@ -378,14 +379,30 @@ export function executeAssignedTaskStrategy({
     }
 
     if (!resolved) {
-      const fallback = chooseFallbackAction(
-        bot,
-        graph,
-        reservations,
-        edgeReservations,
-        planner.profile.routing.horizon,
-      );
-      resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'fallback' };
+      const isEmpty = (bot.inventory || []).length === 0;
+      const hasDeliverable = !isEmpty && hasDeliverableInventory(bot, world.activeDemand);
+      if (isEmpty || !hasDeliverable) {
+        const dropOff = nearestDropOff(bot.position, state);
+        const parking = chooseParkingAction({
+          bot,
+          graph,
+          reservations,
+          edgeReservations,
+          horizon: planner.profile.routing.horizon,
+          dropOff,
+          otherBots: state.bots,
+        });
+        resolved = { action: parking.action, nextPath: parking.path, targetType: 'parking' };
+      } else {
+        const fallback = chooseFallbackAction(
+          bot,
+          graph,
+          reservations,
+          edgeReservations,
+          planner.profile.routing.horizon,
+        );
+        resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'fallback' };
+      }
     }
 
     if (resolved.action === 'wait' && task?.kind === 'pick_up' && (bot.inventory || []).length < 3) {

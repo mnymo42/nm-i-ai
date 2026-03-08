@@ -58,12 +58,23 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
   const totalFreeSlots = state.bots.reduce((sum, bot) => sum + Math.max(0, 3 - (bot.inventory || []).length), 0);
   const previewReserveSlots = profile.assignment.preview_reserve_slots ?? Math.max(2, Math.ceil(state.bots.length / 3));
   const previewCarrySoftCap = profile.assignment.preview_carry_soft_cap ?? Math.max(3, Math.ceil(state.bots.length / 2));
+
+  const previewPickerCap = profile.assignment.preview_picker_cap ?? Math.max(2, Math.floor(state.bots.length / 3));
+  let botsCarryingPreview = 0;
+  for (const bot of state.bots) {
+    const inv = bot.inventory || [];
+    if (inv.length === 0) continue;
+    const hasActiveItem = inv.some((type) => (world.activeDemand.get(type) || 0) > 0);
+    if (!hasActiveItem) botsCarryingPreview += 1;
+  }
+
   const allowPreviewPrefetch = (
     phase !== 'cutoff'
     && state.bots.length > 1
     && sumCounts(previewDemand) > 0
     && totalFreeSlots > totalActiveMissing + previewReserveSlots
     && sumCounts(remainingPreviewSurplus) <= previewCarrySoftCap
+    && botsCarryingPreview < previewPickerCap
   );
 
   const neededTypes = getNeededTypes(
@@ -291,6 +302,59 @@ export function chooseFallbackAction(
       continue;
     }
 
+    const path = findTimeAwarePath({
+      graph,
+      start: bot.position,
+      goal: neighbor,
+      reservations,
+      edgeReservations,
+      startTime: 0,
+      horizon,
+    });
+
+    if (path && path.length >= 2) {
+      return { action: moveToAction(path[0], path[1]), path };
+    }
+  }
+
+  return { action: 'wait', path: [bot.position] };
+}
+
+export function chooseParkingAction({
+  bot,
+  graph,
+  reservations,
+  edgeReservations,
+  horizon,
+  dropOff,
+  otherBots,
+}) {
+  const neighbors = [...graph.neighbors(bot.position)];
+  if (neighbors.length === 0) {
+    return { action: 'wait', path: [bot.position] };
+  }
+
+  const botDropDist = manhattanDistance(bot.position, dropOff);
+
+  const scored = [];
+  for (const neighbor of neighbors) {
+    const moveKey = encodeCoord(neighbor);
+    if (reservations.get(1)?.has(moveKey)) continue;
+    const reverse = `${encodeCoord(neighbor)}>${encodeCoord(bot.position)}`;
+    if (edgeReservations.get(1)?.has(reverse)) continue;
+
+    const dropDist = manhattanDistance(neighbor, dropOff);
+    const crowding = otherBots.filter(
+      (other) => other.id !== bot.id && manhattanDistance(neighbor, other.position) <= 2,
+    ).length;
+
+    const score = dropDist - botDropDist + (dropDist > botDropDist ? 2 : 0) - crowding * 1.5;
+    scored.push({ neighbor, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+
+  for (const { neighbor } of scored) {
     const path = findTimeAwarePath({
       graph,
       start: bot.position,

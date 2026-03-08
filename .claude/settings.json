@@ -24,7 +24,6 @@
       "Bash(node -e 'const d=JSON.parse\\(require\\(\"\"fs\"\"\\).readFileSync\\(0,\"\"utf8\"\"\\)\\);console.log\\(d.known_orders.length,\"\"orders known\"\"\\);d.known_orders.forEach\\(o=>console.log\\(\"\" \"\",o.id,\"\":\"\",o.items_required.join\\(\"\", \"\"\\),\"\"\\(tick\"\",o.first_seen_tick+\"\"\\)\"\"\\)\\)')",
       "Bash(node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json)",
       "Bash(node tools/grocery-bot/tune-oracle-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/out/oracle-script-sweep.json --top 8)",
-      "Bash(node -e \"const d=JSON.parse\\(require\\(''fs''\\).readFileSync\\(''tools/grocery-bot/config/script-expert.json'',''utf8''\\)\\); console.log\\(''orders_covered:'', d.orders_covered); console.log\\(''estimated_score:'', d.estimated_score); console.log\\(''last_scripted_tick:'', d.last_scripted_tick); console.log\\(''cutoff_reason:'', d.cutoff_reason); console.log\\(''per_order_estimates:'', d.per_order_estimates?.length || 0);\")",
       "Bash(node tools/grocery-bot/index.mjs --token \"<TOKEN>\" --difficulty expert --profile expert --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json)",
       "Bash(node -e \"const d=JSON.parse\\(require\\(''fs''\\).readFileSync\\(''/dev/stdin'',''utf8''\\)\\); console.log\\(''grid:'', JSON.stringify\\(d.grid\\)\\); console.log\\(''drop_off:'', JSON.stringify\\(d.drop_off\\)\\); console.log\\(''drop_offs:'', JSON.stringify\\(d.drop_offs\\)\\);\")",
       "Bash(node -e \"const d=JSON.parse\\(require\\(''fs''\\).readFileSync\\(''/dev/stdin'',''utf8''\\)\\); const bots=d.state_snapshot.bots; console.log\\(''bot positions:'', bots.map\\(b => b.id + '':'' + JSON.stringify\\(b.position\\)\\).join\\('', ''\\)\\);\")",
@@ -36,7 +35,9 @@
       "Bash(node tools/grocery-bot/generate-script.mjs --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json)",
       "Bash(node -e \"const d=JSON.parse\\(require\\(''fs''\\).readFileSync\\(''tools/grocery-bot/config/script-expert.json'',''utf8''\\)\\); console.log\\(''total_ticks:'', d.total_ticks\\); console.log\\(''last_scripted_tick:'', d.last_scripted_tick\\); console.log\\(''final_score:'', d.final_score_at_cutoff\\); console.log\\(''sample tick 0:'', JSON.stringify\\(d.ticks[0]\\)\\); console.log\\(''sample tick 5:'', JSON.stringify\\(d.ticks[5]\\)\\);\")",
       "Bash(node tools/grocery-bot/tmp-analyze-orders.mjs)",
-      "Bash(node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json)"
+      "Bash(node tools/grocery-bot/generate-script.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-07T20-37-02-748Z-expert-expert/replay.jsonl --out tools/grocery-bot/config/script-expert.json)",
+      "Bash(node tools/grocery-bot/index.mjs --mode simulate --difficulty expert --profile expert --replay tools/grocery-bot/out/2026-03-08T00-03-58-975Z-expert-expert/replay.jsonl)",
+      "Bash(node tools/grocery-bot/index.mjs --mode simulate --difficulty medium --profile medium --replay tools/grocery-bot/out/2026-03-07T18-48-23-889Z-medium-medium/replay.jsonl)"
     ]
   },
   "hooks": {

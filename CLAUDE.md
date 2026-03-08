@@ -183,8 +183,10 @@ Experimental branch available but not promoted:
 - Keep `assignment_v1` as the live default until `warehouse_v1` beats `115` on real medium runs.
 
 High-bot defaults:
-- `hard`, `expert`, and `nightmare` now default to `warehouse_v1`
-- reason: the old assignment branch collapses structurally at `5+` bots
+- `hard` and `expert` default to `assignment_v1` (the code defaults, despite earlier intent to switch)
+- only `nightmare` defaults to `warehouse_v1`
+- explicit `_warehouse_v1` profile variants exist for all difficulties
+- reason: `warehouse_v1` was intended for `5+` bots but never promoted as the default for hard/expert
 
 Drop zones:
 - planner/sanitizer/protocol now support multiple drop zones through `drop_offs`

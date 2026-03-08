@@ -5,6 +5,7 @@ import {
   buildCostMatrix,
   buildTasks,
   estimateZonePenalty,
+  chooseParkingAction,
 } from '../src/planner-multibot.mjs';
 import { buildMediumMissionAssignments } from '../src/planner-missions.mjs';
 import { GridGraph } from '../src/grid-graph.mjs';
@@ -323,4 +324,64 @@ test('buildMediumMissionAssignments prefers same-zone preview item and falls bac
     round: 0,
   });
   assert.equal(fallbackPlan.missionsByBot.get(0).targetItemId, 'pasta_far');
+});
+
+test('chooseParkingAction prefers moving away from drop-off and away from crowded bots', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [3, 8], inventory: [] },
+      { id: 1, position: [2, 8], inventory: [] },
+      { id: 2, position: [4, 8], inventory: [] },
+    ],
+    drop_off: [1, 8],
+  });
+  const graph = buildGraph(state);
+  const reservations = new Map();
+  const edgeReservations = new Map();
+  const dropOff = [1, 8];
+
+  const result = chooseParkingAction({
+    bot: state.bots[0],
+    graph,
+    reservations,
+    edgeReservations,
+    horizon: 10,
+    dropOff,
+    otherBots: state.bots,
+  });
+
+  assert.notEqual(result.action, 'wait');
+  assert.notEqual(result.action, 'move_left');
+});
+
+test('buildTasks suppresses preview when too many bots already carry non-active items', () => {
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 1], inventory: ['pasta'] },
+      { id: 1, position: [3, 1], inventory: ['pasta'] },
+      { id: 2, position: [5, 1], inventory: [] },
+      { id: 3, position: [7, 1], inventory: [] },
+      { id: 4, position: [9, 1], inventory: [] },
+      { id: 5, position: [1, 3], inventory: [] },
+      { id: 6, position: [3, 3], inventory: [] },
+      { id: 7, position: [5, 3], inventory: [] },
+      { id: 8, position: [7, 3], inventory: [] },
+      { id: 9, position: [9, 3], inventory: [] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta', 'pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [3, 5] },
+      { id: 'pasta_0', type: 'pasta', position: [5, 5] },
+      { id: 'pasta_1', type: 'pasta', position: [7, 5] },
+    ],
+  });
+
+  const profile = { ...defaultProfiles.expert, assignment: { ...defaultProfiles.expert.assignment, preview_picker_cap: 2 } };
+  const tasks = buildTasks(state, buildWorldContext(state), profile, 'early');
+  const previewTasks = tasks.filter((task) => task.kind === 'pick_up' && task.sourceOrder === 'preview');
+
+  assert.equal(previewTasks.length, 0, 'preview tasks should be suppressed when 2 bots already carry preview items');
 });
