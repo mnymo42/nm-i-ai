@@ -258,6 +258,25 @@ This is the backward optimizer:
 - walks backward removing redundant all-wait ticks
 - keeps only compressions that preserve oracle-known legality and achieved oracle outcome
 
+### 15) Audit opening fidelity against the baseline replay
+
+```bash
+node tools/grocery-bot/index.mjs --mode opening-audit \
+  --difficulty expert \
+  --oracle tools/grocery-bot/config/oracle-expert.json \
+  --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl \
+  --script tools/grocery-bot/config/script-expert-opening100.json \
+  --max-tick 120
+```
+
+This prints an opening audit with:
+- replay `opening_baseline`
+- candidate `opening_profile`
+- `first_divergence_tick`
+- `first_divergence.cause`
+
+Use this before adding more search families. Current same-day audit shows the best `opening_100` candidate diverges at tick `0` on congestion/blocked capacity and never scores by tick `120`.
+
 Use this when the live/player model has already proven a good known-order prefix and you want to free ticks for a better handoff.
 
 ### 15) Diff a replay transition

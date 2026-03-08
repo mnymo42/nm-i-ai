@@ -250,6 +250,35 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 - Verdict: `keep, throughput still needs tuning`
 - Notes: the rewrite is now structurally correct and test-covered, but it is intentionally conservative today (`maxActiveBots = 1`) because higher concurrency still creates invalid schedules. This is the base to tune upward from, not the final optimizer.
 
+### Opening fidelity audit + promotion gate
+
+- Hypothesis: the opening-focused offline search is failing structurally, not because it needs more random variants. We need a replay-vs-sim audit that identifies the first throughput divergence and rejects weak candidates before they look competitive on late metrics.
+- Change:
+  - added `--mode opening-audit` in `index.mjs`
+  - added `src/opening-audit.mjs` to compare:
+    - first pickup / drop / score timing
+    - productive vs wasted bot-ticks
+    - blocked/congestion signals
+    - staged future work
+  - extended batch reports with:
+    - `opening_baseline`
+    - `opening_profile`
+    - `first_divergence_tick`
+    - `first_divergence`
+    - `promotable_shortlist`
+  - tightened triage so baseline ties with weaker opening capacity stay non-promotable
+- Validation:
+  - `node --test tools/grocery-bot/test/*.test.mjs` -> pass
+  - `node tools/grocery-bot/index.mjs --mode opening-audit --difficulty expert --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl --script tools/grocery-bot/config/script-expert-opening100.json --max-tick 120` -> pass
+  - `node tools/grocery-bot/optimize-oracle-script-batch.mjs --oracle tools/grocery-bot/config/oracle-expert.json --replay tools/grocery-bot/out/2026-03-08T10-50-21-635Z-expert-expert/replay.jsonl --out-script tools/grocery-bot/config/script-expert-opening100.json --out-report tools/grocery-bot/out/oracle-script-opening100-report.json --preset opening_100 --runs 18 --parallel 9 --seed 7004` -> pass
+- Verdict: `keep`
+- Notes:
+  - replay baseline by tick `120`: first pickup `17`, first drop `31`, first score `32`, final score `29`
+  - current best `opening_100` candidate still ties only `22` by tick `100`
+  - opening audit shows immediate divergence at tick `0` with `drop_lane_or_congestion_gap`
+  - candidate opening profile is effectively dead: `0` score by tick `120`, no pickups, no drops
+  - next work should target opening-capacity and congestion modeling directly, not broader family count
+
 ## Guidance
 
 - Prefer experiments that are soft cost-shaping changes over hard role locks.

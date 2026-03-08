@@ -44,11 +44,17 @@ Do first:
      - `tools/grocery-bot/out/oracle-script-score100-report.json`
      - current best `score_by_tick_100`: `22`
      - current best `tick_to_40`: `156`
-   - triage-first opening report now exists:
+  - triage-first opening report now exists:
      - `tools/grocery-bot/out/oracle-script-opening100-report.json`
      - replay baseline `score_at_tick_100`: `22`
      - `promotable_shortlist`: empty
      - meaning: current opening-focused offline families still do not beat baseline
+   - opening fidelity audit now exists:
+     - `tools/grocery-bot/out/opening-audit-2026-03-08T10-50-21-635Z-vs-script-expert-opening100.json`
+     - first divergence tick: `0`
+     - cause: `drop_lane_or_congestion_gap`
+     - candidate opening profile: `0` score by tick `120`, no pickups or drops
+     - meaning: the next fix should be diagnosis-driven opening capacity, not broader family search
 5. Follow the repeat loop:
    - live planner baseline run
    - pick best replay with `runs` + `analyze`
