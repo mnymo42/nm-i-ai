@@ -341,7 +341,14 @@ export function executeAssignedTaskStrategy({
 
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
-  const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
+  const botsByPriority = [...state.bots].sort((a, b) => {
+    const aTask = taskByBot.get(a.id);
+    const bTask = taskByBot.get(b.id);
+    const aPrio = aTask?.kind === 'drop_off' ? 0 : aTask ? 1 : 2;
+    const bPrio = bTask?.kind === 'drop_off' ? 0 : bTask ? 1 : 2;
+    if (aPrio !== bPrio) return aPrio - bPrio;
+    return a.id - b.id;
+  });
   const actions = [];
   let forcedWaits = 0;
 

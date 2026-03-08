@@ -1,0 +1,212 @@
+{
+  "finalScore": 38,
+  "ordersCompleted": 4,
+  "itemsDelivered": 18,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 9
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 4
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 15
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 1
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 8
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 0
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 31,
+      "length": 32
+    },
+    {
+      "startTick": 41,
+      "endTick": 53,
+      "length": 13
+    },
+    {
+      "startTick": 62,
+      "endTick": 71,
+      "length": 10
+    },
+    {
+      "startTick": 81,
+      "endTick": 92,
+      "length": 12
+    },
+    {
+      "startTick": 101,
+      "endTick": 125,
+      "length": 25
+    },
+    {
+      "startTick": 134,
+      "endTick": 174,
+      "length": 41
+    },
+    {
+      "startTick": 175,
+      "endTick": 299,
+      "length": 125
+    }
+  ],
+  "failedPickups": {
+    "total": 0,
+    "byItemId": {},
+    "byItemType": {}
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 75,
+      "byReason": {
+        "conflict_stationary_occupant": 75
+      }
+    },
+    "waitActions": 930,
+    "nonScoringDropoffs": 1
+  },
+  "multiBotCoordination": {
+    "botCount": 10,
+    "totalStalls": 1276,
+    "maxStalledBots": 10,
+    "peakTaskCount": 24,
+    "forcedWaitActions": 292,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "controlModeTimeline": [],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [],
+    "activeCloseEtaTimeline": [],
+    "queueAssignmentsPeak": 0,
+    "serviceBayAssignmentsPeak": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 5,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 6,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 7,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 8,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 9,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "onions",
+    "milk",
+    "bread",
+    "rice",
+    "oats",
+    "cheese",
+    "eggs",
+    "flour"
+  ]
+}
