@@ -2,6 +2,7 @@ import { compressOracleReplayScript } from './oracle-script-compressor.mjs';
 import { buildLegacyOracleScript } from './oracle-script-legacy.mjs';
 import { generateOracleScript } from './oracle-script-optimizer.mjs';
 import {
+  buildReplaySeededBucketOptions,
   buildReplaySeededHandoffOptions,
   buildReplaySeededModularOptions,
   buildReplaySeededRewindTicks,
@@ -98,6 +99,10 @@ function buildReplaySeededCandidateOptions({ oracle, replayPath }) {
     })),
     ...buildReplaySeededWaveOptions({ skeleton }).map((options) => ({
       family: 'replay_seeded_wave',
+      options,
+    })),
+    ...buildReplaySeededBucketOptions({ skeleton }).map((options) => ({
+      family: 'replay_seeded_bucket',
       options,
     })),
     ...buildReplaySeededHandoffOptions({ skeleton }).map((options) => ({

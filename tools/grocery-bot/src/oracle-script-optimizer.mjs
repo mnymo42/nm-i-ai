@@ -499,9 +499,10 @@ export function chooseBestBotForTrip({
 
 function getCloseNowBots({ bots, orderId, settings }) {
   const heldForOrder = bots.filter((bot) => bot.lockedOrderId === orderId && (bot.heldItemIds?.length || 0) > 0);
+  const reserveFloor = Math.max(settings.maxActiveBots, settings.closeOrderReserveBots, heldForOrder.length);
   const reserveCount = Math.min(
     bots.length,
-    Math.max(settings.maxActiveBots, settings.closeOrderReserveBots, heldForOrder.length),
+    settings.closeNowBotCap ?? reserveFloor,
   );
   return [...bots]
     .sort((left, right) => left.availableAt - right.availableAt || left.id - right.id)
@@ -513,14 +514,16 @@ function getStageNextBots({ bots, closeNowBots, orderId, settings }) {
   const ordered = bots
     .filter((bot) => !closeIds.has(bot.id) || (bot.lockedOrderId && bot.lockedOrderId !== orderId))
     .sort((left, right) => left.availableAt - right.availableAt || left.id - right.id);
-  return ordered.slice(0, Math.min(settings.futureOrderBotCap, ordered.length));
+  const stageCap = settings.stageBotCap ?? settings.futureOrderBotCap;
+  return ordered.slice(0, Math.min(stageCap, ordered.length));
 }
 
 function buildVisibleFutureOrders({ orderPlans, currentIndex, visibleAtTick, settings }) {
+  const depth = settings.stageHiddenKnownOrders ? settings.knownOrderDepth : settings.visibleOrderDepth;
   return orderPlans
     .slice(currentIndex + 1)
-    .filter((order) => order.releaseTick <= visibleAtTick)
-    .slice(0, settings.visibleOrderDepth);
+    .filter((order) => settings.stageHiddenKnownOrders || order.releaseTick <= visibleAtTick)
+    .slice(0, depth);
 }
 
 function scheduleWavePrefetch({
@@ -822,7 +825,16 @@ export function generateOracleScript({
     lockedOrderId: null,
     heldItemIds: [],
   }));
-  const activeBots = bots.slice(0, Math.min(Math.max(settings.maxActiveBots, settings.futureOrderBotCap), bots.length));
+  const activeBotCount = Math.min(
+    bots.length,
+    Math.max(
+      settings.maxActiveBots,
+      settings.futureOrderBotCap,
+      settings.closeNowBotCap ?? 0,
+      settings.stageBotCap ?? 0,
+    ),
+  );
+  const activeBots = bots.slice(0, activeBotCount);
   const reservations = new Map();
   const edgeReservations = new Map();
   const scriptByTick = new Map();
@@ -956,6 +968,7 @@ export function generateOracleScript({
       planned_completion_tick: orderCompletionTick,
       assigned_shelf_ids: order.allocations.map((allocation) => allocation.itemId),
       visible_future_orders: visibleFutureOrders.map((futureOrder) => futureOrder.orderId),
+      stage_hidden_known_orders: settings.stageHiddenKnownOrders,
     });
     previousCompletionTick = orderCompletionTick + 1;
 

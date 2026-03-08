@@ -127,6 +127,45 @@ export function buildReplaySeededWaveOptions({ skeleton }) {
   ]));
 }
 
+export function buildReplaySeededBucketOptions({ skeleton }) {
+  return skeleton.targetCutoffTicks.flatMap((targetCutoffTick) => ([
+    {
+      maxActiveBots: Math.min(10, Math.max(6, skeleton.activeBotCount + 3)),
+      closeNowBotCap: 3,
+      stageBotCap: 7,
+      maxTripItems: 2,
+      previewRunnerCap: 2,
+      previewItemCap: 8,
+      visibleOrderDepth: Math.min(4, skeleton.visibleOrderDepth + 1),
+      knownOrderDepth: 6,
+      stageHiddenKnownOrders: true,
+      futureOrderBotCap: 7,
+      futureOrderItemCap: 12,
+      futureOrderPerOrderItemCap: 3,
+      closeOrderReserveBots: 3,
+      dropLaneConcurrency: 1,
+      targetCutoffTick: Math.max(220, targetCutoffTick + 20),
+    },
+    {
+      maxActiveBots: Math.min(10, Math.max(8, skeleton.activeBotCount + 4)),
+      closeNowBotCap: 4,
+      stageBotCap: 6,
+      maxTripItems: 2,
+      previewRunnerCap: 1,
+      previewItemCap: 6,
+      visibleOrderDepth: Math.min(4, skeleton.visibleOrderDepth + 1),
+      knownOrderDepth: 8,
+      stageHiddenKnownOrders: true,
+      futureOrderBotCap: 6,
+      futureOrderItemCap: 10,
+      futureOrderPerOrderItemCap: 2,
+      closeOrderReserveBots: 3,
+      dropLaneConcurrency: 1,
+      targetCutoffTick: Math.max(220, targetCutoffTick + 40),
+    },
+  ]));
+}
+
 export function buildReplaySeededHandoffOptions({ skeleton }) {
   return skeleton.targetCutoffTicks.flatMap((targetCutoffTick) => ([
     {

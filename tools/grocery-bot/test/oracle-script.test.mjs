@@ -19,6 +19,7 @@ import {
   generateOracleScriptCandidates,
 } from '../src/oracle-script-search.mjs';
 import {
+  buildReplaySeededBucketOptions,
   buildReplaySeededHandoffOptions,
   buildReplaySeededModularOptions,
   buildReplaySeededRewindTicks,
@@ -171,6 +172,36 @@ test('generator schedules visible next-order work and never pre-picks hidden fut
 
   assert.notEqual(order1FirstPickTick, null);
   assert.ok(order1FirstPickTick >= 0, 'next visible order should receive scripted pickup work');
+  const order0 = script.per_order_estimates.find((entry) => entry.order_id === 'order_0');
+  assert.equal(order0.stage_hidden_known_orders, false);
+  assert.deepEqual(order0.visible_future_orders, ['order_1']);
+});
+
+test('generator exposes hidden known orders to bucket scheduling when oracle-wide staging is enabled', () => {
+  const oracle = buildFixtureOracle();
+  const replayPath = writeFixtureReplay(oracle);
+  const script = generateOracleScript({
+    oracle,
+    replayPath,
+    oracleSource: 'fixture',
+    options: {
+      targetCutoffTick: 40,
+      maxActiveBots: 3,
+      closeNowBotCap: 1,
+      stageBotCap: 2,
+      knownOrderDepth: 2,
+      stageHiddenKnownOrders: true,
+      futureOrderBotCap: 2,
+      futureOrderItemCap: 2,
+      futureOrderPerOrderItemCap: 1,
+      closeOrderReserveBots: 1,
+      validate: false,
+    },
+  });
+
+  const order0 = script.per_order_estimates.find((entry) => entry.order_id === 'order_0');
+  assert.equal(order0.stage_hidden_known_orders, true);
+  assert.deepEqual(order0.visible_future_orders, ['order_1', 'order_2']);
 });
 
 test('generator can stage multiple visible future orders without skipping the active close', () => {
@@ -263,7 +294,7 @@ test('wide oracle search report includes target metadata and ranked candidates',
     candidates,
     scoreToBeat: 10,
     tickToBeat: 35,
-    top: 5,
+    top: 20,
   });
 
   assert.ok(candidates.length > 0);
@@ -272,7 +303,7 @@ test('wide oracle search report includes target metadata and ranked candidates',
   assert.equal(report.score_to_beat, 10);
   assert.equal(report.tick_to_beat, 35);
   assert.equal(report.objective, 'score_first');
-  assert.ok(report.top_candidates.length <= 5);
+  assert.ok(report.top_candidates.length <= 20);
   assert.equal(typeof report.best_candidate.beats_score_target, 'boolean');
 });
 
@@ -426,6 +457,12 @@ test('replay-seeded option builders are deterministic for the same replay', () =
   assert.deepEqual(first, second);
   assert.deepEqual(buildReplaySeededModularOptions({ skeleton: first }), buildReplaySeededModularOptions({ skeleton: second }));
   assert.deepEqual(buildReplaySeededWaveOptions({ skeleton: first }), buildReplaySeededWaveOptions({ skeleton: second }));
+  const firstBucket = buildReplaySeededBucketOptions({ skeleton: first });
+  const secondBucket = buildReplaySeededBucketOptions({ skeleton: second });
+  assert.deepEqual(firstBucket, secondBucket);
+  assert.ok(firstBucket.length > 0);
+  assert.ok(firstBucket.every((options) => options.stageHiddenKnownOrders === true));
+  assert.ok(firstBucket.every((options) => options.knownOrderDepth >= options.visibleOrderDepth));
   assert.deepEqual(buildReplaySeededHandoffOptions({ skeleton: first }), buildReplaySeededHandoffOptions({ skeleton: second }));
 });
 
