@@ -220,6 +220,12 @@ export const defaultProfiles = {
   },
 };
 
+// Team strategy for expert
+defaultProfiles.expert.runtime.multi_bot_strategy = 'team_v1';
+
+defaultProfiles.expert_assignment_v1 = JSON.parse(JSON.stringify(defaultProfiles.expert));
+defaultProfiles.expert_assignment_v1.runtime.multi_bot_strategy = 'assignment_v1';
+
 defaultProfiles.nightmare = JSON.parse(JSON.stringify(defaultProfiles.expert));
 defaultProfiles.nightmare.runtime.multi_bot_strategy = 'warehouse_v1';
 defaultProfiles.nightmare.runtime.endgame_disable_preview_rounds = 80;

@@ -4,7 +4,7 @@
  * Public API: plan(state), getLastMetrics()
  */
 import { encodeCoord, moveToAction, manhattanDistance } from '../utils/coords.mjs';
-import { GridGraph } from '../utils/grid-graph.mjs';
+import { GridGraph, buildDirectionalPreference } from '../utils/grid-graph.mjs';
 import { buildWorldContext } from '../utils/world-model.mjs';
 import { getRoundPhase } from './planner-utils.mjs';
 import { findTimeAwarePath, reservePath } from '../routing/routing.mjs';
@@ -13,6 +13,7 @@ import {
   executeMissionStrategy,
   executeAssignedTaskStrategy,
   executeWarehouseStrategy,
+  executeTeamStrategy,
 } from './planner-multibot-runtime.mjs';
 import { executeSingleBotTurn } from './planner-singlebot-runtime.mjs';
 import {
@@ -402,6 +403,27 @@ export class GroceryPlanner {
       ...state.grid,
       walls: [...state.grid.walls, ...shelfWalls],
     });
+
+    // Attach directional preference + congestion settings for A* routing
+    if (!this._dirPrefCache) {
+      // Build once from base grid (without shelf walls) and cache
+      const baseGraph = new GridGraph(state.grid);
+      this._dirPrefCache = buildDirectionalPreference(baseGraph);
+    }
+    graph.directionalPreference = this._dirPrefCache;
+    graph.directionPenalty = this.profile.routing?.direction_penalty || 0;
+    graph.congestionWeight = this.profile.routing?.congestion_weight || 0;
+
+    // Build congestion map from current bot positions
+    if (graph.congestionWeight > 0 && state.bots.length > 1) {
+      const congMap = new Map();
+      for (const bot of state.bots) {
+        const key = encodeCoord(bot.position);
+        congMap.set(key, (congMap.get(key) || 0) + 1);
+      }
+      graph.congestionMap = congMap;
+    }
+
     const world = buildWorldContext(state);
 
     if (state.bots.length === 1) {
@@ -483,6 +505,35 @@ export class GroceryPlanner {
         blockedItemsByBot,
         previousPositionByBot,
         previousInventoryKeyByBot,
+      });
+      if (scriptFallbackMetrics) {
+        this.lastMetrics = {
+          ...(this.lastMetrics || {}),
+          ...scriptFallbackMetrics,
+        };
+      }
+      if (assumptionMismatch) {
+        this.lastMetrics = {
+          ...(this.lastMetrics || {}),
+          oracleDisabled: true,
+          scriptDisabled: true,
+          assumptionMismatch,
+        };
+      }
+      return actions;
+    }
+
+    if (runtime.multi_bot_strategy === 'team_v1') {
+      const actions = executeTeamStrategy({
+        planner: this,
+        state,
+        world,
+        graph,
+        phase,
+        recoveryMode,
+        recoveryThreshold,
+        blockedItemsByBot,
+        oracle: this.oracle,
       });
       if (scriptFallbackMetrics) {
         this.lastMetrics = {

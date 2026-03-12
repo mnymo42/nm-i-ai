@@ -45,11 +45,11 @@
             <span id="tick-label">0 / 0</span>
           </div>
           <div class="jump-controls">
-            <button data-jump="score">Next score</button>
-            <button data-jump="pickup">Next failed pickup</button>
-            <button data-jump="override">Next override</button>
-            <button data-jump="mode">Next mode change</button>
-            <button data-jump="stagnation">Next stagnation</button>
+            <button data-jump="score">Score</button>
+            <button data-jump="pickup">Pickup</button>
+            <button data-jump="override">Override</button>
+            <button data-jump="mode">Mode</button>
+            <button data-jump="stagnation">Stall</button>
           </div>
           <div class="overlay-controls">
             <label><input type="checkbox" id="zone-toggle"> Zones</label>
@@ -61,27 +61,34 @@
           <div class="board-panel">
             <div id="board" class="board"></div>
           </div>
-          <div class="details-panel">
-            <section class="summary-box">
-              <h2>Run</h2>
-              <pre id="summary-view"></pre>
-            </section>
-            <section class="summary-box">
-              <h2>Tick</h2>
-              <pre id="tick-view"></pre>
-            </section>
-            <section class="summary-box">
-              <h2>Planner</h2>
-              <pre id="planner-view"></pre>
-            </section>
+
+          <div class="key-info-panel">
             <section class="summary-box">
               <h2>Orders</h2>
-              <pre id="orders-view"></pre>
+              <div id="orders-view"></div>
             </section>
             <section class="summary-box">
               <h2>Bots</h2>
-              <pre id="bots-view"></pre>
+              <div id="bots-view"></div>
             </section>
+          </div>
+
+          <div class="debug-panel">
+            <button id="debug-toggle" class="debug-toggle-btn">Show debug</button>
+            <div id="debug-content" class="debug-content" hidden>
+              <section class="summary-box">
+                <h2>Run</h2>
+                <pre id="summary-view"></pre>
+              </section>
+              <section class="summary-box">
+                <h2>Tick</h2>
+                <pre id="tick-view"></pre>
+              </section>
+              <section class="summary-box">
+                <h2>Planner</h2>
+                <pre id="planner-view"></pre>
+              </section>
+            </div>
           </div>
         </section>
       </main>

@@ -41,7 +41,17 @@
       "urgency_bonus": 0.8
     },
     "routing": {
-      "horizon": 26
+      "horizon": 26,
+      "direction_penalty": 2,
+      "congestion_weight": 0.5
+    },
+    "teams": {
+      "active_bot_ratio": 1.2,
+      "active_max_bots": 5,
+      "preview_bot_ratio": 0.8,
+      "preview_max_bots": 3,
+      "reassign_cooldown": 5,
+      "prefetch_lookahead_ticks": 80
     }
   }
 }

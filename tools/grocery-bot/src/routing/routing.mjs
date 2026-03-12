@@ -14,6 +14,20 @@ function stateKey(coord, time) {
   return `${coord[0]},${coord[1]}@${time}`;
 }
 
+/**
+ * Compute direction of movement from one coord to another.
+ * Returns 'up'|'down'|'left'|'right' or null for wait (same cell).
+ */
+function moveDirection(from, to) {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  if (dx === 1 && dy === 0) return 'right';
+  if (dx === -1 && dy === 0) return 'left';
+  if (dx === 0 && dy === 1) return 'down';
+  if (dx === 0 && dy === -1) return 'up';
+  return null; // wait
+}
+
 export function findTimeAwarePath({
   graph,
   start,
@@ -23,7 +37,17 @@ export function findTimeAwarePath({
   startTime = 0,
   horizon = 16,
   blockedNextStepCoords = null,
+  directionalPreference = null,
+  directionPenalty = 0,
+  congestionMap = null,
+  congestionWeight = 0,
 }) {
+  // Fall back to graph-level settings when not explicitly passed
+  const effDirPref = directionalPreference ?? graph.directionalPreference ?? null;
+  const effDirPenalty = directionPenalty || graph.directionPenalty || 0;
+  const effCongMap = congestionMap ?? graph.congestionMap ?? null;
+  const effCongWeight = congestionWeight || graph.congestionWeight || 0;
+
   if (!graph.isWalkable(start) || !graph.isWalkable(goal)) {
     return null;
   }
@@ -74,7 +98,31 @@ export function findTimeAwarePath({
         continue;
       }
 
-      const nextG = current.g + 1;
+      let moveCost = 1;
+
+      // Directional preference penalty: moving against preferred direction costs extra
+      if (effDirPref && effDirPenalty > 0) {
+        const preferred = effDirPref.get(encodeCoord(current.coord));
+        if (preferred) {
+          const actual = moveDirection(current.coord, nextCoord);
+          if (actual && actual !== preferred) {
+            const isOpposite =
+              (preferred === 'up' && actual === 'down') ||
+              (preferred === 'down' && actual === 'up') ||
+              (preferred === 'left' && actual === 'right') ||
+              (preferred === 'right' && actual === 'left');
+            moveCost += isOpposite ? effDirPenalty : effDirPenalty * 0.5;
+          }
+        }
+      }
+
+      // Congestion penalty: cells with more bot traffic cost extra
+      if (effCongMap && effCongWeight > 0) {
+        const density = effCongMap.get(nextCoordKey) || 0;
+        moveCost += density * effCongWeight;
+      }
+
+      const nextG = current.g + moveCost;
       const nextF = nextG + manhattanDistance(nextCoord, goal);
       const nextStateKey = stateKey(nextCoord, nextTime);
       const previousBest = best.get(nextStateKey);

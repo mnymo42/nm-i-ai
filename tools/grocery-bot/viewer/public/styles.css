@@ -4,39 +4,41 @@ body {
   padding: 0;
   height: 100%;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  background: linear-gradient(180deg, #f3efe4 0%, #d8e2dc 100%);
-  color: #14213d;
+  background: #1a1a2e;
+  color: #e0e0e0;
 }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 260px 1fr;
   min-height: 100vh;
 }
 
+/* ─── Sidebar ─── */
 .sidebar {
-  border-right: 1px solid rgba(20, 33, 61, 0.15);
-  padding: 16px;
-  background: rgba(255, 250, 240, 0.85);
-  backdrop-filter: blur(4px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px;
+  background: #16213e;
   overflow: auto;
 }
 
 .sidebar h1 {
-  margin: 0 0 16px;
-  font-size: 1.4rem;
+  margin: 0 0 14px;
+  font-size: 1.2rem;
+  color: #e0e0e0;
 }
 
 .filters {
   display: grid;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .filters label {
   display: grid;
-  gap: 4px;
-  font-size: 0.9rem;
+  gap: 3px;
+  font-size: 0.85rem;
+  color: #aaa;
 }
 
 .filters input,
@@ -44,74 +46,99 @@ body {
 .filters button,
 .controls button,
 .jump-controls button {
-  border: 1px solid rgba(20, 33, 61, 0.2);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: #fffdf8;
-  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #0f3460;
+  color: #e0e0e0;
+  font-size: 0.8rem;
+}
+
+.filters button:hover,
+.controls button:hover,
+.jump-controls button:hover {
+  background: #1a4a7a;
 }
 
 .run-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .run-card {
-  border: 1px solid rgba(20, 33, 61, 0.15);
-  border-radius: 12px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.15s;
+}
+
+.run-card:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .run-card.active {
   border-color: #2a9d8f;
-  box-shadow: 0 0 0 2px rgba(42, 157, 143, 0.2);
+  background: rgba(42, 157, 143, 0.1);
+  box-shadow: 0 0 0 1px rgba(42, 157, 143, 0.3);
 }
 
 .run-card strong {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  font-size: 0.75rem;
+  color: #ccc;
 }
 
+/* ─── Main Panel ─── */
 .main-panel {
   display: grid;
   grid-template-rows: auto 1fr;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .toolbar {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid rgba(20, 33, 61, 0.15);
-  background: rgba(250, 248, 242, 0.9);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #16213e;
+  align-items: center;
 }
 
 .run-header {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
+  color: #e0e0e0;
+  margin-right: auto;
 }
 
 .controls,
 .jump-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
 .controls label {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  font-size: 0.85rem;
+  color: #aaa;
 }
 
 .overlay-controls {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  color: #aaa;
 }
 
 .overlay-controls label {
@@ -121,140 +148,195 @@ body {
   cursor: pointer;
 }
 
-.order-group-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #6c757d;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 6px 0 2px;
-}
-
-.order-card {
-  border: 1px solid #888;
-  padding: 4px;
-  margin-bottom: 2px;
-  border-radius: 4px;
-}
-
-.order-card.active {
-  background: #fffde7;
-}
-
-.order-card.upcoming {
-  background: #f0f0f0;
-  opacity: 0.7;
-}
-
-.order-card.completed {
-  background: #e8f5e9;
-  opacity: 0.65;
-}
-
-.order-bot-badge {
-  display: inline-block;
-  padding: 0 4px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: bold;
-  color: white;
-  margin-left: 4px;
-}
-
+/* ─── Content: board left, info right ─── */
 .content {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) 420px;
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 0;
+  padding: 12px;
+  overflow: auto;
 }
 
-.board-panel,
-.details-panel {
+.board-panel {
+  grid-row: 1 / 3;
   min-height: 0;
+  display: flex;
+  align-items: start;
 }
 
+/* ─── Game Board ─── */
 .board {
   display: grid;
   gap: 1px;
   justify-content: start;
   align-content: start;
-  background: rgba(20, 33, 61, 0.08);
-  padding: 8px;
-  border-radius: 12px;
+  background: #0d1b2a;
+  padding: 6px;
+  border-radius: 10px;
   position: relative;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .cell {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   position: relative;
-  border-radius: 6px;
-  background: #fff;
+  border-radius: 4px;
+  background: #1e2d3d;
   overflow: hidden;
+  transition: background 0.1s;
 }
 
 .cell.wall {
-  background: #283618;
+  background: #2c3e28;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 .cell.drop {
-  background: #f4a261;
+  background: #7a4a1a;
+  box-shadow: inset 0 0 6px rgba(244, 162, 97, 0.4);
 }
 
 .cell .item {
   position: absolute;
-  inset: 2px 2px auto auto;
-  left: 2px;
+  left: 3px;
   top: 2px;
-  font-size: 0.55rem;
+  font-size: 0.9rem;
   line-height: 1;
-  color: #6d6875;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
 }
 
 .cell .bot {
   position: absolute;
-  inset: auto 2px 2px 2px;
-  padding: 1px 3px;
+  inset: auto 2px 1px 2px;
+  padding: 1px 2px;
   border-radius: 999px;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   background: #2a9d8f;
   color: white;
   text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .cell .stack {
   position: absolute;
-  top: 2px;
+  top: 1px;
   right: 2px;
-  font-size: 0.55rem;
-  color: #bc6c25;
+  font-size: 0.65rem;
+  color: #f4a261;
+  font-weight: 700;
 }
 
-.details-panel {
+/* ─── Key Info Panel (right side) ─── */
+.key-info-panel {
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
+  grid-template-rows: auto 1fr;
   gap: 12px;
+  padding-left: 12px;
   overflow: auto;
+  max-height: calc(100vh - 120px);
 }
 
+/* ─── Debug Panel (bottom right) ─── */
+.debug-panel {
+  grid-column: 2;
+  grid-row: 2;
+  padding-left: 12px;
+  padding-top: 8px;
+}
+
+.debug-toggle-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 5px 12px;
+  background: #0f3460;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.debug-toggle-btn:hover {
+  background: #1a4a7a;
+}
+
+.debug-content {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* ─── Summary Boxes ─── */
 .summary-box {
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(20, 33, 61, 0.14);
-  border-radius: 12px;
-  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 .summary-box h2 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 0.95rem;
+  color: #ccc;
+}
+
+/* ─── Order Cards ─── */
+.order-group-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 8px 0 4px;
+}
+
+.order-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.order-card.active {
+  background: rgba(255, 253, 231, 0.08);
+  border-color: rgba(255, 193, 7, 0.3);
+}
+
+.order-card.upcoming {
+  background: rgba(255, 255, 255, 0.03);
+  opacity: 0.6;
+}
+
+.order-card.completed {
+  background: rgba(76, 175, 80, 0.08);
+  border-color: rgba(76, 175, 80, 0.2);
+  opacity: 0.6;
+}
+
+.order-bot-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: white;
+  margin-left: 3px;
 }
 
 pre {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  color: #bbb;
 }
 
+/* ─── Responsive ─── */
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -262,5 +344,16 @@ pre {
 
   .content {
     grid-template-columns: 1fr;
+  }
+
+  .key-info-panel {
+    grid-column: 1;
+    padding-left: 0;
+    max-height: none;
+  }
+
+  .debug-panel {
+    grid-column: 1;
+    padding-left: 0;
   }
 }

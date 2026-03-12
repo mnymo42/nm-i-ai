@@ -1,5 +1,5 @@
 import { solveMinCostAssignment } from '../routing/assignment.mjs';
-import { encodeCoord, adjacentManhattan } from '../utils/coords.mjs';
+import { encodeCoord, adjacentManhattan, manhattanDistance } from '../utils/coords.mjs';
 import { reservePath } from '../routing/routing.mjs';
 import { getNeededTypes, pickNearestRelevantItem, nearestDropOff, hasDeliverableInventory } from './planner-utils.mjs';
 import {
@@ -18,6 +18,7 @@ import {
   buildWarehouseAssignments,
   resolveWarehouseMissionAction,
 } from './planner-warehouse.mjs';
+export { executeTeamStrategy } from './planner-teams.mjs';
 
 function queuePendingPickup(planner, bot, itemId, round) {
   const existingPending = planner.pendingPickups.get(bot.id);
@@ -76,7 +77,31 @@ export function executeMissionStrategy({
 
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
-  const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
+
+  // Priority ordering: droppers first, then by distance to target, then by ID
+  const dropOffs = state.drop_offs || (state.drop_off ? [state.drop_off] : []);
+  const activeDemand = world?.activeDemand || new Map();
+  const botsByPriority = [...state.bots].sort((a, b) => {
+    const aMission = planner.missionsByBot.get(a.id);
+    const bMission = planner.missionsByBot.get(b.id);
+    // Bots carrying deliverable items for active order get highest priority
+    const aDeliverable = hasDeliverableInventory(a, activeDemand) ? 0 : 1;
+    const bDeliverable = hasDeliverableInventory(b, activeDemand) ? 0 : 1;
+    if (aDeliverable !== bDeliverable) return aDeliverable - bDeliverable;
+    // Then by mission type: drop_active > pickup_active > pickup_preview > rest
+    const missionPriority = { drop_active: 0, pickup_active: 1, pickup_preview: 2 };
+    const aPri = missionPriority[aMission?.missionType] ?? 9;
+    const bPri = missionPriority[bMission?.missionType] ?? 9;
+    if (aPri !== bPri) return aPri - bPri;
+    // Then by distance to target (closer = higher priority)
+    const aTarget = aMission?.targetCell;
+    const bTarget = bMission?.targetCell;
+    const aDist = aTarget ? manhattanDistance(a.position, aTarget) : 99;
+    const bDist = bTarget ? manhattanDistance(b.position, bTarget) : 99;
+    if (aDist !== bDist) return aDist - bDist;
+    return a.id - b.id;
+  });
+
   const actions = [];
   let forcedWaits = 0;
 
@@ -359,8 +384,26 @@ export function executeAssignedTaskStrategy({
 
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
-  const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
   const activeOrderId = state.orders?.find((o) => o.status === 'active' && !o.complete)?.id ?? null;
+  const activeDemand = world?.activeDemand || new Map();
+
+  // Priority ordering: deliverable carriers first, then by task distance
+  const botsByPriority = [...state.bots].sort((a, b) => {
+    const aDeliverable = hasDeliverableInventory(a, activeDemand) ? 0 : 1;
+    const bDeliverable = hasDeliverableInventory(b, activeDemand) ? 0 : 1;
+    if (aDeliverable !== bDeliverable) return aDeliverable - bDeliverable;
+    const aTask = taskByBot.get(a.id);
+    const bTask = taskByBot.get(b.id);
+    // drop_off tasks get priority
+    const aKind = aTask?.kind === 'drop_off' ? 0 : 1;
+    const bKind = bTask?.kind === 'drop_off' ? 0 : 1;
+    if (aKind !== bKind) return aKind - bKind;
+    // Closer to target = higher priority
+    const aDist = aTask?.target ? manhattanDistance(a.position, aTask.target) : 99;
+    const bDist = bTask?.target ? manhattanDistance(b.position, bTask.target) : 99;
+    if (aDist !== bDist) return aDist - bDist;
+    return a.id - b.id;
+  });
   const actions = [];
   let forcedWaits = 0;
 

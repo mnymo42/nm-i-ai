@@ -45,7 +45,14 @@ const TASK_COLORS = {
   parking: '#6c757d', none: '#6c757d', single: '#2a9d8f',
   fallback: '#bc6c25', anti_deadlock: '#d62828', warehouse_fallback: '#d62828',
   idle_reposition: '#6c757d', reposition_zone: '#6c757d', queue_service_bay: '#457b9d',
+  prefetch_item: '#457b9d', prefetch_position: '#6a4c93', prefetch_idle: '#6c757d',
+  idle_parking: '#6c757d', forced_wait: '#d62828',
 };
+
+const TEAM_COLORS = [
+  '#2a9d8f', '#e76f51', '#457b9d', '#bc6c25', '#6a4c93',
+  '#26a65b', '#d62828', '#6495ed', '#ffa500', '#808000',
+];
 
 const ZONE_COLORS = [
   'rgba(42,157,143,0.18)',   // teal
@@ -123,7 +130,7 @@ function renderBoard(snapshot, layout, plannerMetrics) {
 
   const width = layout.grid.width;
   const height = layout.grid.height;
-  elements.board.style.gridTemplateColumns = `repeat(${width}, 28px)`;
+  elements.board.style.gridTemplateColumns = `repeat(${width}, 36px)`;
 
   const walls = new Set((layout.grid.walls || []).map(([x, y]) => `${x},${y}`));
   const drops = new Set((layout.drop_offs || []).map(([x, y]) => `${x},${y}`));
@@ -146,7 +153,7 @@ function renderBoard(snapshot, layout, plannerMetrics) {
   const botDetails = (plannerMetrics && plannerMetrics.botDetails) || {};
 
   // Cell size constant (must match CSS .cell width/height)
-  const CELL_SIZE = 29; // 28px + 1px gap
+  const CELL_SIZE = 37; // 36px + 1px gap
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -389,7 +396,7 @@ function renderTick() {
     ordersHtml += completedOrders.map(o => renderOrderCard(o, 'completed')).join('');
   }
   elements.ordersView.innerHTML = ordersHtml;
-  // Render bots with task type, target, and order assignment
+  // Render bots with task type, target, team, and order assignment
   elements.botsView.innerHTML = bots.map((bot) => {
     const detail = botDetailsMap[bot.id] || {};
     const taskType = detail.taskType || 'none';
@@ -397,8 +404,11 @@ function renderTick() {
     const targetStr = detail.target ? `[${detail.target.join(',')}]` : '-';
     const stallStr = detail.stallCount > 0 ? ` stall:${detail.stallCount}` : '';
     const orderStr = detail.orderId != null ? ` ord:${detail.orderId}` : '';
-    return `<div style="border-left:6px solid ${color};margin-bottom:2px;padding-left:4px;">
-      <b>B${bot.id}</b> @ [${bot.position.join(',')}]<br>
+    const teamStr = detail.teamRole ? ` [${detail.teamRole}${detail.teamId != null ? ' T' + detail.teamId : ''}]` : '';
+    const teamColor = detail.teamId != null ? TEAM_COLORS[detail.teamId % TEAM_COLORS.length] : null;
+    const borderColor = teamColor || color;
+    return `<div style="border-left:6px solid ${borderColor};margin-bottom:4px;padding:4px 4px 4px 8px;font-size:0.9rem;">
+      <b>B${bot.id}</b> @ [${bot.position.join(',')}]${teamStr}<br>
       Inv: ${bot.inventory.map((it) => (ITEM_EMOJIS[it.type || it] || ITEM_EMOJIS.default)).join(' ')}<br>
       Task: <span style="color:${color};font-weight:bold">${taskType}</span> → ${targetStr}${stallStr}${orderStr}
     </div>`;
@@ -521,6 +531,17 @@ elements.roadsToggle.addEventListener('change', (e) => {
   state.showRoads = e.target.checked;
   renderTick();
 });
+
+// Debug panel toggle
+const debugToggle = document.querySelector('#debug-toggle');
+const debugContent = document.querySelector('#debug-content');
+if (debugToggle && debugContent) {
+  debugToggle.addEventListener('click', () => {
+    const hidden = debugContent.hidden;
+    debugContent.hidden = !hidden;
+    debugToggle.textContent = hidden ? 'Hide debug details' : 'Show debug details';
+  });
+}
 
 loadRuns().catch((error) => {
   elements.runHeader.textContent = `Failed to load runs: ${error.message}`;
