@@ -54,6 +54,56 @@ const TEAM_COLORS = [
   '#26a65b', '#d62828', '#6495ed', '#ffa500', '#808000',
 ];
 
+const DIR_ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
+
+/**
+ * Build directional preference map from grid walls (mirrors grid-graph.mjs logic).
+ * Returns Map<"x,y", "up"|"down"|"left"|"right">.
+ */
+function buildDirectionalPreference(width, height, wallSet) {
+  const pref = new Map();
+
+  // Identify shelf wall columns: columns with >= 5 walls in y=2..8
+  const shelfXs = [];
+  for (let x = 0; x < width; x++) {
+    let wallCount = 0;
+    for (let y = 2; y <= 8; y++) {
+      if (wallSet.has(`${x},${y}`)) wallCount++;
+    }
+    if (wallCount >= 5) shelfXs.push(x);
+  }
+
+  // Aisle lanes: left-half DOWN, right-half UP
+  for (let i = 0; i < shelfXs.length - 1; i++) {
+    const leftWall = shelfXs[i];
+    const rightWall = shelfXs[i + 1];
+    const aisleWidth = rightWall - leftWall - 1;
+    if (aisleWidth < 2) continue;
+    const mid = leftWall + 1 + Math.floor(aisleWidth / 2);
+    for (let x = leftWall + 1; x < rightWall; x++) {
+      for (let y = 0; y < height; y++) {
+        const key = `${x},${y}`;
+        if (wallSet.has(key)) continue;
+        pref.set(key, x < mid ? 'down' : 'up');
+      }
+    }
+  }
+
+  // Horizontal corridors: top rows RIGHT, bottom rows LEFT
+  for (let x = 0; x < width; x++) {
+    for (const y of [0, 1]) {
+      const key = `${x},${y}`;
+      if (!wallSet.has(key)) pref.set(key, 'right');
+    }
+    for (const y of [height - 2, height - 1]) {
+      const key = `${x},${y}`;
+      if (!wallSet.has(key)) pref.set(key, 'left');
+    }
+  }
+
+  return pref;
+}
+
 const ZONE_COLORS = [
   'rgba(42,157,143,0.18)',   // teal
   'rgba(231,111,81,0.18)',   // coral
@@ -275,41 +325,23 @@ function renderBoard(snapshot, layout, plannerMetrics) {
     svg.appendChild(label);
   }
 
-  // Roads overlay: show historical path frequency as heatmap lines
-  if (state.showRoads && state.runData?.ticks) {
-    const edgeCounts = new Map();
-    const lookback = Math.min(state.currentTickIndex + 1, 50);
-    const startIdx = Math.max(0, state.currentTickIndex - lookback + 1);
-    for (let i = startIdx; i <= state.currentTickIndex; i++) {
-      const t = state.runData.ticks[i];
-      const details = t?.planner_metrics?.botDetails || {};
-      for (const d of Object.values(details)) {
-        const path = d.path;
-        if (!path || path.length < 2) continue;
-        for (let j = 0; j < path.length - 1; j++) {
-          const a = path[j], b = path[j + 1];
-          const key = `${Math.min(a[0],b[0])},${Math.min(a[1],b[1])}-${Math.max(a[0],b[0])},${Math.max(a[1],b[1])}`;
-          edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1);
-        }
-      }
-    }
-    const maxCount = Math.max(1, ...edgeCounts.values());
-    for (const [edge, count] of edgeCounts) {
-      const [from, to] = edge.split('-').map(s => s.split(',').map(Number));
-      const x1 = from[0] * CELL_SIZE + CELL_SIZE / 2;
-      const y1 = from[1] * CELL_SIZE + CELL_SIZE / 2;
-      const x2 = to[0] * CELL_SIZE + CELL_SIZE / 2;
-      const y2 = to[1] * CELL_SIZE + CELL_SIZE / 2;
-      const intensity = count / maxCount;
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', x1);
-      line.setAttribute('y1', y1);
-      line.setAttribute('x2', x2);
-      line.setAttribute('y2', y2);
-      line.setAttribute('stroke', `rgba(231,111,81,${0.15 + intensity * 0.6})`);
-      line.setAttribute('stroke-width', String(1.5 + intensity * 4));
-      line.setAttribute('stroke-linecap', 'round');
-      svg.appendChild(line);
+  // Roads overlay: show directional preference lanes as arrows
+  if (state.showRoads) {
+    const dirPref = buildDirectionalPreference(width, height, walls);
+    for (const [key, dir] of dirPref) {
+      const [cx, cy] = key.split(',').map(Number);
+      if (walls.has(key) || drops.has(key)) continue;
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', cx * CELL_SIZE + CELL_SIZE / 2);
+      label.setAttribute('y', cy * CELL_SIZE + CELL_SIZE / 2 + 1);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('dominant-baseline', 'central');
+      label.setAttribute('fill', 'rgba(42,157,143,0.35)');
+      label.setAttribute('font-size', '14');
+      label.setAttribute('font-weight', '700');
+      label.setAttribute('pointer-events', 'none');
+      label.textContent = DIR_ARROWS[dir];
+      svg.appendChild(label);
     }
   }
 

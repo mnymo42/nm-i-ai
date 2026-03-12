@@ -1,0 +1,241 @@
+{
+  "finalScore": 4,
+  "ordersCompleted": 0,
+  "itemsDelivered": 4,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 2
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 2
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 0
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 0
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 0
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 0
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 32,
+      "length": 33
+    },
+    {
+      "startTick": 33,
+      "endTick": 45,
+      "length": 13
+    },
+    {
+      "startTick": 46,
+      "endTick": 56,
+      "length": 11
+    },
+    {
+      "startTick": 57,
+      "endTick": 71,
+      "length": 15
+    },
+    {
+      "startTick": 72,
+      "endTick": 299,
+      "length": 228
+    }
+  ],
+  "failedPickups": {
+    "total": 21,
+    "byItemId": {
+      "item_116": 1,
+      "item_115": 1,
+      "item_71": 1,
+      "item_78": 3,
+      "item_76": 1,
+      "item_88": 3,
+      "item_90": 3,
+      "item_69": 2,
+      "item_79": 4,
+      "item_97": 2
+    },
+    "byItemType": {
+      "yogurt": 1,
+      "oats": 5,
+      "cereal": 3,
+      "onions": 6,
+      "milk": 4,
+      "eggs": 2
+    }
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 42,
+      "byReason": {
+        "conflict_stationary_occupant": 42
+      }
+    },
+    "waitActions": 1467,
+    "nonScoringDropoffs": 4
+  },
+  "multiBotCoordination": {
+    "botCount": 10,
+    "totalStalls": 2087,
+    "maxStalledBots": 10,
+    "peakTaskCount": 8,
+    "forcedWaitActions": 644,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "controlModeTimeline": [],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [],
+    "activeCloseEtaTimeline": [],
+    "queueAssignmentsPeak": 0,
+    "serviceBayAssignmentsPeak": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 5,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 6,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 7,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 8,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 9,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 2
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "onions",
+    "onions",
+    "cereal",
+    "cereal",
+    "cereal",
+    "yogurt",
+    "yogurt",
+    "yogurt",
+    "oats",
+    "oats",
+    "oats",
+    "milk",
+    "onions",
+    "onions",
+    "eggs",
+    "eggs",
+    "eggs",
+    "cereal",
+    "oats",
+    "oats",
+    "eggs",
+    "eggs",
+    "eggs",
+    "oats",
+    "oats",
+    "oats",
+    "flour",
+    "onions",
+    "onions"
+  ]
+}
