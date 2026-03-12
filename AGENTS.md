@@ -12,20 +12,22 @@ Use this file together with [CLAUDE.md](/home/magnus/prog/nm-i-ai/CLAUDE.md) whe
 ## Grocery Bot Workflow
 
 1. Read `tools/grocery-bot/out/<run-id>/analysis.json` before touching planner code.
+2. Treat user-provided live game tokens as single-use unless the user explicitly says otherwise.
+3. Wait for the user to provide or re-provide the token before each live run; do not assume an old token is still valid.
 2. Use supported workflow commands before ad hoc scripts:
    - `node tools/grocery-bot/index.mjs --mode runs --difficulty expert --limit 5`
    - `node tools/grocery-bot/index.mjs --mode analyze --replay tools/grocery-bot/out/<run-id>`
    - `node tools/grocery-bot/index.mjs --mode script-info --script tools/grocery-bot/config/script-expert.json --oracle tools/grocery-bot/config/oracle-expert.json`
    - use the replay viewer before writing new one-off inspectors
-3. Make the smallest planner change that matches replay evidence.
-4. Run `node --test tools/grocery-bot/test/*.test.mjs`.
-5. Prefer simulate -> analyze -> change cycles over blind live runs.
-6. For multi-bot strategy work, run `--mode benchmark --difficulty medium --replay tools/grocery-bot/out` before spending more live tokens.
-7. Use `--profile medium_warehouse_v1` when benchmarking the experimental warehouse-control branch.
-8. For expert oracle/script work, use: extract oracle -> generate script -> inspect/evaluate script -> live run with `--script` + `--oracle` -> update oracle.
-9. After UTC rollover, treat old `oracle-expert.json` and `script-expert.json` as stale until rebuilt from the new day.
-10. Use the replay viewer plus `diff-replay-transition.mjs` to inspect scripted/live handoff and first replay drift before changing the oracle scheduler again.
-11. Read `tools/grocery-bot/NEXT_SESSION_PROMPT.md` at startup when resuming strategy work after a break.
+4. Make the smallest planner change that matches replay evidence.
+5. Run `node --test tools/grocery-bot/test/*.test.mjs`.
+6. Prefer simulate -> analyze -> change cycles over blind live runs.
+7. For multi-bot strategy work, run `--mode benchmark --difficulty medium --replay tools/grocery-bot/out` before spending more live tokens.
+8. Use `--profile medium_warehouse_v1` when benchmarking the experimental warehouse-control branch.
+9. For expert oracle/script work, use: extract oracle -> generate script -> inspect/evaluate script -> live run with `--script` + `--oracle` -> update oracle.
+10. After UTC rollover, treat old `oracle-expert.json` and `script-expert.json` as stale until rebuilt from the new day.
+11. Use the replay viewer plus `diff-replay-transition.mjs` to inspect scripted/live handoff and first replay drift before changing the oracle scheduler again.
+12. Read `tools/grocery-bot/NEXT_SESSION_PROMPT.md` at startup when resuming strategy work after a break.
 
 Expert iteration loop:
 1. Play a normal live expert run with the best current planner baseline.

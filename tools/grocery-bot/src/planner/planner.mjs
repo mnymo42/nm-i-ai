@@ -66,6 +66,7 @@ export class GroceryPlanner {
     this.openerPaths = null;
     this.openerTargetPositions = null;
     this.openerTick = 0;
+    this.lastOpenerRound = null;
   }
 
   resetIntentState() {
@@ -181,6 +182,7 @@ export class GroceryPlanner {
       });
       if (allDone) {
         this.openerActive = false;
+        this.lastOpenerRound = state.round;
       } else {
         // Process farthest-from-target bots first so they can route through
         const botOrder = state.bots.map((bot, i) => {
@@ -400,7 +402,13 @@ export class GroceryPlanner {
 
     const shelfWalls = state.items.map((item) => item.position);
     const baseGrid = new GridGraph(state.grid);
-    const lanePolicy = this.profile.routing?.use_lane_map_v2
+    const laneMapRelaxTicks = this.profile.routing?.lane_map_handoff_relax_ticks ?? 0;
+    const allowLaneMap = this.profile.routing?.use_lane_map_v2
+      && (
+        this.lastOpenerRound === null
+        || state.round > (this.lastOpenerRound + laneMapRelaxTicks)
+      );
+    const lanePolicy = allowLaneMap
       ? buildLaneMapV2(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
       : null;
     const graph = new GridGraph({
@@ -411,12 +419,12 @@ export class GroceryPlanner {
     graph.trafficLaneCells = lanePolicy?.trafficLaneCells || new Set();
 
     // Attach directional preference + congestion settings for A* routing
-    if (!this._dirPrefCache || this._dirPrefCacheMode !== (this.profile.routing?.use_lane_map_v2 ? 'lane_v2' : 'default')) {
+    if (!this._dirPrefCache || this._dirPrefCacheMode !== (allowLaneMap ? 'lane_v2' : 'default')) {
       // Build once from base grid (without shelf walls) and cache
-      this._dirPrefCache = this.profile.routing?.use_lane_map_v2
+      this._dirPrefCache = allowLaneMap
         ? lanePolicy.directionalPreference
         : buildDirectionalPreference(baseGrid);
-      this._dirPrefCacheMode = this.profile.routing?.use_lane_map_v2 ? 'lane_v2' : 'default';
+      this._dirPrefCacheMode = allowLaneMap ? 'lane_v2' : 'default';
     }
     graph.directionalPreference = this._dirPrefCache;
     graph.directionPenalty = this.profile.routing?.direction_penalty || 0;
@@ -672,12 +680,17 @@ export function computeOpenerTargets(state, graph, dropOff) {
   const bottomCorridors = corridorRows.filter(y => y < dropRow);
   const botCorridor = bottomCorridors[bottomCorridors.length - 1] || dropRow - 1;
   const midCorridor = bottomCorridors.length >= 2 ? bottomCorridors[bottomCorridors.length - 2] : null;
-  const bottomCount = Math.min(aisleColumns.length, state.bots.length);
-  const bottomColumns = compactOpenerColumns(aisleColumns, bottomCount);
+  const corridorColumns = [];
+  for (let x = 1; x < state.grid.width - 1; x++) {
+    if (aisleGraph.isWalkable([x, botCorridor])) corridorColumns.push(x);
+  }
+  const compactBaseColumns = aisleColumns.length > 0 ? aisleColumns : corridorColumns;
+  const bottomCount = Math.min(compactBaseColumns.length, state.bots.length);
+  const bottomColumns = compactOpenerColumns(compactBaseColumns, bottomCount);
   let targets = bottomColumns.map((x) => [x, botCorridor]);
   if (midCorridor && targets.length < state.bots.length) {
     const remaining = state.bots.length - targets.length;
-    const midColumns = compactOpenerColumns(aisleColumns, remaining);
+    const midColumns = compactOpenerColumns(compactBaseColumns, remaining);
     for (const x of midColumns) {
       if (targets.length >= state.bots.length) break;
       targets.push([x, midCorridor]);

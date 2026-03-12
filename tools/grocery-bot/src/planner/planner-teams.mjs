@@ -217,6 +217,113 @@ function claimFutureWaveItem({
   return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_item', noPath: true };
 }
 
+function chooseGreedyApproachStep({
+  bot,
+  item,
+  graph,
+  reservations,
+  edgeReservations,
+}) {
+  const currentDistance = manhattanDistance(bot.position, item.position);
+  let bestNeighbor = null;
+  let bestDistance = currentDistance;
+
+  for (const neighbor of graph.neighbors(bot.position)) {
+    const neighborKey = encodeCoord(neighbor);
+    const currentKey = encodeCoord(bot.position);
+    if (reservations.get(1)?.has(neighborKey)) continue;
+    if (edgeReservations.get(1)?.has(`${neighborKey}>${currentKey}`)) continue;
+
+    const distance = manhattanDistance(neighbor, item.position);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestNeighbor = neighbor;
+    }
+  }
+
+  if (!bestNeighbor) {
+    return null;
+  }
+
+  return {
+    action: moveToAction(bot.position, bestNeighbor),
+    nextPath: [bot.position, bestNeighbor],
+    targetType: 'item_approach',
+    noPath: false,
+  };
+}
+
+function pickDiversifiedBots(candidateIds, botById, count, minSpacing = 2) {
+  const picked = [];
+  for (const botId of candidateIds) {
+    const bot = botById.get(botId);
+    if (!bot) continue;
+    const spacedEnough = picked.every((pickedId) => {
+      const pickedBot = botById.get(pickedId);
+      if (!pickedBot) return true;
+      return manhattanDistance(bot.position, pickedBot.position) > minSpacing;
+    });
+    if (!spacedEnough) continue;
+    picked.push(botId);
+    if (picked.length >= count) return picked;
+  }
+
+  for (const botId of candidateIds) {
+    if (picked.includes(botId)) continue;
+    picked.push(botId);
+    if (picked.length >= count) break;
+  }
+
+  return picked;
+}
+
+function chooseBreakoutAction({
+  bot,
+  state,
+  graph,
+  reservations,
+  edgeReservations,
+  horizon,
+}) {
+  const dropOff = primaryDropOff(state);
+  if (!dropOff) return null;
+
+  const targetRows = [dropOff[1] - 1, dropOff[1] - 2, dropOff[1]];
+    // Prefer moving left and upward out of the staged pack before normal routing resumes.
+  let best = null;
+
+  for (const row of targetRows) {
+    if (row < 1 || row >= state.grid.height - 1) continue;
+    for (let x = bot.position[0] - 1; x >= 1; x -= 1) {
+      const candidate = [x, row];
+      if (!graph.isWalkable(candidate)) continue;
+      const path = findTimeAwarePath({
+        graph,
+        start: bot.position,
+        goal: candidate,
+        reservations,
+        edgeReservations,
+        startTime: 0,
+        horizon,
+      });
+      if (!path || path.length < 2) continue;
+
+      const score = path.length + (row >= bot.position[1] ? 2 : 0);
+      if (!best || score < best.score) {
+        best = { score, path };
+      }
+    }
+  }
+
+  if (!best) return null;
+  return {
+    action: moveToAction(best.path[0], best.path[1]),
+    nextPath: best.path,
+    targetType: 'breakout',
+    noPath: false,
+  };
+}
+
 /**
  * Build or update teams based on current game state.
  * FIX #3: Preserve ALL existing teams within cooldown, not just active.
@@ -227,6 +334,7 @@ export function buildTeams({
   oracle,
   existingTeams,
   profile,
+  lastOpenerRound = null,
 }) {
   const round = state.round;
   const teamsConfig = profile.teams || {};
@@ -252,6 +360,10 @@ export function buildTeams({
   const teams = [];
   const assignedBots = new Set();
   let nextTeamId = 0;
+  const openerBreakoutTicks = teamsConfig.opener_breakout_ticks ?? 8;
+  const openerBreakoutActiveCap = teamsConfig.opener_breakout_active_cap ?? 3;
+  const inOpenerBreakout = lastOpenerRound !== null
+    && (round - lastOpenerRound) <= openerBreakoutTicks;
 
   // FIX #3: Preserve existing active team if order unchanged and within cooldown
   const existingActiveTeam = existingTeams?.find((t) => t.role === 'active');
@@ -278,7 +390,10 @@ export function buildTeams({
   if (activeOrder && !teams.find((t) => t.role === 'active')) {
     const activeDemand = world.activeDemand;
     const itemsNeeded = sumCounts(activeDemand);
-    const teamSize = Math.min(activeMaxBots, Math.max(2, Math.ceil(itemsNeeded * activeBotRatio)));
+    let teamSize = Math.min(activeMaxBots, Math.max(2, Math.ceil(itemsNeeded * activeBotRatio)));
+    if (inOpenerBreakout) {
+      teamSize = Math.min(teamSize, openerBreakoutActiveCap);
+    }
 
     // Prioritize bots carrying deliverable items, then by distance
     const cluster = orderItemClusterCenter(activeOrder, state.items);
@@ -295,7 +410,9 @@ export function buildTeams({
         return aDist - bDist;
       });
 
-    const picked = availableBots.slice(0, teamSize);
+    const picked = inOpenerBreakout
+      ? pickDiversifiedBots(availableBots, botById, teamSize, 2)
+      : availableBots.slice(0, teamSize);
     if (picked.length > 0) {
       teams.push({
         teamId: nextTeamId++,
@@ -331,7 +448,7 @@ export function buildTeams({
   }
 
   // Build prefetch team if not preserved
-  if (prefetchTarget && !teams.find((t) => t.role === 'prefetch')) {
+  if (!inOpenerBreakout && prefetchTarget && !teams.find((t) => t.role === 'prefetch')) {
     const itemsRequired = (prefetchTarget.items_required || []).length;
     const teamSize = Math.min(previewMaxBots, Math.max(1, Math.ceil(itemsRequired * previewBotRatio)));
 
@@ -423,6 +540,7 @@ function resolveActiveBotAction({
   profile,
   reservedItemIds,
   shelfDemand,
+  allowBreakout = false,
 }) {
   // Deliver if carrying items for active order (uses original demand)
   const deliveryAction = tryDeliverForActiveOrder({
@@ -471,6 +589,29 @@ function resolveActiveBotAction({
         );
         if (target?.path?.length >= 2) {
           return { action: moveToAction(target.path[0], target.path[1]), nextPath: target.path, targetType: 'item', noPath: false };
+        }
+        const greedyStep = chooseGreedyApproachStep({
+          bot,
+          item: bestItem,
+          graph,
+          reservations,
+          edgeReservations,
+        });
+        if (greedyStep) {
+          return greedyStep;
+        }
+        if (allowBreakout) {
+          const breakout = chooseBreakoutAction({
+            bot,
+            state,
+            graph,
+            reservations,
+            edgeReservations,
+            horizon: profile.routing.horizon,
+          });
+          if (breakout) {
+            return breakout;
+          }
         }
         return { action: 'wait', nextPath: [bot.position], targetType: 'item', noPath: true };
       }
@@ -569,6 +710,24 @@ function resolvePrefetchBotAction({
   });
   if (claimedWaveItem) return claimedWaveItem;
 
+  const futureCandidates = state.items.filter((item) =>
+    (prefetchContext.reservedFutureCounts.get(item.type) || 0) > 0 && !reservedItemIds.has(item.id),
+  );
+  const nearestFutureItem = futureCandidates
+    .sort((a, b) => manhattanDistance(bot.position, a.position) - manhattanDistance(bot.position, b.position))[0];
+  if (nearestFutureItem) {
+    const greedyStep = chooseGreedyApproachStep({
+      bot,
+      item: nearestFutureItem,
+      graph,
+      reservations,
+      edgeReservations,
+    });
+    if (greedyStep) {
+      return { ...greedyStep, targetType: 'prefetch_approach' };
+    }
+  }
+
   // No candidates — position near cluster
   const cluster = orderItemClusterCenter(targetOrder, state.items);
   if (cluster) {
@@ -625,6 +784,7 @@ export function executeTeamStrategy({
     oracle,
     existingTeams: planner._teams || null,
     profile: planner.profile,
+    lastOpenerRound: planner.lastOpenerRound,
   });
   planner._teams = teams;
 
@@ -668,6 +828,9 @@ export function executeTeamStrategy({
     orderCount: teamsConfig.wave_order_count ?? 3,
     prefetchBlockedByActiveDemand: coverage.prefetchBlockedByActiveDemand,
   });
+  const openerBreakoutTicks = teamsConfig.opener_breakout_ticks ?? 8;
+  const inOpenerBreakout = planner.lastOpenerRound !== null
+    && (state.round - planner.lastOpenerRound) <= openerBreakoutTicks;
 
   // Priority: any bot with deliverables first, then active > prefetch > idle
   const rolePriority = { active: 0, prefetch: 1, idle: 2 };
@@ -726,6 +889,7 @@ export function executeTeamStrategy({
         bot, state, world, graph,
         reservations, edgeReservations, profile: planner.profile,
         reservedItemIds, shelfDemand,
+        allowBreakout: inOpenerBreakout,
       });
     } else if (team?.role === 'prefetch') {
       const targetOrder = previewOrder
@@ -759,6 +923,25 @@ export function executeTeamStrategy({
       );
       resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock', noPath: false };
       planner.forcedWait.set(stallKey, planner.profile.anti_deadlock.forced_wait_rounds);
+    }
+
+    if (
+      team?.role === 'active'
+      && inOpenerBreakout
+      && resolved.targetType === 'item'
+      && (!resolved.nextPath || resolved.nextPath.length <= 1)
+    ) {
+      const breakout = chooseBreakoutAction({
+        bot,
+        state,
+        graph,
+        reservations,
+        edgeReservations,
+        horizon: planner.profile.routing.horizon,
+      });
+      if (breakout) {
+        resolved = breakout;
+      }
     }
 
     planner.previousPositions.set(stallKey, currentCoord);
@@ -829,6 +1012,7 @@ export function executeTeamStrategy({
     waveOrderIds: prefetchContext.waveOrderIds,
     waveReservedCounts: Object.fromEntries(prefetchContext.reservedFutureCounts),
     wavePickupEnabled: prefetchContext.wavePickupEnabled,
+    openerBreakoutActive: inOpenerBreakout,
     teams: teamSummary,
     botDetails: Object.fromEntries(planner._botDetails),
     zoneAssignment: planner.zoneAssignmentByBot ? { ...planner.zoneAssignmentByBot } : null,

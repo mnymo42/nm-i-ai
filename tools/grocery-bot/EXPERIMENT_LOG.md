@@ -58,6 +58,7 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 | Replay handoff fidelity + provenance | keep | Tooling, not main blocker |
 | Oracle optimizer harness | keep | Preferred offline entrypoint |
 | Replay compression optimizer | keep | Deterministic post-processing |
+| Expert opener breakout + longer compact staging | pending | Intended to clear post-opener freeze and remove staged air gaps |
 
 ## Guidance
 

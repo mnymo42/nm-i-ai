@@ -65,6 +65,15 @@ Implemented in this pass:
   - separate single-bot action selection from single-bot metric/lock bookkeeping
   - keep runtime orchestration thinner than the current extracted version
 
+### `src/planner/planner-teams.mjs`
+
+- Status: oversized by policy
+- Reason: team assignment, prefetch wave planning, breakout behavior, and per-role action resolution still live together
+- Next split:
+  - move team construction and wave planning into a team-assignment module
+  - move active/prefetch/idle action resolution into a team-runtime module
+  - keep shared helpers like coverage analysis and breakout selection in a small utility module
+
 ### `test/planner-singlebot.test.mjs`
 
 - Status: still oversized by policy

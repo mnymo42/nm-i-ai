@@ -200,3 +200,36 @@ test('computeOpenerTargets packs opener staging columns without one-tile gaps', 
 
   assert.deepEqual(bottomRowTargets, [13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
 });
+
+test('expert opener budget is long enough to finish the compact staging move', () => {
+  assert.equal(defaultProfiles.expert.opener.max_ticks, 16);
+});
+
+test('expert lane map stays relaxed immediately after opener handoff', () => {
+  const profile = structuredClone(defaultProfiles.expert);
+  profile.opener.enabled = false;
+  const planner = new GroceryPlanner(profile);
+  planner.openerActive = false;
+  planner.lastOpenerRound = 12;
+
+  planner.plan(baseState({
+    round: 13,
+    max_rounds: 300,
+    grid: { width: 12, height: 10, walls: [] },
+    bots: [
+      { id: 0, position: [1, 1], inventory: [] },
+      { id: 1, position: [2, 1], inventory: [] },
+    ],
+    items: [
+      { id: 'item_0', type: 'milk', position: [3, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+    ],
+    drop_off: [1, 8],
+    drop_offs: [[1, 8]],
+    score: 0,
+  }));
+
+  assert.equal(planner._dirPrefCacheMode, 'default');
+});
