@@ -38,7 +38,7 @@ export function extractOracleFromReplayCorpus({
       continue;
     }
 
-    const layout = rows[0];
+    const layout = rows.find((row) => row.type === 'layout') || rows[0];
     const firstTick = rows.find((row) => row.type === 'tick');
     if (!layout?.grid || !firstTick?.state_snapshot) {
       continue;

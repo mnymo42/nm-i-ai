@@ -14,131 +14,123 @@
     {
       "id": "order_0",
       "items_required": [
-        "cereal",
-        "butter",
-        "apples",
-        "cheese"
+        "cream",
+        "cheese",
+        "oats",
+        "apples"
       ],
       "first_seen_tick": 0
     },
     {
       "id": "order_1",
       "items_required": [
-        "oats",
-        "butter",
-        "bread",
-        "flour",
-        "onions"
+        "yogurt",
+        "bananas",
+        "bananas",
+        "eggs",
+        "yogurt"
       ],
       "first_seen_tick": 0
     },
     {
       "id": "order_2",
       "items_required": [
-        "onions",
-        "pasta",
         "bananas",
-        "flour"
+        "apples",
+        "oats",
+        "apples"
       ],
-      "first_seen_tick": 62
+      "first_seen_tick": 67
     },
     {
       "id": "order_3",
       "items_required": [
-        "oats",
-        "apples",
-        "cereal",
-        "rice",
-        "pasta",
-        "oats"
+        "yogurt",
+        "onions",
+        "bananas",
+        "flour"
       ],
-      "first_seen_tick": 88
+      "first_seen_tick": 93
     },
     {
       "id": "order_4",
       "items_required": [
         "milk",
-        "cream",
-        "cereal",
-        "butter",
-        "cheese",
-        "bananas"
+        "onions",
+        "flour",
+        "rice"
       ],
-      "first_seen_tick": 102
+      "first_seen_tick": 93
     },
     {
       "id": "order_5",
       "items_required": [
-        "cream",
-        "tomatoes",
-        "tomatoes",
-        "butter",
-        "flour",
-        "bread"
+        "oats",
+        "eggs",
+        "bread",
+        "cheese"
       ],
-      "first_seen_tick": 136
+      "first_seen_tick": 134
     },
     {
       "id": "order_6",
       "items_required": [
-        "eggs",
-        "milk",
+        "bananas",
+        "yogurt",
         "bread",
-        "eggs",
-        "onions"
+        "rice",
+        "bananas"
       ],
-      "first_seen_tick": 164
+      "first_seen_tick": 161
     },
     {
       "id": "order_7",
       "items_required": [
-        "cereal",
-        "oats",
+        "eggs",
         "apples",
-        "apples",
-        "oats",
-        "butter"
+        "eggs",
+        "apples"
       ],
-      "first_seen_tick": 182
+      "first_seen_tick": 194
     },
     {
       "id": "order_8",
       "items_required": [
-        "rice",
         "bananas",
-        "apples",
-        "flour"
+        "cereal",
+        "rice",
+        "tomatoes",
+        "cheese",
+        "bread"
       ],
-      "first_seen_tick": 225
+      "first_seen_tick": 237
     },
     {
       "id": "order_9",
       "items_required": [
-        "yogurt",
-        "eggs",
-        "flour",
         "onions",
-        "bread"
+        "apples",
+        "oats",
+        "pasta",
+        "oats"
       ],
-      "first_seen_tick": 268
+      "first_seen_tick": 260
     },
     {
       "id": "order_10",
       "items_required": [
-        "onions",
-        "eggs",
-        "bananas",
-        "bread",
-        "bananas",
-        "flour"
+        "flour",
+        "milk",
+        "pasta",
+        "tomatoes"
       ],
-      "first_seen_tick": 292
+      "first_seen_tick": 276
     }
   ],
   "items": [
     {
       "id": "item_0",
-      "type": "tomatoes",
+      "type": "apples",
       "position": [
         3,
         2
@@ -146,7 +138,7 @@
     },
     {
       "id": "item_1",
-      "type": "bread",
+      "type": "eggs",
       "position": [
         5,
         2
@@ -154,7 +146,7 @@
     },
     {
       "id": "item_2",
-      "type": "milk",
+      "type": "flour",
       "position": [
         3,
         3
@@ -162,7 +154,7 @@
     },
     {
       "id": "item_3",
-      "type": "oats",
+      "type": "bananas",
       "position": [
         5,
         3
@@ -170,7 +162,7 @@
     },
     {
       "id": "item_4",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         3,
         4
@@ -178,7 +170,7 @@
     },
     {
       "id": "item_5",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         5,
         4
@@ -186,7 +178,7 @@
     },
     {
       "id": "item_6",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         3,
         5
@@ -194,7 +186,7 @@
     },
     {
       "id": "item_7",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         5,
         5
@@ -202,7 +194,7 @@
     },
     {
       "id": "item_8",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         3,
         6
@@ -210,7 +202,7 @@
     },
     {
       "id": "item_9",
-      "type": "butter",
+      "type": "oats",
       "position": [
         5,
         6
@@ -218,7 +210,7 @@
     },
     {
       "id": "item_10",
-      "type": "rice",
+      "type": "butter",
       "position": [
         3,
         7
@@ -226,7 +218,7 @@
     },
     {
       "id": "item_11",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         5,
         7
@@ -234,7 +226,7 @@
     },
     {
       "id": "item_12",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         3,
         8
@@ -242,7 +234,7 @@
     },
     {
       "id": "item_13",
-      "type": "flour",
+      "type": "milk",
       "position": [
         5,
         8
@@ -250,7 +242,7 @@
     },
     {
       "id": "item_14",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         7,
         2
@@ -258,7 +250,7 @@
     },
     {
       "id": "item_15",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         9,
         2
@@ -266,7 +258,7 @@
     },
     {
       "id": "item_16",
-      "type": "tomatoes",
+      "type": "apples",
       "position": [
         7,
         3
@@ -274,7 +266,7 @@
     },
     {
       "id": "item_17",
-      "type": "bread",
+      "type": "eggs",
       "position": [
         9,
         3
@@ -282,7 +274,7 @@
     },
     {
       "id": "item_18",
-      "type": "milk",
+      "type": "flour",
       "position": [
         7,
         4
@@ -290,7 +282,7 @@
     },
     {
       "id": "item_19",
-      "type": "oats",
+      "type": "bananas",
       "position": [
         9,
         4
@@ -298,7 +290,7 @@
     },
     {
       "id": "item_20",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         7,
         5
@@ -306,7 +298,7 @@
     },
     {
       "id": "item_21",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         9,
         5
@@ -314,7 +306,7 @@
     },
     {
       "id": "item_22",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         7,
         6
@@ -322,7 +314,7 @@
     },
     {
       "id": "item_23",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         9,
         6
@@ -330,7 +322,7 @@
     },
     {
       "id": "item_24",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         7,
         7
@@ -338,7 +330,7 @@
     },
     {
       "id": "item_25",
-      "type": "butter",
+      "type": "oats",
       "position": [
         9,
         7
@@ -346,7 +338,7 @@
     },
     {
       "id": "item_26",
-      "type": "rice",
+      "type": "butter",
       "position": [
         7,
         8
@@ -354,7 +346,7 @@
     },
     {
       "id": "item_27",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         9,
         8
@@ -362,7 +354,7 @@
     },
     {
       "id": "item_28",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         11,
         2
@@ -370,7 +362,7 @@
     },
     {
       "id": "item_29",
-      "type": "flour",
+      "type": "milk",
       "position": [
         13,
         2
@@ -378,7 +370,7 @@
     },
     {
       "id": "item_30",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         11,
         3
@@ -386,7 +378,7 @@
     },
     {
       "id": "item_31",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         13,
         3
@@ -394,7 +386,7 @@
     },
     {
       "id": "item_32",
-      "type": "tomatoes",
+      "type": "apples",
       "position": [
         11,
         4
@@ -402,7 +394,7 @@
     },
     {
       "id": "item_33",
-      "type": "bread",
+      "type": "eggs",
       "position": [
         13,
         4
@@ -410,7 +402,7 @@
     },
     {
       "id": "item_34",
-      "type": "milk",
+      "type": "flour",
       "position": [
         11,
         5
@@ -418,7 +410,7 @@
     },
     {
       "id": "item_35",
-      "type": "oats",
+      "type": "bananas",
       "position": [
         13,
         5
@@ -426,7 +418,7 @@
     },
     {
       "id": "item_36",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         11,
         6
@@ -434,7 +426,7 @@
     },
     {
       "id": "item_37",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         13,
         6
@@ -442,7 +434,7 @@
     },
     {
       "id": "item_38",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         11,
         7
@@ -450,7 +442,7 @@
     },
     {
       "id": "item_39",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         13,
         7
@@ -458,7 +450,7 @@
     },
     {
       "id": "item_40",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         11,
         8
@@ -466,7 +458,7 @@
     },
     {
       "id": "item_41",
-      "type": "butter",
+      "type": "oats",
       "position": [
         13,
         8
@@ -474,7 +466,7 @@
     },
     {
       "id": "item_42",
-      "type": "rice",
+      "type": "butter",
       "position": [
         15,
         2
@@ -482,7 +474,7 @@
     },
     {
       "id": "item_43",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         17,
         2
@@ -490,7 +482,7 @@
     },
     {
       "id": "item_44",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         15,
         3
@@ -498,7 +490,7 @@
     },
     {
       "id": "item_45",
-      "type": "flour",
+      "type": "milk",
       "position": [
         17,
         3
@@ -506,7 +498,7 @@
     },
     {
       "id": "item_46",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         15,
         4
@@ -514,7 +506,7 @@
     },
     {
       "id": "item_47",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         17,
         4
@@ -522,7 +514,7 @@
     },
     {
       "id": "item_48",
-      "type": "tomatoes",
+      "type": "apples",
       "position": [
         15,
         5
@@ -530,7 +522,7 @@
     },
     {
       "id": "item_49",
-      "type": "bread",
+      "type": "eggs",
       "position": [
         17,
         5
@@ -538,7 +530,7 @@
     },
     {
       "id": "item_50",
-      "type": "milk",
+      "type": "flour",
       "position": [
         15,
         6
@@ -546,7 +538,7 @@
     },
     {
       "id": "item_51",
-      "type": "oats",
+      "type": "bananas",
       "position": [
         17,
         6
@@ -554,7 +546,7 @@
     },
     {
       "id": "item_52",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         15,
         7
@@ -562,7 +554,7 @@
     },
     {
       "id": "item_53",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         17,
         7
@@ -570,7 +562,7 @@
     },
     {
       "id": "item_54",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         15,
         8
@@ -578,7 +570,7 @@
     },
     {
       "id": "item_55",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         17,
         8
@@ -586,7 +578,7 @@
     },
     {
       "id": "item_56",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         19,
         2
@@ -594,7 +586,7 @@
     },
     {
       "id": "item_57",
-      "type": "butter",
+      "type": "oats",
       "position": [
         21,
         2
@@ -602,7 +594,7 @@
     },
     {
       "id": "item_58",
-      "type": "rice",
+      "type": "butter",
       "position": [
         19,
         3
@@ -610,7 +602,7 @@
     },
     {
       "id": "item_59",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         21,
         3
@@ -618,7 +610,7 @@
     },
     {
       "id": "item_60",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         19,
         4
@@ -626,7 +618,7 @@
     },
     {
       "id": "item_61",
-      "type": "flour",
+      "type": "milk",
       "position": [
         21,
         4
@@ -634,7 +626,7 @@
     },
     {
       "id": "item_62",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         19,
         5
@@ -642,7 +634,7 @@
     },
     {
       "id": "item_63",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         21,
         5
@@ -650,7 +642,7 @@
     },
     {
       "id": "item_64",
-      "type": "tomatoes",
+      "type": "apples",
       "position": [
         19,
         6
@@ -658,7 +650,7 @@
     },
     {
       "id": "item_65",
-      "type": "bread",
+      "type": "eggs",
       "position": [
         21,
         6
@@ -666,7 +658,7 @@
     },
     {
       "id": "item_66",
-      "type": "milk",
+      "type": "flour",
       "position": [
         19,
         7
@@ -674,7 +666,7 @@
     },
     {
       "id": "item_67",
-      "type": "oats",
+      "type": "bananas",
       "position": [
         21,
         7
@@ -682,7 +674,7 @@
     },
     {
       "id": "item_68",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         19,
         8
@@ -690,7 +682,7 @@
     },
     {
       "id": "item_69",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         21,
         8
@@ -698,7 +690,7 @@
     },
     {
       "id": "item_70",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         3,
         10
@@ -706,7 +698,7 @@
     },
     {
       "id": "item_71",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         5,
         10
@@ -714,7 +706,7 @@
     },
     {
       "id": "item_72",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         3,
         11
@@ -722,7 +714,7 @@
     },
     {
       "id": "item_73",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         5,
         11
@@ -730,7 +722,7 @@
     },
     {
       "id": "item_74",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         3,
         12
@@ -738,7 +730,7 @@
     },
     {
       "id": "item_75",
-      "type": "butter",
+      "type": "oats",
       "position": [
         5,
         12
@@ -746,7 +738,7 @@
     },
     {
       "id": "item_76",
-      "type": "rice",
+      "type": "butter",
       "position": [
         3,
         13
@@ -754,7 +746,7 @@
     },
     {
       "id": "item_77",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         5,
         13
@@ -762,7 +754,7 @@
     },
     {
       "id": "item_78",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         3,
         14
@@ -770,7 +762,7 @@
     },
     {
       "id": "item_79",
-      "type": "flour",
+      "type": "milk",
       "position": [
         5,
         14
@@ -778,7 +770,7 @@
     },
     {
       "id": "item_80",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         7,
         10
@@ -786,7 +778,7 @@
     },
     {
       "id": "item_81",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         9,
         10
@@ -794,7 +786,7 @@
     },
     {
       "id": "item_82",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         7,
         11
@@ -802,7 +794,7 @@
     },
     {
       "id": "item_83",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         9,
         11
@@ -810,7 +802,7 @@
     },
     {
       "id": "item_84",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         7,
         12
@@ -818,7 +810,7 @@
     },
     {
       "id": "item_85",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         9,
         12
@@ -826,7 +818,7 @@
     },
     {
       "id": "item_86",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         7,
         13
@@ -834,7 +826,7 @@
     },
     {
       "id": "item_87",
-      "type": "butter",
+      "type": "oats",
       "position": [
         9,
         13
@@ -842,7 +834,7 @@
     },
     {
       "id": "item_88",
-      "type": "rice",
+      "type": "butter",
       "position": [
         7,
         14
@@ -850,7 +842,7 @@
     },
     {
       "id": "item_89",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         9,
         14
@@ -858,7 +850,7 @@
     },
     {
       "id": "item_90",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         11,
         10
@@ -866,7 +858,7 @@
     },
     {
       "id": "item_91",
-      "type": "flour",
+      "type": "milk",
       "position": [
         13,
         10
@@ -874,7 +866,7 @@
     },
     {
       "id": "item_92",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         11,
         11
@@ -882,7 +874,7 @@
     },
     {
       "id": "item_93",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         13,
         11
@@ -890,7 +882,7 @@
     },
     {
       "id": "item_94",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         11,
         12
@@ -898,7 +890,7 @@
     },
     {
       "id": "item_95",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         13,
         12
@@ -906,7 +898,7 @@
     },
     {
       "id": "item_96",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         11,
         13
@@ -914,7 +906,7 @@
     },
     {
       "id": "item_97",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         13,
         13
@@ -922,7 +914,7 @@
     },
     {
       "id": "item_98",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         11,
         14
@@ -930,7 +922,7 @@
     },
     {
       "id": "item_99",
-      "type": "butter",
+      "type": "oats",
       "position": [
         13,
         14
@@ -938,7 +930,7 @@
     },
     {
       "id": "item_100",
-      "type": "rice",
+      "type": "butter",
       "position": [
         15,
         10
@@ -946,7 +938,7 @@
     },
     {
       "id": "item_101",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         17,
         10
@@ -954,7 +946,7 @@
     },
     {
       "id": "item_102",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         15,
         11
@@ -962,7 +954,7 @@
     },
     {
       "id": "item_103",
-      "type": "flour",
+      "type": "milk",
       "position": [
         17,
         11
@@ -970,7 +962,7 @@
     },
     {
       "id": "item_104",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         15,
         12
@@ -978,7 +970,7 @@
     },
     {
       "id": "item_105",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         17,
         12
@@ -986,7 +978,7 @@
     },
     {
       "id": "item_106",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         15,
         13
@@ -994,7 +986,7 @@
     },
     {
       "id": "item_107",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         17,
         13
@@ -1002,7 +994,7 @@
     },
     {
       "id": "item_108",
-      "type": "bananas",
+      "type": "cereal",
       "position": [
         15,
         14
@@ -1010,7 +1002,7 @@
     },
     {
       "id": "item_109",
-      "type": "pasta",
+      "type": "rice",
       "position": [
         17,
         14
@@ -1018,7 +1010,7 @@
     },
     {
       "id": "item_110",
-      "type": "onions",
+      "type": "pasta",
       "position": [
         19,
         10
@@ -1026,7 +1018,7 @@
     },
     {
       "id": "item_111",
-      "type": "butter",
+      "type": "oats",
       "position": [
         21,
         10
@@ -1034,7 +1026,7 @@
     },
     {
       "id": "item_112",
-      "type": "rice",
+      "type": "butter",
       "position": [
         19,
         11
@@ -1042,7 +1034,7 @@
     },
     {
       "id": "item_113",
-      "type": "eggs",
+      "type": "bread",
       "position": [
         21,
         11
@@ -1050,7 +1042,7 @@
     },
     {
       "id": "item_114",
-      "type": "cereal",
+      "type": "onions",
       "position": [
         19,
         12
@@ -1058,7 +1050,7 @@
     },
     {
       "id": "item_115",
-      "type": "flour",
+      "type": "milk",
       "position": [
         21,
         12
@@ -1066,7 +1058,7 @@
     },
     {
       "id": "item_116",
-      "type": "cream",
+      "type": "tomatoes",
       "position": [
         19,
         13
@@ -1074,7 +1066,7 @@
     },
     {
       "id": "item_117",
-      "type": "cheese",
+      "type": "yogurt",
       "position": [
         21,
         13
@@ -1082,7 +1074,7 @@
     },
     {
       "id": "item_118",
-      "type": "apples",
+      "type": "cheese",
       "position": [
         19,
         14
@@ -1090,7 +1082,7 @@
     },
     {
       "id": "item_119",
-      "type": "yogurt",
+      "type": "cream",
       "position": [
         21,
         14
