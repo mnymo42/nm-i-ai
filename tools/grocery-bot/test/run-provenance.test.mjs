@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildRunProvenance } from '../src/run-provenance.mjs';
+import { buildRunProvenance } from '../src/utils/run-provenance.mjs';
 
 test('buildRunProvenance includes stable hashes and script/oracle metadata', () => {
   const profile = { runtime: { multi_bot_strategy: 'warehouse_v1' } };

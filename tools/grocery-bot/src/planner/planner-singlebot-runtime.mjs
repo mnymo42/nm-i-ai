@@ -1,5 +1,5 @@
-import { adjacentManhattan, moveToAction } from './coords.mjs';
-import { findTimeAwarePath } from './routing.mjs';
+import { adjacentManhattan, moveToAction } from '../utils/coords.mjs';
+import { findTimeAwarePath } from '../routing/routing.mjs';
 import {
   hasDeliverableInventory,
   isAtAnyDropOff,

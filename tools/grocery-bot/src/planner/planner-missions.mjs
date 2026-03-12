@@ -1,6 +1,6 @@
-import { encodeCoord, manhattanDistance, moveToAction, adjacentManhattan } from './coords.mjs';
-import { findTimeAwarePath } from './routing.mjs';
-import { countInventoryByType } from './world-model.mjs';
+import { encodeCoord, manhattanDistance, moveToAction, adjacentManhattan } from '../utils/coords.mjs';
+import { findTimeAwarePath } from '../routing/routing.mjs';
+import { countInventoryByType } from '../utils/world-model.mjs';
 import {
   hasDeliverableInventory,
   countDeliverableInventory,

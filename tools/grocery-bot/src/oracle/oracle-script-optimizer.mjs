@@ -1,4 +1,9 @@
-import { encodeCoord, manhattanDistance, moveToAction } from './coords.mjs';
+/**
+ * Constraint-based oracle script scheduler.
+ * Produces tick-by-tick action sequences for expert opening play.
+ * Main export: generateOracleScript(oracle, settings)
+ */
+import { encodeCoord, manhattanDistance, moveToAction } from '../utils/coords.mjs';
 import { evaluateOracleScript } from './oracle-script-evaluator.mjs';
 import {
   buildOracleScriptWorld,

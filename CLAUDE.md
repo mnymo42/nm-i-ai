@@ -4,7 +4,7 @@ Competition bot for the Norwegian Championship in AI (NM i AI).
 Goal: maximize score across 300 ticks by routing bots to pick up and deliver grocery items to the drop-off.
 
 Game server: `wss://game.ainm.no/ws`
-Docs/MCP: configured in `mcp.json` → `https://mcp-docs.ainm.no/mcp`
+Docs: fetch on demand via `WebFetch https://mcp-docs.ainm.no/mcp` (no MCP server loaded — saves tokens)
 
 ## Score Baselines
 
@@ -21,7 +21,7 @@ Update after every significant run. Best run IDs in `out/` summary files.
 
 ## Quick Reference
 
-All commands run from repo root (`/home/magnus/prog/nm-i-ai`). Entry point: `node tools/grocery-bot/index.mjs`.
+All commands run from repo root (`/home/magnus/Git/nm-i-ai`). Entry point: `node tools/grocery-bot/index.mjs`.
 
 Key modes: `--mode runs`, `--mode analyze`, `--mode simulate`, `--mode benchmark`, `--mode tune`, `--mode script-info`, `--mode estimate-max`.
 
@@ -33,21 +33,31 @@ Oracle/script workflow: use the **oracle-workflow** agent (`.claude/agents/oracl
 
 ```
 tools/grocery-bot/src/
-  planner.mjs              GroceryPlanner class, planSingleBot
-  planner-singlebot.mjs    Single-bot evaluation, recovery, cooldowns
-  planner-multibot.mjs     Multi-bot tasks, costs, reservations
-  planner-multibot-runtime.mjs  Multi-bot runtime execution
-  planner-warehouse.mjs    Warehouse-control strategy (experimental)
-  planner-utils.mjs        Shared helpers (demand, phase, congestion)
-  game-client.mjs          WebSocket loop, replay logging
-  game-client-sanitizer.mjs  Client-side legality sanitizer
-  routing.mjs              Time-aware A* + path reservations
-  assignment.mjs           Min-cost bot-to-item matching
-  replay.mjs               Logging, summarize, simulate, analysis
-  oracle-script-optimizer.mjs  Constraint-based oracle scheduler
-  config/profiles.json     Tunable parameters per difficulty
-  config/oracle-expert.json  Known expert orders/items
-  config/script-expert.json  Generated expert script
+  planner/                 Strategy + execution
+    planner.mjs              GroceryPlanner orchestrator
+    planner-singlebot.mjs    Single-bot evaluation, recovery, cooldowns
+    planner-multibot.mjs     Multi-bot tasks, costs, reservations
+    planner-multibot-runtime.mjs  Multi-bot runtime execution
+    planner-warehouse.mjs    Warehouse-control (experimental, behind flag)
+    planner-utils.mjs        Shared helpers (demand, phase, congestion)
+  oracle/                  Offline oracle/script pipeline
+    oracle-script-optimizer.mjs  Constraint-based script scheduler
+    oracle-script-search.mjs     Batch generation + promotion
+    oracle-script-evaluator.mjs  Script validation + scoring
+  client/                  WebSocket + protocol
+    game-client.mjs          WebSocket loop, replay logging
+    game-client-sanitizer.mjs  Action legality sanitizer
+  routing/                 Pathfinding
+    routing.mjs              Time-aware A* + path reservations
+    assignment.mjs           Min-cost bot-to-item matching
+  replay/                  Replay tooling
+    replay.mjs               Logging, summarize, simulate, analysis
+  utils/                   Shared utilities
+    coords.mjs, drop-zones.mjs, grid-graph.mjs, profile.mjs, ...
+  config/
+    profiles.json            Tunable parameters per difficulty
+    oracle-expert.json       Known expert orders/items
+    script-expert.json       Generated expert script
 ```
 
 ## Architecture
@@ -58,8 +68,8 @@ tools/grocery-bot/src/
 
 **Multi-bot (medium/hard/expert):** Build world context → cost-matrix assignment → time-aware A* with path reservations → deadlock detection → send all actions.
 
-- `assignment_v1` is the live default for all difficulties except nightmare
-- `warehouse_v1` is experimental, behind flag, not promoted until it beats 115 on medium
+- `assignment_v1` is the **live default** for all difficulties except nightmare
+- `warehouse_v1` is **experimental** — behind `runtime.multi_bot_strategy` flag, not promoted until it beats 115 on medium. Do not modify without explicit request.
 
 **Key parameters** (`config/profiles.json`): `assignment.congestion_penalty` / `contention_penalty` / `urgency_bonus`, `routing.horizon`, `anti_deadlock.stall_threshold` / `forced_wait_rounds`, `recovery.*`
 

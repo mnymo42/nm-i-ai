@@ -1,4 +1,4 @@
-import { isAtAnyDropOff, nearestDropOff } from './drop-zones.mjs';
+import { isAtAnyDropOff, nearestDropOff } from '../utils/drop-zones.mjs';
 
 function isSameCell(a, b) {
   return a[0] === b[0] && a[1] === b[1];

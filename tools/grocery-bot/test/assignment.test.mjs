@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { solveMinCostAssignment } from '../src/assignment.mjs';
+import { solveMinCostAssignment } from '../src/routing/assignment.mjs';
 
 test('solveMinCostAssignment finds global minimum for square matrix', () => {
   const costs = [

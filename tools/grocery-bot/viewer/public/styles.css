@@ -107,6 +107,60 @@ body {
   align-items: center;
 }
 
+.overlay-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.overlay-controls label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.order-group-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 6px 0 2px;
+}
+
+.order-card {
+  border: 1px solid #888;
+  padding: 4px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+}
+
+.order-card.active {
+  background: #fffde7;
+}
+
+.order-card.upcoming {
+  background: #f0f0f0;
+  opacity: 0.7;
+}
+
+.order-card.completed {
+  background: #e8f5e9;
+  opacity: 0.65;
+}
+
+.order-bot-badge {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: white;
+  margin-left: 4px;
+}
+
 .content {
   display: grid;
   grid-template-columns: minmax(360px, 1fr) 420px;

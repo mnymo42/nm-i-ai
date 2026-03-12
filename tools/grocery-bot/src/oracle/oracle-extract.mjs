@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { collectReplayPaths, parseJsonl } from './replay-io.mjs';
+import { collectReplayPaths, parseJsonl } from '../replay/replay-io.mjs';
 
 function compareOrderIds(left, right) {
   const leftNum = Number.parseInt(String(left.id).split('_')[1], 10);

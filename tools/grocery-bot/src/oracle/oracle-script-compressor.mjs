@@ -1,5 +1,5 @@
-import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
-import { buildExpectedScriptState } from './replay-transition-diff.mjs';
+import { extractLayout, parseJsonl, rebuildSnapshot } from '../replay/replay-io.mjs';
+import { buildExpectedScriptState } from '../replay/replay-transition-diff.mjs';
 
 function cloneTick(tick) {
   return {

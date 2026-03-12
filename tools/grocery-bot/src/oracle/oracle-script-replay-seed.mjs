@@ -1,4 +1,4 @@
-import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
+import { extractLayout, parseJsonl, rebuildSnapshot } from '../replay/replay-io.mjs';
 
 function snapshotRows(replayPath) {
   const rows = parseJsonl(replayPath);

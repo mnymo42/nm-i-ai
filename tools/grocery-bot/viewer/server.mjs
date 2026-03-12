@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { URL } from 'node:url';
 
-import { listReplayRuns, loadReplayRun } from '../src/replay-viewer.mjs';
+import { listReplayRuns, loadReplayRun } from '../src/replay/replay-viewer.mjs';
 
 const publicDir = path.resolve(process.cwd(), 'tools/grocery-bot/viewer/public');
 const defaultOutDir = path.resolve(process.cwd(), 'tools/grocery-bot/out');

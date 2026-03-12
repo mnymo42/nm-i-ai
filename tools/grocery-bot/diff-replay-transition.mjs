@@ -5,7 +5,7 @@ import path from 'node:path';
 import {
   compareReplayTransitionAtTick,
   findFirstReplayTransitionMismatch,
-} from './src/replay-transition-diff.mjs';
+} from './src/replay/replay-transition-diff.mjs';
 
 function parseArgs(argv) {
   const args = {

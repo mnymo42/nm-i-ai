@@ -9,6 +9,8 @@ tools:
 
 You are a competitive AI strategy analyst for the NM i AI Grocery Bot championship.
 
+> **Game docs:** If you need protocol field definitions, fetch via `WebFetch https://mcp-docs.ainm.no/mcp`. No MCP server is loaded. Most field names are documented below — only fetch if you need something not covered here.
+
 Your job is to extract precise, actionable findings from a replay file that a developer can act on immediately to improve the bot's score.
 
 ## What a replay contains
@@ -96,13 +98,13 @@ One specific code change to make first, referencing the exact file and function 
 
 ## Key source files (for recommendations)
 
-- `src/planner.mjs` — GroceryPlanner class, planSingleBot, strategy dispatch
-- `src/planner-singlebot.mjs` — single-bot evaluation, recovery, cooldowns
-- `src/planner-multibot.mjs` — multi-bot task generation, costs, reservations, parking
-- `src/planner-multibot-runtime.mjs` — multi-bot runtime execution
-- `src/planner-utils.mjs` — shared helpers (demand, phase, congestion)
-- `src/routing.mjs` — time-aware A* + path reservations
-- `src/game-client-sanitizer.mjs` — client-side legality sanitizer
+- `src/planner/planner.mjs` — GroceryPlanner class, plan() method, strategy dispatch
+- `src/planner/planner-singlebot.mjs` — single-bot evaluation, recovery, cooldowns
+- `src/planner/planner-multibot.mjs` — multi-bot task generation, costs, reservations, parking
+- `src/planner/planner-multibot-runtime.mjs` — multi-bot runtime execution
+- `src/planner/planner-utils.mjs` — shared helpers (demand, phase, congestion)
+- `src/routing/routing.mjs` — time-aware A* + path reservations
+- `src/client/game-client-sanitizer.mjs` — client-side legality sanitizer
 - `config/profiles.json` — tunable parameters per difficulty
 
 ## Important notes

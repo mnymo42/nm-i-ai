@@ -1,5 +1,10 @@
-import { encodeCoord, adjacentManhattan, moveToAction } from './coords.mjs';
-import { findTimeAwarePath } from './routing.mjs';
+/**
+ * Single-bot (easy) strategy: sequence enumeration, recovery, and cooldowns.
+ * Evaluates candidate pickup-type sequences and scores them by
+ * (delivery points - route cost - leftover penalty).
+ */
+import { encodeCoord, adjacentManhattan, moveToAction } from '../utils/coords.mjs';
+import { findTimeAwarePath } from '../routing/routing.mjs';
 import {
   hasDeliverableInventory,
   shouldScheduleDropOff,

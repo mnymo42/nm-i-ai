@@ -4,8 +4,8 @@ import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ReplayLogger } from '../src/replay.mjs';
-import { extractOracleFromReplayCorpus } from '../src/oracle-extract.mjs';
+import { ReplayLogger } from '../src/replay/replay.mjs';
+import { extractOracleFromReplayCorpus } from '../src/oracle/oracle-extract.mjs';
 
 function writeExpertReplay(outDir, runId, ordersByTick) {
   const runDir = path.join(outDir, runId);

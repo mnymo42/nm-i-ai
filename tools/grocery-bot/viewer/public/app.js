@@ -6,6 +6,8 @@ const state = {
   playing: false,
   timer: null,
   markers: null,
+  showZones: false,
+  showRoads: false,
 };
 
 const elements = {
@@ -26,7 +28,37 @@ const elements = {
   ordersView: document.querySelector('#orders-view'),
   botsView: document.querySelector('#bots-view'),
   jumpButtons: [...document.querySelectorAll('[data-jump]')],
+  zoneToggle: document.querySelector('#zone-toggle'),
+  roadsToggle: document.querySelector('#roads-toggle'),
 };
+
+// Shared constants (single definition)
+const ITEM_EMOJIS = {
+  apples: '🍎', eggs: '🥚', flour: '🌾', bananas: '🍌', cheese: '🧀', cream: '🥛',
+  cereal: '🥣', rice: '🍚', pasta: '🍝', oats: '🌾', butter: '🧈', bread: '🍞',
+  onions: '🧅', milk: '🐮', tomatoes: '🍅', yogurt: '🍦', default: '🛒',
+};
+
+const TASK_COLORS = {
+  item: '#2a9d8f', pick_up: '#2a9d8f', pickup_active: '#2a9d8f', pickup_preview: '#457b9d',
+  drop_off: '#e76f51', drop_active: '#e76f51',
+  parking: '#6c757d', none: '#6c757d', single: '#2a9d8f',
+  fallback: '#bc6c25', anti_deadlock: '#d62828', warehouse_fallback: '#d62828',
+  idle_reposition: '#6c757d', reposition_zone: '#6c757d', queue_service_bay: '#457b9d',
+};
+
+const ZONE_COLORS = [
+  'rgba(42,157,143,0.18)',   // teal
+  'rgba(231,111,81,0.18)',   // coral
+  'rgba(69,123,157,0.18)',   // blue
+  'rgba(188,108,37,0.18)',   // amber
+  'rgba(106,76,147,0.18)',   // purple
+  'rgba(38,166,91,0.18)',    // green
+  'rgba(214,40,40,0.18)',    // red
+  'rgba(100,149,237,0.18)',  // cornflower
+  'rgba(255,165,0,0.18)',    // orange
+  'rgba(128,128,0,0.18)',    // olive
+];
 
 function formatJson(value) {
   return JSON.stringify(value, null, 2);
@@ -95,31 +127,9 @@ function renderBoard(snapshot, layout, plannerMetrics) {
 
   const walls = new Set((layout.grid.walls || []).map(([x, y]) => `${x},${y}`));
   const drops = new Set((layout.drop_offs || []).map(([x, y]) => `${x},${y}`));
-  // Emoji mapping based on CURRENT game specification (March 2026)
-  // Current game item types from live replay: apples, eggs, flour, bananas, cheese, cream,
-  // cereal, rice, pasta, oats, butter, bread, onions, milk, tomatoes, yogurt
-  const ITEM_EMOJIS = {
-    // Core items from current game (verified in replay data)
-    apples: '🍎',     // plural form used in game
-    eggs: '🥚',       // plural form used in game
-    flour: '🌾',      // flour for baking
-    bananas: '🍌',    // plural form used in game
-    cheese: '🧀',     // cheese blocks
-    cream: '🥛',      // heavy cream (different from milk)
-    cereal: '🥣',     // breakfast cereal
-    rice: '🍚',       // cooked rice
-    pasta: '🍝',      // pasta noodles
-    oats: '🌾',       // oat grains (using grain emoji)
-    butter: '🧈',     // butter spread
-    bread: '🍞',      // bread loaf  
-    onions: '🧅',     // plural form used in game 
-    milk: '🐮',       // milk carton
-    tomatoes: '🍅',   // plural form used in game
-    yogurt: '🍦',     // yogurt container
-    
-    // fallback for unknown types
-    default: '🛒',
-  };
+
+  // Zone assignment overlay data
+  const zoneAssignment = plannerMetrics?.zoneAssignment || null;
   const itemsByCell = new Map();
   for (const item of snapshot?.items || []) {
     itemsByCell.set(`${item.position[0]},${item.position[1]}`, item);
@@ -132,25 +142,6 @@ function renderBoard(snapshot, layout, plannerMetrics) {
     entry.push(bot);
     botsByCell.set(key, entry);
   }
-
-  // Task type colors for bot visualization
-  const TASK_COLORS = {
-    item: '#2a9d8f',        // pickup - teal
-    pick_up: '#2a9d8f',
-    pickup_active: '#2a9d8f',
-    pickup_preview: '#457b9d',
-    drop_off: '#e76f51',    // delivery - orange-red
-    drop_active: '#e76f51',
-    parking: '#6c757d',     // idle - gray
-    none: '#6c757d',
-    single: '#2a9d8f',
-    fallback: '#bc6c25',    // fallback - brown
-    anti_deadlock: '#d62828', // deadlock - red
-    warehouse_fallback: '#d62828',
-    idle_reposition: '#6c757d',
-    reposition_zone: '#6c757d',
-    queue_service_bay: '#457b9d',
-  };
 
   const botDetails = (plannerMetrics && plannerMetrics.botDetails) || {};
 
@@ -167,6 +158,14 @@ function renderBoard(snapshot, layout, plannerMetrics) {
         cell.classList.add('wall');
       } else if (drops.has(key)) {
         cell.classList.add('drop');
+      }
+
+      // Zone overlay: color cells by zone assignment
+      if (state.showZones && zoneAssignment && !walls.has(key)) {
+        const zoneCount = Math.max(1, ...Object.values(zoneAssignment).map(v => v + 1));
+        const zoneWidth = Math.ceil(width / zoneCount);
+        const zoneIndex = Math.min(Math.floor(x / zoneWidth), zoneCount - 1);
+        cell.style.background = ZONE_COLORS[zoneIndex % ZONE_COLORS.length];
       }
 
       const item = itemsByCell.get(key);
@@ -269,6 +268,44 @@ function renderBoard(snapshot, layout, plannerMetrics) {
     svg.appendChild(label);
   }
 
+  // Roads overlay: show historical path frequency as heatmap lines
+  if (state.showRoads && state.runData?.ticks) {
+    const edgeCounts = new Map();
+    const lookback = Math.min(state.currentTickIndex + 1, 50);
+    const startIdx = Math.max(0, state.currentTickIndex - lookback + 1);
+    for (let i = startIdx; i <= state.currentTickIndex; i++) {
+      const t = state.runData.ticks[i];
+      const details = t?.planner_metrics?.botDetails || {};
+      for (const d of Object.values(details)) {
+        const path = d.path;
+        if (!path || path.length < 2) continue;
+        for (let j = 0; j < path.length - 1; j++) {
+          const a = path[j], b = path[j + 1];
+          const key = `${Math.min(a[0],b[0])},${Math.min(a[1],b[1])}-${Math.max(a[0],b[0])},${Math.max(a[1],b[1])}`;
+          edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1);
+        }
+      }
+    }
+    const maxCount = Math.max(1, ...edgeCounts.values());
+    for (const [edge, count] of edgeCounts) {
+      const [from, to] = edge.split('-').map(s => s.split(',').map(Number));
+      const x1 = from[0] * CELL_SIZE + CELL_SIZE / 2;
+      const y1 = from[1] * CELL_SIZE + CELL_SIZE / 2;
+      const x2 = to[0] * CELL_SIZE + CELL_SIZE / 2;
+      const y2 = to[1] * CELL_SIZE + CELL_SIZE / 2;
+      const intensity = count / maxCount;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke', `rgba(231,111,81,${0.15 + intensity * 0.6})`);
+      line.setAttribute('stroke-width', String(1.5 + intensity * 4));
+      line.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(line);
+    }
+  }
+
   elements.board.appendChild(svg);
 }
 
@@ -302,45 +339,68 @@ function renderTick() {
     overrides: tick.sanitizer_overrides || [],
   });
   elements.plannerView.textContent = formatJson(tick.planner_metrics || {});
-  // Render order boxes with active/assigned bots
+
+  // Render orders grouped by status with bot assignment badges
   const orders = tick.state_snapshot?.orders || [];
   const bots = tick.state_snapshot?.bots || [];
   const botDetailsMap = tick.planner_metrics?.botDetails || {};
-  const TASK_COLORS = {
-    item: '#2a9d8f', pick_up: '#2a9d8f', pickup_active: '#2a9d8f', pickup_preview: '#457b9d',
-    drop_off: '#e76f51', drop_active: '#e76f51',
-    parking: '#6c757d', none: '#6c757d', single: '#2a9d8f',
-    fallback: '#bc6c25', anti_deadlock: '#d62828', warehouse_fallback: '#d62828',
-    idle_reposition: '#6c757d', reposition_zone: '#6c757d', queue_service_bay: '#457b9d',
-  };
-  const ITEM_EMOJIS = {
-    apples: '🍎', eggs: '🥚', flour: '🌾', bananas: '🍌', cheese: '🧀', cream: '🥛',
-    cereal: '🥣', rice: '🍚', pasta: '🍝', oats: '🌾', butter: '🧈', bread: '🍞',
-    onions: '🧅', milk: '🐮', tomatoes: '🍅', yogurt: '🍦', default: '🛒',
-  };
-  elements.ordersView.innerHTML = orders.map((order) => {
-    const isActive = order.status === 'active' && !order.complete;
+
+  // Build bot→order inverse map
+  const orderBotMap = {};
+  for (const [id, d] of Object.entries(botDetailsMap)) {
+    if (d.orderId != null) {
+      (orderBotMap[d.orderId] ??= []).push(id);
+    }
+  }
+
+  // Group orders: active, upcoming (preview), completed
+  const activeOrders = orders.filter(o => o.status === 'active' && !o.complete);
+  const upcomingOrders = orders.filter(o => o.status === 'preview' || (o.status !== 'active' && !o.complete));
+  const completedOrders = orders.filter(o => o.complete);
+
+  function renderOrderCard(order, cssClass) {
     const requiredItems = order.items_required || [];
     const deliveredItems = order.items_delivered || [];
     const progress = deliveredItems.length;
     const total = requiredItems.length;
-    return `<div style="border:1px solid #888;padding:4px;margin-bottom:2px;background:${isActive ? '#fffde7' : '#ececec'}">
-      <b>Order ${order.id}</b> ${isActive ? '🟢' : '⚪'} (${progress}/${total})<br>
-      Required: ${requiredItems.map((it) => (ITEM_EMOJIS[it] || ITEM_EMOJIS.default)).join(' ')}<br>
-      Delivered: ${deliveredItems.map((it) => (ITEM_EMOJIS[it] || ITEM_EMOJIS.default)).join(' ')}
+    const assignedBots = orderBotMap[order.id] || [];
+    const botBadges = assignedBots.map(id => {
+      const color = TASK_COLORS[botDetailsMap[id]?.taskType] || TASK_COLORS.none;
+      return `<span class="order-bot-badge" style="background:${color}">B${id}</span>`;
+    }).join('');
+    return `<div class="order-card ${cssClass}">
+      <b>Order ${order.id}</b> (${progress}/${total})${botBadges}<br>
+      Required: ${requiredItems.map(it => ITEM_EMOJIS[it] || ITEM_EMOJIS.default).join(' ')}<br>
+      Delivered: ${deliveredItems.map(it => ITEM_EMOJIS[it] || ITEM_EMOJIS.default).join(' ')}
     </div>`;
-  }).join('');
-  // Render bots with task type and target info
+  }
+
+  let ordersHtml = '';
+  if (activeOrders.length > 0) {
+    ordersHtml += `<div class="order-group-label">Active</div>`;
+    ordersHtml += activeOrders.map(o => renderOrderCard(o, 'active')).join('');
+  }
+  if (upcomingOrders.length > 0) {
+    ordersHtml += `<div class="order-group-label">Upcoming</div>`;
+    ordersHtml += upcomingOrders.map(o => renderOrderCard(o, 'upcoming')).join('');
+  }
+  if (completedOrders.length > 0) {
+    ordersHtml += `<div class="order-group-label">Completed</div>`;
+    ordersHtml += completedOrders.map(o => renderOrderCard(o, 'completed')).join('');
+  }
+  elements.ordersView.innerHTML = ordersHtml;
+  // Render bots with task type, target, and order assignment
   elements.botsView.innerHTML = bots.map((bot) => {
     const detail = botDetailsMap[bot.id] || {};
     const taskType = detail.taskType || 'none';
     const color = TASK_COLORS[taskType] || TASK_COLORS.none;
     const targetStr = detail.target ? `[${detail.target.join(',')}]` : '-';
     const stallStr = detail.stallCount > 0 ? ` stall:${detail.stallCount}` : '';
+    const orderStr = detail.orderId != null ? ` ord:${detail.orderId}` : '';
     return `<div style="border-left:6px solid ${color};margin-bottom:2px;padding-left:4px;">
       <b>B${bot.id}</b> @ [${bot.position.join(',')}]<br>
-      Inv: ${bot.inventory.map((it) => (ITEM_EMOJIS[it.type] || ITEM_EMOJIS.default)).join(' ')}<br>
-      Task: <span style="color:${color};font-weight:bold">${taskType}</span> → ${targetStr}${stallStr}
+      Inv: ${bot.inventory.map((it) => (ITEM_EMOJIS[it.type || it] || ITEM_EMOJIS.default)).join(' ')}<br>
+      Task: <span style="color:${color};font-weight:bold">${taskType}</span> → ${targetStr}${stallStr}${orderStr}
     </div>`;
   }).join('');
 }
@@ -452,6 +512,15 @@ for (const button of elements.jumpButtons) {
     }
   });
 }
+
+elements.zoneToggle.addEventListener('change', (e) => {
+  state.showZones = e.target.checked;
+  renderTick();
+});
+elements.roadsToggle.addEventListener('change', (e) => {
+  state.showRoads = e.target.checked;
+  renderTick();
+});
 
 loadRuns().catch((error) => {
   elements.runHeader.textContent = `Failed to load runs: ${error.message}`;

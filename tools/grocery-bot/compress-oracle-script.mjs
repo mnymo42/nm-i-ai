@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { compressOracleReplayScript } from './src/oracle-script-compressor.mjs';
+import { compressOracleReplayScript } from './src/oracle/oracle-script-compressor.mjs';
 
 function parseArgs(argv) {
   const args = {

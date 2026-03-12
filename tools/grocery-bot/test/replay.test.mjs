@@ -9,7 +9,7 @@ import {
   benchmarkReplayCorpus,
   generateAnalysis,
   summarizeReplay,
-} from '../src/replay.mjs';
+} from '../src/replay/replay.mjs';
 
 test('ReplayLogger writes JSONL and summarizeReplay returns key metrics', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'grocery-bot-test-'));

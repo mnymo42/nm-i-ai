@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { generateOracleScript } from '../src/oracle-script-optimizer.mjs';
+import { generateOracleScript } from '../src/oracle/oracle-script-optimizer.mjs';
 
 function buildFixtureOracle() {
   return {

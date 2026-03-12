@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ReplayLogger } from '../src/replay.mjs';
-import { estimateMaxScoreFromReplay } from '../src/max-score-estimator.mjs';
+import { ReplayLogger } from '../src/replay/replay.mjs';
+import { estimateMaxScoreFromReplay } from '../src/utils/max-score-estimator.mjs';
 
 function tickState({ round, score, orders }) {
   return {

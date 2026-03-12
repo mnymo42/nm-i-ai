@@ -1,12 +1,12 @@
-import { encodeCoord, manhattanDistance } from './coords.mjs';
+import { encodeCoord, manhattanDistance } from '../utils/coords.mjs';
 import {
   estimateDistanceToNearestDropOff,
   getDropOffs,
   isAtAnyDropOff,
   nearestDropOff,
   primaryDropOff,
-} from './drop-zones.mjs';
-import { findTimeAwarePath } from './routing.mjs';
+} from '../utils/drop-zones.mjs';
+import { findTimeAwarePath } from '../routing/routing.mjs';
 
 export function cloneDemand(map) {
   return new Map(Array.from(map.entries()));

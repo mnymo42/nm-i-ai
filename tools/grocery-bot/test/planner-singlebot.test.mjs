@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GroceryPlanner } from '../src/planner.mjs';
-import { defaultProfiles } from '../src/profile.mjs';
+import { GroceryPlanner } from '../src/planner/planner.mjs';
+import { defaultProfiles } from '../src/utils/profile.mjs';
 
 function baseState(overrides = {}) {
   return {

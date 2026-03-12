@@ -1,6 +1,6 @@
-import { solveMinCostAssignment } from './assignment.mjs';
-import { encodeCoord, adjacentManhattan } from './coords.mjs';
-import { reservePath } from './routing.mjs';
+import { solveMinCostAssignment } from '../routing/assignment.mjs';
+import { encodeCoord, adjacentManhattan } from '../utils/coords.mjs';
+import { reservePath } from '../routing/routing.mjs';
 import { getNeededTypes, pickNearestRelevantItem, nearestDropOff, hasDeliverableInventory } from './planner-utils.mjs';
 import {
   buildTasks,
@@ -156,6 +156,7 @@ export function executeMissionStrategy({
       path: resolved.nextPath || [],
       taskType: resolved.targetType || (mission?.missionType ?? 'none'),
       stallCount: planner.stalls.get(stallKey) || 0,
+      orderId: mission?.orderId ?? null,
     });
   }
 
@@ -173,6 +174,7 @@ export function executeMissionStrategy({
     projectedCompletionFeasible: null,
     ...missionPlan.metrics,
     botDetails: Object.fromEntries(planner._botDetails),
+    zoneAssignment: planner.zoneAssignmentByBot ? { ...planner.zoneAssignmentByBot } : null,
   };
 
   return actions;
@@ -306,6 +308,7 @@ export function executeWarehouseStrategy({
       path: resolved.nextPath || [],
       taskType: resolved.targetType || (mission?.missionType ?? 'none'),
       stallCount: planner.stalls.get(stallKey) || 0,
+      orderId: mission?.orderId ?? null,
     });
   }
 
@@ -325,6 +328,7 @@ export function executeWarehouseStrategy({
       : null,
     ...warehousePlan.metrics,
     botDetails: Object.fromEntries(planner._botDetails),
+    zoneAssignment: planner.zoneAssignmentByBot ? { ...planner.zoneAssignmentByBot } : null,
   };
 
   return actions;
@@ -356,6 +360,7 @@ export function executeAssignedTaskStrategy({
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
   const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
+  const activeOrderId = state.orders?.find((o) => o.status === 'active' && !o.complete)?.id ?? null;
   const actions = [];
   let forcedWaits = 0;
 
@@ -475,6 +480,7 @@ export function executeAssignedTaskStrategy({
       path: resolved.nextPath || [],
       taskType: resolved.targetType || (task?.kind ?? 'none'),
       stallCount: planner.stalls.get(stallKey) || 0,
+      orderId: task?.kind === 'drop_off' ? activeOrderId : null,
     });
   }
 
@@ -491,6 +497,7 @@ export function executeAssignedTaskStrategy({
     orderEtaAtDecision: null,
     projectedCompletionFeasible: null,
     botDetails: Object.fromEntries(planner._botDetails),
+    zoneAssignment: planner.zoneAssignmentByBot ? { ...planner.zoneAssignmentByBot } : null,
   };
 
   return actions;

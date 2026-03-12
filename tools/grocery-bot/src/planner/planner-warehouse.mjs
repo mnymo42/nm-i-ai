@@ -1,6 +1,11 @@
-import { encodeCoord, manhattanDistance, moveToAction, adjacentManhattan } from './coords.mjs';
-import { findTimeAwarePath } from './routing.mjs';
-import { countInventoryByType } from './world-model.mjs';
+/**
+ * Warehouse-control multi-bot strategy (experimental, behind flag).
+ * Zone-based mission assignment with queue service bays.
+ * Not promoted to live until it beats assignment_v1 baselines.
+ */
+import { encodeCoord, manhattanDistance, moveToAction, adjacentManhattan } from '../utils/coords.mjs';
+import { findTimeAwarePath } from '../routing/routing.mjs';
+import { countInventoryByType } from '../utils/world-model.mjs';
 import {
   cloneDemand,
   countDeliverableInventory,

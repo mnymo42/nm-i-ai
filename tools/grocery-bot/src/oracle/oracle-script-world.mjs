@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 
-import { encodeCoord, manhattanDistance } from './coords.mjs';
-import { GridGraph } from './grid-graph.mjs';
-import { findTimeAwarePath } from './routing.mjs';
-import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
+import { encodeCoord, manhattanDistance } from '../utils/coords.mjs';
+import { GridGraph } from '../utils/grid-graph.mjs';
+import { findTimeAwarePath } from '../routing/routing.mjs';
+import { extractLayout, parseJsonl, rebuildSnapshot } from '../replay/replay-io.mjs';
 
 const DEFAULT_MAX_ROUNDS = 300;
 const DEFAULT_MAX_TRIP_ITEMS = 2;

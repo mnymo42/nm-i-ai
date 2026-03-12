@@ -4,21 +4,21 @@ import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { evaluateOracleScript } from '../src/oracle-script-evaluator.mjs';
+import { evaluateOracleScript } from '../src/oracle/oracle-script-evaluator.mjs';
 import {
   compressOracleReplayScript,
   extractScriptFromReplay,
   findLongestMatchingReplayTick,
-} from '../src/oracle-script-compressor.mjs';
-import { loadOracleFile, loadScriptFile } from '../src/oracle-script-io.mjs';
-import { buildLegacyOracleScript } from '../src/oracle-script-legacy.mjs';
-import { assessScriptPromotion } from '../src/oracle-script-metrics.mjs';
+} from '../src/oracle/oracle-script-compressor.mjs';
+import { loadOracleFile, loadScriptFile } from '../src/oracle/oracle-script-io.mjs';
+import { buildLegacyOracleScript } from '../src/oracle/oracle-script-legacy.mjs';
+import { assessScriptPromotion } from '../src/oracle/oracle-script-metrics.mjs';
 import {
   buildOracleSearchReport,
   compareGeneratedScripts,
   generateBestOracleScript,
   generateOracleScriptCandidates,
-} from '../src/oracle-script-search.mjs';
+} from '../src/oracle/oracle-script-search.mjs';
 import {
   buildReplaySeededAislePartitionOptions,
   buildReplaySeededBucketOptions,
@@ -31,9 +31,9 @@ import {
   buildReplaySeededScoreTargets,
   buildReplaySeededWaveOptions,
   extractReplaySeedSkeleton,
-} from '../src/oracle-script-replay-seed.mjs';
-import { buildOracleScriptWorld, normalizeOracle } from '../src/oracle-script-world.mjs';
-import { buildOrderAssignments, generateOracleScript } from '../src/oracle-script-optimizer.mjs';
+} from '../src/oracle/oracle-script-replay-seed.mjs';
+import { buildOracleScriptWorld, normalizeOracle } from '../src/oracle/oracle-script-world.mjs';
+import { buildOrderAssignments, generateOracleScript } from '../src/oracle/oracle-script-optimizer.mjs';
 
 function buildFixtureOracle() {
   return {

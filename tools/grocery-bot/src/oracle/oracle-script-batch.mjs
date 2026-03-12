@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { buildOpeningAuditReport } from './opening-audit.mjs';
+import { buildOpeningAuditReport } from '../replay/opening-audit.mjs';
 import { extractReplayBaselineMetrics, getScriptMilestoneMetrics } from './oracle-script-metrics.mjs';
 import { compareGeneratedScripts } from './oracle-script-search.mjs';
 

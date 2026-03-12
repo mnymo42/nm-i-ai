@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ReplayLogger } from '../src/replay.mjs';
-import { listReplayRuns, loadReplayRun } from '../src/replay-viewer.mjs';
+import { ReplayLogger } from '../src/replay/replay.mjs';
+import { listReplayRuns, loadReplayRun } from '../src/replay/replay-viewer.mjs';
 import { handleReplayViewerRequest } from '../viewer/server.mjs';
 
 function writeRun(outDir, runId, { difficulty, profile, dropOffs = [[1, 3]] }) {

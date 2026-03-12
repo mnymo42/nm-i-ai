@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { buildOpeningAuditReport } from './opening-audit.mjs';
-import { loadOracleFile, loadScriptFile } from './oracle-script-io.mjs';
-import { generateAnalysis, summarizeReplay } from './replay.mjs';
-import { listReplayRuns } from './replay-viewer.mjs';
+import { buildOpeningAuditReport } from '../replay/opening-audit.mjs';
+import { loadOracleFile, loadScriptFile } from '../oracle/oracle-script-io.mjs';
+import { generateAnalysis, summarizeReplay } from '../replay/replay.mjs';
+import { listReplayRuns } from '../replay/replay-viewer.mjs';
 
 function safeReadJson(filePath) {
   if (!filePath || !fs.existsSync(filePath)) {

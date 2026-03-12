@@ -4,12 +4,12 @@ import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ReplayLogger } from '../src/replay.mjs';
+import { ReplayLogger } from '../src/replay/replay.mjs';
 import {
   buildReplayAnalysisReport,
   buildRunListing,
   buildScriptInfoReport,
-} from '../src/workflow-tools.mjs';
+} from '../src/utils/workflow-tools.mjs';
 
 function writeRun(outDir, runId, { difficulty = 'expert', profile = 'expert' } = {}) {
   const runDir = path.join(outDir, runId);

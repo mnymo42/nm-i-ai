@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GridGraph } from '../src/grid-graph.mjs';
-import { findTimeAwarePath } from '../src/routing.mjs';
+import { GridGraph } from '../src/utils/grid-graph.mjs';
+import { findTimeAwarePath } from '../src/routing/routing.mjs';
 
 test('findTimeAwarePath returns a direct path when no reservations exist', () => {
   const graph = new GridGraph({ width: 4, height: 3, walls: [] });

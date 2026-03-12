@@ -1,8 +1,8 @@
 import { encodeCoord } from './coords.mjs';
 import { getDropOffs, nearestDropOff } from './drop-zones.mjs';
 import { GridGraph } from './grid-graph.mjs';
-import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
-import { findTimeAwarePath } from './routing.mjs';
+import { extractLayout, parseJsonl, rebuildSnapshot } from '../replay/replay-io.mjs';
+import { findTimeAwarePath } from '../routing/routing.mjs';
 
 function typeCounts(items) {
   const counts = new Map();

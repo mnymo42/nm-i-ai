@@ -1,4 +1,4 @@
-import { encodeCoord, manhattanDistance } from './coords.mjs';
+import { encodeCoord, manhattanDistance } from '../utils/coords.mjs';
 
 function reservationHas(map, time, coordKey) {
   const bucket = map.get(time);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path';
 
-import { extractOracleFromReplayCorpus } from './src/oracle-extract.mjs';
+import { extractOracleFromReplayCorpus } from './src/oracle/oracle-extract.mjs';
 
 function parseArgs(argv) {
   const args = {

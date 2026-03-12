@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   buildCheckpointRewriteCandidates,
   extractReplayCheckpoints,
-} from '../src/oracle-script-checkpoints.mjs';
+} from '../src/oracle/oracle-script-checkpoints.mjs';
 
 function buildFixtureOracle() {
   return {

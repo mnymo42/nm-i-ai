@@ -1,5 +1,5 @@
-import { adjacentManhattan, encodeCoord } from './coords.mjs';
-import { sanitizeActionsForStateDetailed } from './game-client-sanitizer.mjs';
+import { adjacentManhattan, encodeCoord } from '../utils/coords.mjs';
+import { sanitizeActionsForStateDetailed } from '../client/game-client-sanitizer.mjs';
 import { buildOracleScriptWorld, normalizeOracle } from './oracle-script-world.mjs';
 
 function buildEmptyActions(botCount) {

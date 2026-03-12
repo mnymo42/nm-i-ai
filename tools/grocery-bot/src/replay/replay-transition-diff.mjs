@@ -1,4 +1,4 @@
-import { buildActionEnvelope } from './protocol.mjs';
+import { buildActionEnvelope } from '../client/protocol.mjs';
 import { parseJsonl } from './replay-io.mjs';
 
 function normalizeCoord(coord) {

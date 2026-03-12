@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { manhattanDistance } from './coords.mjs';
-import { loadOracleFile, loadScriptFile } from './oracle-script-io.mjs';
-import { evaluateOracleScript } from './oracle-script-evaluator.mjs';
+import { manhattanDistance } from '../utils/coords.mjs';
+import { loadOracleFile, loadScriptFile } from '../oracle/oracle-script-io.mjs';
+import { evaluateOracleScript } from '../oracle/oracle-script-evaluator.mjs';
 import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
 
 function loadReplayTicks(replayPath, maxTick = 120) {

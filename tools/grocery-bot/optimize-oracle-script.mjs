@@ -6,7 +6,7 @@ import path from 'node:path';
 import {
   buildOracleSearchReport,
   generateBestOracleScript,
-} from './src/oracle-script-search.mjs';
+} from './src/oracle/oracle-script-search.mjs';
 
 function parseArgs(argv) {
   const args = {

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { GroceryPlanner } from './planner.mjs';
-import { simulateReplayAgainstObserved } from './replay.mjs';
+import { GroceryPlanner } from '../planner/planner.mjs';
+import { simulateReplayAgainstObserved } from '../replay/replay.mjs';
 
 function jitter(value, scale, random) {
   const delta = (random() * 2 - 1) * scale;

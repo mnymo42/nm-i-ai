@@ -2,27 +2,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { parseCliArguments } from './src/cli.mjs';
-import { GroceryGameClient } from './src/game-client.mjs';
-import { estimateMaxScoreFromReplay } from './src/max-score-estimator.mjs';
-import { tuneProfileFromReplay } from './src/optimizer.mjs';
-import { loadOracleFile, loadScriptFile } from './src/oracle-script-io.mjs';
-import { GroceryPlanner } from './src/planner.mjs';
-import { loadProfiles, resolveProfile } from './src/profile.mjs';
-import { buildRunProvenance } from './src/run-provenance.mjs';
+import { parseCliArguments } from './src/utils/cli.mjs';
+import { GroceryGameClient } from './src/client/game-client.mjs';
+import { estimateMaxScoreFromReplay } from './src/utils/max-score-estimator.mjs';
+import { tuneProfileFromReplay } from './src/utils/optimizer.mjs';
+import { loadOracleFile, loadScriptFile } from './src/oracle/oracle-script-io.mjs';
+import { GroceryPlanner } from './src/planner/planner.mjs';
+import { loadProfiles, resolveProfile } from './src/utils/profile.mjs';
+import { buildRunProvenance } from './src/utils/run-provenance.mjs';
 import {
   buildOpeningAuditWorkflowReport,
   buildReplayAnalysisReport,
   buildRunListing,
   buildScriptInfoReport,
-} from './src/workflow-tools.mjs';
+} from './src/utils/workflow-tools.mjs';
 import {
   ReplayLogger,
   summarizeReplay,
   simulateReplayAgainstObserved,
   generateAnalysis,
   benchmarkReplayCorpus,
-} from './src/replay.mjs';
+} from './src/replay/replay.mjs';
 
 function nowStamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');

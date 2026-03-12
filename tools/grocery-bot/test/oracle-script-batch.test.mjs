@@ -5,7 +5,7 @@ import {
   buildBatchReport,
   buildOptimizationJobs,
   compareOptimizationResults,
-} from '../src/oracle-script-batch.mjs';
+} from '../src/oracle/oracle-script-batch.mjs';
 
 test('buildOptimizationJobs cycles objectives across seeds', () => {
   const jobs = buildOptimizationJobs({

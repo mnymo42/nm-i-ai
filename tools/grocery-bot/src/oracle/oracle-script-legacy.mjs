@@ -1,4 +1,4 @@
-import { encodeCoord, manhattanDistance, moveToAction } from './coords.mjs';
+import { encodeCoord, manhattanDistance, moveToAction } from '../utils/coords.mjs';
 import { evaluateOracleScript } from './oracle-script-evaluator.mjs';
 import {
   buildOracleScriptWorld,

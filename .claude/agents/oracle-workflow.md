@@ -11,6 +11,8 @@ tools:
 
 You manage the expert oracle/script pipeline for the NM i AI Grocery Bot.
 
+> **Game docs:** If you need protocol field definitions, fetch via `WebFetch https://mcp-docs.ainm.no/mcp`. No MCP server is loaded.
+
 ## Oracle/Script Files
 
 - Oracle: `tools/grocery-bot/config/oracle-expert.json` — known expert orders/items

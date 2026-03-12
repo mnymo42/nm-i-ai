@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { generateBestOracleScript } from './src/oracle-script-search.mjs';
+import { generateBestOracleScript } from './src/oracle/oracle-script-search.mjs';
 
 function parseArgs(argv) {
   const args = { oracle: null, out: null, replay: null, strategy: 'auto' };

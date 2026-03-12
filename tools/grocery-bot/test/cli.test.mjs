@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { inferDifficultyFromToken, normalizeTokenInput, parseCliArguments } from '../src/cli.mjs';
-import { defaultProfiles } from '../src/profile.mjs';
+import { inferDifficultyFromToken, normalizeTokenInput, parseCliArguments } from '../src/utils/cli.mjs';
+import { defaultProfiles } from '../src/utils/profile.mjs';
 
 const hardToken = 'eyJhbGciOiJIUzI1NiJ9.eyJkaWZmaWN1bHR5IjoiaGFyZCJ9.sig';
 

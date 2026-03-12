@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GroceryGameClient, sanitizeActionsForState } from '../src/game-client.mjs';
+import { GroceryGameClient, sanitizeActionsForState } from '../src/client/game-client.mjs';
 
 function nextPosition(position, action) {
   const [x, y] = position;

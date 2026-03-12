@@ -1,5 +1,5 @@
-import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
-import { manhattanDistance } from './coords.mjs';
+import { extractLayout, parseJsonl, rebuildSnapshot } from '../replay/replay-io.mjs';
+import { manhattanDistance } from '../utils/coords.mjs';
 import fs from 'node:fs';
 
 function lastEntryAtOrBefore(entries, tick, key = 'score', fallback = 0) {

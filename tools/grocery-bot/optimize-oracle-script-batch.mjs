@@ -9,7 +9,7 @@ import {
   buildBatchReport,
   buildOptimizationJobs,
   compareOptimizationResults,
-} from './src/oracle-script-batch.mjs';
+} from './src/oracle/oracle-script-batch.mjs';
 
 function parseArgs(argv) {
   const args = {

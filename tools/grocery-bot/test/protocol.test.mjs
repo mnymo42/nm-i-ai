@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseServerMessage, buildActionEnvelope } from '../src/protocol.mjs';
+import { parseServerMessage, buildActionEnvelope } from '../src/client/protocol.mjs';
 
 test('parseServerMessage accepts game_state and normalizes structure', () => {
   const parsed = parseServerMessage(JSON.stringify({

@@ -1,9 +1,14 @@
-import { encodeCoord, moveToAction, manhattanDistance } from './coords.mjs';
-import { GridGraph } from './grid-graph.mjs';
-import { buildWorldContext } from './world-model.mjs';
+/**
+ * GroceryPlanner: central orchestrator for all difficulty levels.
+ * Routes between script replay, opener phase, and live planning strategies.
+ * Public API: plan(state), getLastMetrics()
+ */
+import { encodeCoord, moveToAction, manhattanDistance } from '../utils/coords.mjs';
+import { GridGraph } from '../utils/grid-graph.mjs';
+import { buildWorldContext } from '../utils/world-model.mjs';
 import { getRoundPhase } from './planner-utils.mjs';
-import { findTimeAwarePath, reservePath } from './routing.mjs';
-import { getDropOffs } from './drop-zones.mjs';
+import { findTimeAwarePath, reservePath } from '../routing/routing.mjs';
+import { getDropOffs } from '../utils/drop-zones.mjs';
 import {
   executeMissionStrategy,
   executeAssignedTaskStrategy,
@@ -18,7 +23,7 @@ import {
   addAdaptiveCooldown,
   updateApproachStats,
 } from './planner-singlebot.mjs';
-import { buildComparableReplayState, diffComparableReplayValues } from './replay-transition-diff.mjs';
+import { buildComparableReplayState, diffComparableReplayValues } from '../replay/replay-transition-diff.mjs';
 
 export class GroceryPlanner {
   constructor(profile, options = {}) {

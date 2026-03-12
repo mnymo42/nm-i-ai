@@ -6,11 +6,11 @@ import {
   buildTasks,
   estimateZonePenalty,
   chooseParkingAction,
-} from '../src/planner-multibot.mjs';
-import { buildMediumMissionAssignments } from '../src/planner-missions.mjs';
-import { GridGraph } from '../src/grid-graph.mjs';
-import { defaultProfiles } from '../src/profile.mjs';
-import { buildWorldContext } from '../src/world-model.mjs';
+} from '../src/planner/planner-multibot.mjs';
+import { buildMediumMissionAssignments } from '../src/planner/planner-missions.mjs';
+import { GridGraph } from '../src/utils/grid-graph.mjs';
+import { defaultProfiles } from '../src/utils/profile.mjs';
+import { buildWorldContext } from '../src/utils/world-model.mjs';
 
 function baseState(overrides = {}) {
   return {

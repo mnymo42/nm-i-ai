@@ -1,5 +1,5 @@
 import { compressOracleReplayScript } from './oracle-script-compressor.mjs';
-import { extractLayout, parseJsonl, rebuildSnapshot } from './replay-io.mjs';
+import { extractLayout, parseJsonl, rebuildSnapshot } from '../replay/replay-io.mjs';
 
 function buildTickRows(replayPath) {
   const rows = parseJsonl(replayPath);

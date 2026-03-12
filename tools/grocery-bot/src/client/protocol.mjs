@@ -1,4 +1,4 @@
-import { normalizeDropOffs } from './drop-zones.mjs';
+import { normalizeDropOffs } from '../utils/drop-zones.mjs';
 
 const ACTIONS = new Set([
   'move_up',

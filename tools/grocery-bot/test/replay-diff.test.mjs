@@ -8,7 +8,7 @@ import {
   buildComparableReplayState,
   compareReplayTransitionAtTick,
   findFirstReplayTransitionMismatch,
-} from '../src/replay-transition-diff.mjs';
+} from '../src/replay/replay-transition-diff.mjs';
 
 function writeReplay(rows) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'replay-diff-'));

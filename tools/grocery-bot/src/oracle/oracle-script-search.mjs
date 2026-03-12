@@ -1,3 +1,7 @@
+/**
+ * Oracle script search: batch generation, optimization, and promotion pipeline.
+ * Coordinates replay-seeded generation, compression, and scoring.
+ */
 import { buildCheckpointRewriteCandidates } from './oracle-script-checkpoints.mjs';
 import { compressOracleReplayScript } from './oracle-script-compressor.mjs';
 import { buildLegacyOracleScript } from './oracle-script-legacy.mjs';

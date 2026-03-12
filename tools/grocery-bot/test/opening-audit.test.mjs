@@ -4,8 +4,8 @@ import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildOpeningAuditReport } from '../src/opening-audit.mjs';
-import { buildOpeningAuditWorkflowReport } from '../src/workflow-tools.mjs';
+import { buildOpeningAuditReport } from '../src/replay/opening-audit.mjs';
+import { buildOpeningAuditWorkflowReport } from '../src/utils/workflow-tools.mjs';
 
 function writeAuditFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opening-audit-'));
