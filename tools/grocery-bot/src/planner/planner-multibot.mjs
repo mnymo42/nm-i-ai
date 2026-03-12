@@ -325,35 +325,30 @@ export function chooseFallbackAction(
 }
 
 function computeParkingSlots(graph, gridWidth, gridHeight, items) {
+  const trafficLaneCells = graph.trafficLaneCells || new Set();
   const itemCols = [...new Set(items.map((item) => item.position[0]))].sort((a, b) => a - b);
-
-  const corridorRows = [];
-  for (let y = 1; y < gridHeight - 1; y += 1) {
-    let open = 0;
-    for (let x = 1; x < gridWidth - 1; x += 1) {
-      if (graph.isWalkable([x, y])) open += 1;
-    }
-    if (open >= gridWidth - 4) corridorRows.push(y);
-  }
-
-  const parkRow = corridorRows.length >= 2
-    ? corridorRows[corridorRows.length - 2]
-    : corridorRows.length > 0
-      ? corridorRows[corridorRows.length - 1]
-      : gridHeight - 2;
-
   const slots = [];
   for (const col of itemCols) {
-    if (graph.isWalkable([col, parkRow])) {
-      slots.push([col, parkRow]);
-    } else if (graph.isWalkable([col + 1, parkRow])) {
-      slots.push([col + 1, parkRow]);
-    } else if (graph.isWalkable([col - 1, parkRow])) {
-      slots.push([col - 1, parkRow]);
+    for (let y = 1; y < gridHeight - 1; y += 1) {
+      const candidates = [
+        [col, y],
+        [col + 1, y],
+        [col - 1, y],
+      ];
+      for (const candidate of candidates) {
+        const key = encodeCoord(candidate);
+        if (!graph.isWalkable(candidate) || trafficLaneCells.has(key)) continue;
+        const laneAdjacency = graph.neighbors(candidate)
+          .some((neighbor) => trafficLaneCells.has(encodeCoord(neighbor)));
+        if (!laneAdjacency) continue;
+        slots.push(candidate);
+        y = gridHeight;
+        break;
+      }
     }
   }
 
-  return slots;
+  return [...new Map(slots.map((slot) => [encodeCoord(slot), slot])).values()];
 }
 
 export function chooseParkingAction({
@@ -374,6 +369,11 @@ export function chooseParkingAction({
   }
 
   const slots = computeParkingSlots(graph, gridWidth || 28, gridHeight || 18, items || []);
+  const queueCells = new Set(
+    otherBots
+      .filter((other) => manhattanDistance(other.position, dropOff) <= 1)
+      .map((other) => encodeCoord(other.position)),
+  );
 
   let targetSlot = null;
   if (slots.length > 0) {
@@ -392,6 +392,7 @@ export function chooseParkingAction({
     let bestDist = Infinity;
     for (let i = 0; i < slots.length; i += 1) {
       if (otherBotSlots.has(i)) continue;
+      if (queueCells.has(encodeCoord(slots[i]))) continue;
       const d = manhattanDistance(bot.position, slots[i]);
       if (d < bestDist) { bestDist = d; targetSlot = slots[i]; }
     }
@@ -399,6 +400,7 @@ export function chooseParkingAction({
     if (!targetSlot) {
       let fallbackBest = Infinity;
       for (const slot of slots) {
+        if (queueCells.has(encodeCoord(slot))) continue;
         const d = manhattanDistance(bot.position, slot);
         if (d < fallbackBest) { fallbackBest = d; targetSlot = slot; }
       }

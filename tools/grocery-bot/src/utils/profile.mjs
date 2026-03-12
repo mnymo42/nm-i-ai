@@ -158,6 +158,12 @@ export const defaultProfiles = {
     },
   },
   expert: {
+    teams: {
+      prefetch_enable_remaining_threshold: 2,
+      prefetch_require_active_coverage: true,
+      wave_order_count: 3,
+      prefetch_lookahead_ticks: 80,
+    },
     opener: {
       enabled: true,
       max_ticks: 12,
@@ -174,6 +180,7 @@ export const defaultProfiles = {
     routing: {
       horizon: 45,
       hold_goal_steps: 6,
+      use_lane_map_v2: true,
     },
     anti_deadlock: {
       stall_threshold: 2,

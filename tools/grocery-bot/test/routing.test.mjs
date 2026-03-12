@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GridGraph } from '../src/utils/grid-graph.mjs';
+import { GridGraph, buildLaneMapV2 } from '../src/utils/grid-graph.mjs';
 import { findTimeAwarePath } from '../src/routing/routing.mjs';
 
 test('findTimeAwarePath returns a direct path when no reservations exist', () => {
@@ -63,4 +63,18 @@ test('findTimeAwarePath does not step into a currently occupied next-step cell',
   assert.equal(path[path.length - 1][0], 2);
   assert.equal(path[path.length - 1][1], 1);
   assert.notDeepEqual(path[1], [1, 1]);
+});
+
+test('buildLaneMapV2 marks center lane and shelf aisles as one-way traffic', () => {
+  const walls = [];
+  for (let y = 1; y <= 6; y += 1) {
+    walls.push([2, y], [6, y]);
+  }
+  const graph = new GridGraph({ width: 10, height: 8, walls });
+  const laneMap = buildLaneMapV2(graph, [[1, 6]]);
+
+  assert.deepEqual(laneMap.oneWayRoads['7,4'], ['left']);
+  assert.deepEqual(laneMap.oneWayRoads['3,3'], ['down']);
+  assert.equal(laneMap.trafficLaneCells.has('7,4'), true);
+  assert.equal(laneMap.trafficLaneCells.has('3,3'), true);
 });

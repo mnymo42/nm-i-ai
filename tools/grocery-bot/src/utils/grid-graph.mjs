@@ -58,6 +58,98 @@ export class GridGraph {
   }
 }
 
+function findShelfColumns(graph) {
+  const shelfXs = [];
+  const shelfBandTop = Math.max(1, Math.floor(graph.height * 0.15));
+  const shelfBandBottom = Math.min(graph.height - 2, graph.height - 4);
+  for (let x = 0; x < graph.width; x += 1) {
+    let wallCount = 0;
+    for (let y = shelfBandTop; y <= shelfBandBottom; y += 1) {
+      if (graph.isWall([x, y])) wallCount += 1;
+    }
+    if (wallCount >= Math.max(3, shelfBandBottom - shelfBandTop - 1)) {
+      shelfXs.push(x);
+    }
+  }
+  return shelfXs;
+}
+
+export function buildLaneMapV2(graph, dropOffs = []) {
+  const oneWayRoads = {};
+  const directionalPreference = new Map();
+  const trafficLaneCells = new Set();
+  const dropSideX = dropOffs.length > 0
+    ? Math.round(dropOffs.reduce((sum, coord) => sum + coord[0], 0) / dropOffs.length)
+    : 0;
+  const centerRow = Math.floor(graph.height / 2);
+  const shelfXs = findShelfColumns(graph);
+
+  for (let x = 1; x < graph.width - 1; x += 1) {
+    const top = [x, 1];
+    const bottom = [x, graph.height - 2];
+    if (graph.isWalkable(top)) {
+      oneWayRoads[encodeCoord(top)] = ['right'];
+      directionalPreference.set(encodeCoord(top), 'right');
+      trafficLaneCells.add(encodeCoord(top));
+    }
+    if (graph.isWalkable(bottom)) {
+      oneWayRoads[encodeCoord(bottom)] = ['left'];
+      directionalPreference.set(encodeCoord(bottom), 'left');
+      trafficLaneCells.add(encodeCoord(bottom));
+    }
+  }
+
+  for (let y = 1; y < graph.height - 1; y += 1) {
+    const left = [1, y];
+    const right = [graph.width - 2, y];
+    if (graph.isWalkable(left)) {
+      oneWayRoads[encodeCoord(left)] = ['down'];
+      directionalPreference.set(encodeCoord(left), 'down');
+      trafficLaneCells.add(encodeCoord(left));
+    }
+    if (graph.isWalkable(right)) {
+      oneWayRoads[encodeCoord(right)] = ['up'];
+      directionalPreference.set(encodeCoord(right), 'up');
+      trafficLaneCells.add(encodeCoord(right));
+    }
+  }
+
+  for (let x = 1; x < graph.width - 1; x += 1) {
+    const coord = [x, centerRow];
+    if (!graph.isWalkable(coord)) continue;
+    const dir = x <= dropSideX ? 'left' : 'left';
+    oneWayRoads[encodeCoord(coord)] = [dir];
+    directionalPreference.set(encodeCoord(coord), dir);
+    trafficLaneCells.add(encodeCoord(coord));
+  }
+
+  for (let i = 0; i < shelfXs.length - 1; i += 1) {
+    const leftWall = shelfXs[i];
+    const rightWall = shelfXs[i + 1];
+    const aisleCols = [];
+    for (let x = leftWall + 1; x < rightWall; x += 1) {
+      if (graph.isWalkable([x, centerRow])) aisleCols.push(x);
+    }
+    if (aisleCols.length === 0) continue;
+    for (const x of aisleCols) {
+      for (let y = 1; y < graph.height - 1; y += 1) {
+        const coord = [x, y];
+        if (!graph.isWalkable(coord)) continue;
+        oneWayRoads[encodeCoord(coord)] = ['down'];
+        directionalPreference.set(encodeCoord(coord), 'down');
+        trafficLaneCells.add(encodeCoord(coord));
+      }
+    }
+  }
+
+  return {
+    oneWayRoads,
+    directionalPreference,
+    trafficLaneCells,
+    centerRow,
+  };
+}
+
 /**
  * Build a directional-preference map for corridor traffic flow.
  * Returns Map<coordKey, preferredDirection> where preferredDirection is 'up'|'down'|'left'|'right'.
@@ -76,15 +168,7 @@ export function buildDirectionalPreference(graph) {
   const { width, height } = graph;
 
   // Identify shelf wall x-positions by scanning for wall columns
-  const shelfXs = [];
-  for (let x = 0; x < width; x++) {
-    // Check if this column has walls in the shelf region (y=2..8)
-    let wallCount = 0;
-    for (let y = 2; y <= 8; y++) {
-      if (graph.isWall([x, y])) wallCount++;
-    }
-    if (wallCount >= 5) shelfXs.push(x);
-  }
+  const shelfXs = findShelfColumns(graph);
 
   // For each pair of adjacent shelf walls, the columns between them form an aisle
   // Assign left-half columns DOWN, right-half columns UP

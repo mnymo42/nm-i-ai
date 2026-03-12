@@ -4,7 +4,7 @@
  * Public API: plan(state), getLastMetrics()
  */
 import { encodeCoord, moveToAction, manhattanDistance } from '../utils/coords.mjs';
-import { GridGraph, buildDirectionalPreference } from '../utils/grid-graph.mjs';
+import { GridGraph, buildDirectionalPreference, buildLaneMapV2 } from '../utils/grid-graph.mjs';
 import { buildWorldContext } from '../utils/world-model.mjs';
 import { getRoundPhase } from './planner-utils.mjs';
 import { findTimeAwarePath, reservePath } from '../routing/routing.mjs';
@@ -399,16 +399,24 @@ export class GroceryPlanner {
     this.lastActiveOrderId = activeOrderId;
 
     const shelfWalls = state.items.map((item) => item.position);
+    const baseGrid = new GridGraph(state.grid);
+    const lanePolicy = this.profile.routing?.use_lane_map_v2
+      ? buildLaneMapV2(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
+      : null;
     const graph = new GridGraph({
       ...state.grid,
       walls: [...state.grid.walls, ...shelfWalls],
+      oneWayRoads: lanePolicy?.oneWayRoads || null,
     });
+    graph.trafficLaneCells = lanePolicy?.trafficLaneCells || new Set();
 
     // Attach directional preference + congestion settings for A* routing
-    if (!this._dirPrefCache) {
+    if (!this._dirPrefCache || this._dirPrefCacheMode !== (this.profile.routing?.use_lane_map_v2 ? 'lane_v2' : 'default')) {
       // Build once from base grid (without shelf walls) and cache
-      const baseGraph = new GridGraph(state.grid);
-      this._dirPrefCache = buildDirectionalPreference(baseGraph);
+      this._dirPrefCache = this.profile.routing?.use_lane_map_v2
+        ? lanePolicy.directionalPreference
+        : buildDirectionalPreference(baseGrid);
+      this._dirPrefCacheMode = this.profile.routing?.use_lane_map_v2 ? 'lane_v2' : 'default';
     }
     graph.directionalPreference = this._dirPrefCache;
     graph.directionPenalty = this.profile.routing?.direction_penalty || 0;
@@ -611,7 +619,19 @@ export class GroceryPlanner {
   }
 }
 
-function computeOpenerTargets(state, graph, dropOff) {
+function compactOpenerColumns(baseColumns, count) {
+  if (baseColumns.length === 0 || count <= 0) return [];
+  const sorted = [...baseColumns].sort((a, b) => a - b);
+  const maxColumn = sorted[sorted.length - 1];
+  const minColumn = sorted[0];
+  const compact = [];
+  for (let column = maxColumn; column >= minColumn && compact.length < count; column -= 1) {
+    compact.push(column);
+  }
+  return compact.sort((a, b) => a - b);
+}
+
+export function computeOpenerTargets(state, graph, dropOff) {
   // Build item-aware graph (items block movement)
   const itemWalls = state.items.map(i => i.position);
   const aisleGraph = new GridGraph({
@@ -652,9 +672,13 @@ function computeOpenerTargets(state, graph, dropOff) {
   const bottomCorridors = corridorRows.filter(y => y < dropRow);
   const botCorridor = bottomCorridors[bottomCorridors.length - 1] || dropRow - 1;
   const midCorridor = bottomCorridors.length >= 2 ? bottomCorridors[bottomCorridors.length - 2] : null;
-  let targets = aisleColumns.map(x => [x, botCorridor]);
+  const bottomCount = Math.min(aisleColumns.length, state.bots.length);
+  const bottomColumns = compactOpenerColumns(aisleColumns, bottomCount);
+  let targets = bottomColumns.map((x) => [x, botCorridor]);
   if (midCorridor && targets.length < state.bots.length) {
-    for (const x of aisleColumns) {
+    const remaining = state.bots.length - targets.length;
+    const midColumns = compactOpenerColumns(aisleColumns, remaining);
+    for (const x of midColumns) {
       if (targets.length >= state.bots.length) break;
       targets.push([x, midCorridor]);
     }

@@ -30,6 +30,14 @@ import {
   chooseParkingAction,
 } from './planner-multibot.mjs';
 
+function countRemainingDemand(demand) {
+  return Array.from(demand.values()).reduce((sum, count) => sum + Math.max(0, count), 0);
+}
+
+function cloneCounts(map) {
+  return new Map(Array.from(map.entries()).map(([key, value]) => [key, value]));
+}
+
 // ─── Team data structure ────────────────────────────────────────────
 
 /**
@@ -68,6 +76,145 @@ function orderItemClusterCenter(order, items) {
   const sumX = matching.reduce((s, it) => s + it.position[0], 0);
   const sumY = matching.reduce((s, it) => s + it.position[1], 0);
   return [Math.round(sumX / matching.length), Math.round(sumY / matching.length)];
+}
+
+export function analyzeActiveDemandCoverage({ state, world, threshold = 2, requireCoverage = true }) {
+  const inventoryCounts = countInventoryByType(state.bots);
+  const uncoveredDemand = cloneCounts(world.activeDemand);
+  const coveredDemand = new Map();
+
+  for (const [type, demand] of world.activeDemand.entries()) {
+    const held = inventoryCounts.get(type) || 0;
+    const covered = Math.min(demand, held);
+    coveredDemand.set(type, covered);
+    uncoveredDemand.set(type, Math.max(0, demand - covered));
+  }
+
+  const remainingItems = countRemainingDemand(uncoveredDemand);
+  const activeCoverageSatisfied = Array.from(uncoveredDemand.values()).every((count) => count <= 0);
+  const prefetchBlockedByActiveDemand = requireCoverage
+    ? (!activeCoverageSatisfied && remainingItems > threshold)
+    : remainingItems > threshold;
+
+  return {
+    activeCoverageSatisfied,
+    prefetchBlockedByActiveDemand,
+    remainingItems,
+    uncoveredDemand,
+    coveredDemand,
+  };
+}
+
+function mergeDemandCounts(target, demand) {
+  for (const [type, count] of demand.entries()) {
+    target.set(type, (target.get(type) || 0) + count);
+  }
+}
+
+export function buildPrefetchWavePlan({
+  state,
+  world,
+  oracle,
+  lookahead,
+  orderCount = 3,
+  prefetchBlockedByActiveDemand = true,
+}) {
+  const upcomingOrders = getUpcomingOracleOrders(
+    oracle,
+    state.round,
+    world.activeOrder?.id,
+    world.previewOrder?.id,
+    lookahead,
+  );
+  const waveOrders = [];
+  if (world.activeOrder) waveOrders.push(world.activeOrder);
+  if (world.previewOrder && waveOrders.length < orderCount) waveOrders.push(world.previewOrder);
+  for (const order of upcomingOrders) {
+    if (waveOrders.length >= orderCount) break;
+    if (waveOrders.some((existing) => existing.id === order.id)) continue;
+    waveOrders.push(order);
+  }
+
+  const waveDemand = new Map();
+  for (const order of waveOrders.slice(1)) {
+    mergeDemandCounts(waveDemand, buildDemand(order));
+  }
+
+  const inventoryCounts = countInventoryByType(state.bots);
+  const reservedFutureCounts = new Map();
+  for (const [type, count] of waveDemand.entries()) {
+    const remaining = Math.max(0, count - (inventoryCounts.get(type) || 0));
+    if (remaining > 0) reservedFutureCounts.set(type, remaining);
+  }
+
+  return {
+    waveOrderIds: waveOrders.map((order) => order.id),
+    waveOrders,
+    reservedFutureCounts,
+    wavePickupEnabled: !prefetchBlockedByActiveDemand && reservedFutureCounts.size > 0,
+  };
+}
+
+function claimFutureWaveItem({
+  bot,
+  state,
+  graph,
+  reservations,
+  edgeReservations,
+  profile,
+  reservedItemIds,
+  reservedFutureCounts,
+  activeDemand,
+}) {
+  const futureTypes = new Set(
+    Array.from(reservedFutureCounts.entries())
+      .filter(([, count]) => count > 0)
+      .map(([type]) => type),
+  );
+  if (futureTypes.size === 0) return null;
+
+  const activeTypes = new Set(
+    Array.from(activeDemand.entries()).filter(([, count]) => count > 0).map(([type]) => type),
+  );
+  const candidates = state.items.filter((item) =>
+    futureTypes.has(item.type)
+    && !activeTypes.has(item.type)
+    && !reservedItemIds.has(item.id),
+  );
+  if (candidates.length === 0) return null;
+
+  for (const item of candidates) {
+    if (!adjacentManhattan(bot.position, item.position)) continue;
+    reservedItemIds.add(item.id);
+    reservedFutureCounts.set(item.type, Math.max(0, (reservedFutureCounts.get(item.type) || 0) - 1));
+    return { action: 'pick_up', itemId: item.id, nextPath: [bot.position], targetType: 'prefetch_item', noPath: false };
+  }
+
+  let bestTarget = null;
+  let bestDistance = Infinity;
+  for (const item of candidates) {
+    const distance = manhattanDistance(bot.position, item.position);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestTarget = item;
+    }
+  }
+  if (!bestTarget) return null;
+
+  reservedItemIds.add(bestTarget.id);
+  reservedFutureCounts.set(bestTarget.type, Math.max(0, (reservedFutureCounts.get(bestTarget.type) || 0) - 1));
+  const target = closestAdjacentCell(
+    graph,
+    bot.position,
+    bestTarget.position,
+    reservations,
+    edgeReservations,
+    profile.routing.horizon,
+  );
+  if (target?.path?.length >= 2) {
+    return { action: moveToAction(target.path[0], target.path[1]), nextPath: target.path, targetType: 'prefetch_item', noPath: false };
+  }
+  return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_item', noPath: true };
 }
 
 /**
@@ -356,6 +503,7 @@ function resolvePrefetchBotAction({
   profile,
   targetOrder,
   reservedItemIds,
+  prefetchContext,
 }) {
   // FIX #2: Deliver if carrying items for active order (uses original demand)
   const deliveryAction = tryDeliverForActiveOrder({
@@ -379,13 +527,21 @@ function resolvePrefetchBotAction({
     return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_idle', noPath: false };
   }
 
-  // Build demand for the target order
-  const demand = buildDemand(targetOrder);
-  const neededTypes = new Set(
-    Array.from(demand.entries()).filter(([, c]) => c > 0).map(([t]) => t),
-  );
+  if (!prefetchContext.wavePickupEnabled) {
+    const cluster = orderItemClusterCenter(targetOrder, state.items);
+    if (cluster) {
+      const path = findTimeAwarePath({
+        graph, start: bot.position, goal: cluster,
+        reservations, edgeReservations, startTime: 0, horizon: profile.routing.horizon,
+      });
+      if (path && path.length >= 2) {
+        return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'prefetch_position', noPath: false };
+      }
+    }
+    return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_hold', noPath: false };
+  }
 
-  if (neededTypes.size === 0) {
+  if ((prefetchContext.reservedFutureCounts?.size || 0) === 0) {
     // Pre-position near the order's item cluster
     const cluster = orderItemClusterCenter(targetOrder, state.items);
     if (cluster) {
@@ -400,47 +556,18 @@ function resolvePrefetchBotAction({
     return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_idle', noPath: false };
   }
 
-  // Try to pick up items for the upcoming order (if no conflict with active demand)
-  const activeTypes = new Set(
-    Array.from(world.activeDemand.entries()).filter(([, c]) => c > 0).map(([t]) => t),
-  );
-
-  const candidates = state.items.filter((item) =>
-    neededTypes.has(item.type)
-    && !activeTypes.has(item.type)
-    && !reservedItemIds.has(item.id),
-  );
-
-  // Check adjacent pickup
-  for (const item of candidates) {
-    if (adjacentManhattan(bot.position, item.position)) {
-      reservedItemIds.add(item.id);
-      return { action: 'pick_up', itemId: item.id, nextPath: [bot.position], targetType: 'prefetch_item', noPath: false };
-    }
-  }
-
-  // Navigate to closest candidate
-  let bestItem = null;
-  let bestDist = Infinity;
-  for (const item of candidates) {
-    const dist = manhattanDistance(bot.position, item.position);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestItem = item;
-    }
-  }
-
-  if (bestItem) {
-    reservedItemIds.add(bestItem.id);
-    const target = closestAdjacentCell(
-      graph, bot.position, bestItem.position,
-      reservations, edgeReservations, profile.routing.horizon,
-    );
-    if (target?.path?.length >= 2) {
-      return { action: moveToAction(target.path[0], target.path[1]), nextPath: target.path, targetType: 'prefetch_item', noPath: false };
-    }
-    return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_item', noPath: true };
-  }
+  const claimedWaveItem = claimFutureWaveItem({
+    bot,
+    state,
+    graph,
+    reservations,
+    edgeReservations,
+    profile,
+    reservedItemIds,
+    reservedFutureCounts: prefetchContext.reservedFutureCounts,
+    activeDemand: world.activeDemand,
+  });
+  if (claimedWaveItem) return claimedWaveItem;
 
   // No candidates — position near cluster
   const cluster = orderItemClusterCenter(targetOrder, state.items);
@@ -526,6 +653,21 @@ export function executeTeamStrategy({
   // FIX #1: shelfDemand is decremented for PICKUP reservations only.
   // Delivery decisions use world.activeDemand (original, immutable).
   const shelfDemand = new Map(world.activeDemand);
+  const teamsConfig = planner.profile.teams || {};
+  const coverage = analyzeActiveDemandCoverage({
+    state,
+    world,
+    threshold: teamsConfig.prefetch_enable_remaining_threshold ?? 2,
+    requireCoverage: teamsConfig.prefetch_require_active_coverage ?? true,
+  });
+  const prefetchContext = buildPrefetchWavePlan({
+    state,
+    world,
+    oracle,
+    lookahead: teamsConfig.prefetch_lookahead_ticks ?? 80,
+    orderCount: teamsConfig.wave_order_count ?? 3,
+    prefetchBlockedByActiveDemand: coverage.prefetchBlockedByActiveDemand,
+  });
 
   // Priority: any bot with deliverables first, then active > prefetch > idle
   const rolePriority = { active: 0, prefetch: 1, idle: 2 };
@@ -595,6 +737,7 @@ export function executeTeamStrategy({
         bot, state, world, graph,
         reservations, edgeReservations, profile: planner.profile,
         targetOrder, reservedItemIds,
+        prefetchContext,
       });
     } else {
       resolved = resolveIdleBotAction({
@@ -681,6 +824,11 @@ export function executeTeamStrategy({
     approachBlacklistSize: Array.from(blockedItemsByBot.values()).reduce((sum, blocked) => sum + blocked.size, 0),
     orderEtaAtDecision: null,
     projectedCompletionFeasible: null,
+    prefetchBlockedByActiveDemand: coverage.prefetchBlockedByActiveDemand,
+    activeCoverageSatisfied: coverage.activeCoverageSatisfied,
+    waveOrderIds: prefetchContext.waveOrderIds,
+    waveReservedCounts: Object.fromEntries(prefetchContext.reservedFutureCounts),
+    wavePickupEnabled: prefetchContext.wavePickupEnabled,
     teams: teamSummary,
     botDetails: Object.fromEntries(planner._botDetails),
     zoneAssignment: planner.zoneAssignmentByBot ? { ...planner.zoneAssignmentByBot } : null,
