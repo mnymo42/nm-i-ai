@@ -4,6 +4,10 @@
  * Active teams pick up + deliver items for the current order.
  * Prefetch teams pre-position near items for upcoming orders.
  * Idle bots spread to parking positions.
+ *
+ * KEY DESIGN: Any bot carrying deliverable items for the active order
+ * will deliver them regardless of team assignment. Delivery decisions
+ * use the full (original) demand, not decremented copies.
  */
 import { encodeCoord, manhattanDistance, moveToAction, adjacentManhattan } from '../utils/coords.mjs';
 import { findTimeAwarePath, reservePath } from '../routing/routing.mjs';
@@ -68,6 +72,7 @@ function orderItemClusterCenter(order, items) {
 
 /**
  * Build or update teams based on current game state.
+ * FIX #3: Preserve ALL existing teams within cooldown, not just active.
  */
 export function buildTeams({
   state,
@@ -101,15 +106,14 @@ export function buildTeams({
   const assignedBots = new Set();
   let nextTeamId = 0;
 
-  // Try to preserve existing active team if still valid
+  // FIX #3: Preserve existing active team if order unchanged and within cooldown
   const existingActiveTeam = existingTeams?.find((t) => t.role === 'active');
   if (
     existingActiveTeam
     && activeOrder
     && existingActiveTeam.orderId === activeOrder.id
-    && (round - existingActiveTeam.assignedAtTick) < reassignCooldown * 5
+    && (round - existingActiveTeam.assignedAtTick) < reassignCooldown * 10
   ) {
-    // Keep existing active team, but filter out any bots that no longer exist
     const validBots = existingActiveTeam.botIds.filter((id) => botById.has(id));
     if (validBots.length > 0) {
       teams.push({
@@ -129,27 +133,22 @@ export function buildTeams({
     const itemsNeeded = sumCounts(activeDemand);
     const teamSize = Math.min(activeMaxBots, Math.max(2, Math.ceil(itemsNeeded * activeBotRatio)));
 
-    // Pick bots closest to the order's item cluster
+    // Prioritize bots carrying deliverable items, then by distance
     const cluster = orderItemClusterCenter(activeOrder, state.items);
     const availableBots = allBotIds
       .filter((id) => !assignedBots.has(id))
-      .map((id) => ({
-        id,
-        dist: cluster ? manhattanDistance(botById.get(id).position, cluster) : id,
-      }))
-      .sort((a, b) => a.dist - b.dist);
+      .sort((aId, bId) => {
+        const aBot = botById.get(aId);
+        const bBot = botById.get(bId);
+        const aDel = hasDeliverableInventory(aBot, activeDemand) ? 0 : 1;
+        const bDel = hasDeliverableInventory(bBot, activeDemand) ? 0 : 1;
+        if (aDel !== bDel) return aDel - bDel;
+        const aDist = cluster ? manhattanDistance(aBot.position, cluster) : aId;
+        const bDist = cluster ? manhattanDistance(bBot.position, cluster) : bId;
+        return aDist - bDist;
+      });
 
-    // Also prioritize bots already carrying deliverable items
-    availableBots.sort((a, b) => {
-      const aBot = botById.get(a.id);
-      const bBot = botById.get(b.id);
-      const aDel = hasDeliverableInventory(aBot, activeDemand) ? 0 : 1;
-      const bDel = hasDeliverableInventory(bBot, activeDemand) ? 0 : 1;
-      if (aDel !== bDel) return aDel - bDel;
-      return a.dist - b.dist;
-    });
-
-    const picked = availableBots.slice(0, teamSize).map((b) => b.id);
+    const picked = availableBots.slice(0, teamSize);
     if (picked.length > 0) {
       teams.push({
         teamId: nextTeamId++,
@@ -162,22 +161,43 @@ export function buildTeams({
     }
   }
 
-  // Build prefetch team for preview order
+  // FIX #3: Preserve existing prefetch team if target unchanged and within cooldown
+  const existingPrefetchTeam = existingTeams?.find((t) => t.role === 'prefetch');
   const prefetchTarget = previewOrder || upcomingOrders[0] || null;
-  if (prefetchTarget) {
+  if (
+    existingPrefetchTeam
+    && prefetchTarget
+    && existingPrefetchTeam.orderId === prefetchTarget.id
+    && (round - existingPrefetchTeam.assignedAtTick) < reassignCooldown * 10
+  ) {
+    const validBots = existingPrefetchTeam.botIds.filter((id) => botById.has(id) && !assignedBots.has(id));
+    if (validBots.length > 0) {
+      teams.push({
+        teamId: nextTeamId++,
+        orderId: prefetchTarget.id,
+        botIds: validBots,
+        role: 'prefetch',
+        assignedAtTick: existingPrefetchTeam.assignedAtTick,
+      });
+      validBots.forEach((id) => assignedBots.add(id));
+    }
+  }
+
+  // Build prefetch team if not preserved
+  if (prefetchTarget && !teams.find((t) => t.role === 'prefetch')) {
     const itemsRequired = (prefetchTarget.items_required || []).length;
     const teamSize = Math.min(previewMaxBots, Math.max(1, Math.ceil(itemsRequired * previewBotRatio)));
 
     const cluster = orderItemClusterCenter(prefetchTarget, state.items);
     const availableBots = allBotIds
       .filter((id) => !assignedBots.has(id))
-      .map((id) => ({
-        id,
-        dist: cluster ? manhattanDistance(botById.get(id).position, cluster) : id,
-      }))
-      .sort((a, b) => a.dist - b.dist);
+      .sort((aId, bId) => {
+        const aDist = cluster ? manhattanDistance(botById.get(aId).position, cluster) : aId;
+        const bDist = cluster ? manhattanDistance(botById.get(bId).position, cluster) : bId;
+        return aDist - bDist;
+      });
 
-    const picked = availableBots.slice(0, teamSize).map((b) => b.id);
+    const picked = availableBots.slice(0, teamSize);
     if (picked.length > 0) {
       teams.push({
         teamId: nextTeamId++,
@@ -205,10 +225,46 @@ export function buildTeams({
   return teams;
 }
 
+// ─── Universal delivery check ───────────────────────────────────────
+
+/**
+ * FIX #1 + #2: Any bot carrying deliverable items for the active order
+ * should deliver, regardless of team. Uses the ORIGINAL demand (not
+ * decremented), so multiple carriers all see they should deliver.
+ */
+function tryDeliverForActiveOrder({ bot, state, world, graph, reservations, edgeReservations, profile }) {
+  // Check against the original demand (not decremented by other bots)
+  if (!hasDeliverableInventory(bot, world.activeDemand)) {
+    return null;
+  }
+
+  if (isAtAnyDropOff(bot.position, state)) {
+    return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off', noPath: false };
+  }
+
+  const dropOff = nearestDropOff(bot.position, state);
+  const path = findTimeAwarePath({
+    graph,
+    start: bot.position,
+    goal: dropOff,
+    reservations,
+    edgeReservations,
+    startTime: 0,
+    horizon: profile.routing.horizon,
+  });
+  if (path && path.length >= 2) {
+    return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'drop_off', noPath: false };
+  }
+  return { action: 'wait', nextPath: [bot.position], targetType: 'drop_off', noPath: true };
+}
+
 // ─── Task resolution per team ───────────────────────────────────────
 
 /**
  * Resolve action for a single bot on the active team.
+ * FIX #1: Uses shelfDemand (decremented) for PICKUP decisions only.
+ * Delivery decisions use the universal tryDeliverForActiveOrder which
+ * checks the original world.activeDemand.
  */
 function resolveActiveBotAction({
   bot,
@@ -219,50 +275,21 @@ function resolveActiveBotAction({
   edgeReservations,
   profile,
   reservedItemIds,
-  activeDemand,
+  shelfDemand,
 }) {
-  // If carrying deliverable items, go drop off
-  if (hasDeliverableInventory(bot, activeDemand)) {
-    const deliverableCount = countDeliverableInventory(bot, activeDemand);
-    const uncovered = sumCounts(activeDemand);
-    const inventoryCount = (bot.inventory || []).length;
-    const dropCommitMin = profile.runtime?.drop_commit_min_deliverable ?? 2;
+  // Deliver if carrying items for active order (uses original demand)
+  const deliveryAction = tryDeliverForActiveOrder({
+    bot, state, world, graph, reservations, edgeReservations, profile,
+  });
+  if (deliveryAction) return deliveryAction;
 
-    const shouldDrop = inventoryCount >= 3
-      || deliverableCount >= dropCommitMin
-      || deliverableCount >= uncovered
-      || uncovered <= dropCommitMin;
-
-    if (shouldDrop) {
-      if (isAtAnyDropOff(bot.position, state)) {
-        return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off', noPath: false };
-      }
-
-      const dropOff = nearestDropOff(bot.position, state);
-      const path = findTimeAwarePath({
-        graph,
-        start: bot.position,
-        goal: dropOff,
-        reservations,
-        edgeReservations,
-        startTime: 0,
-        horizon: profile.routing.horizon,
-      });
-      if (path && path.length >= 2) {
-        return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'drop_off', noPath: false };
-      }
-      return { action: 'wait', nextPath: [bot.position], targetType: 'drop_off', noPath: true };
-    }
-  }
-
-  // Pick up an item for the active order
+  // Pick up an item for the active order (uses shelf demand — decremented)
   if ((bot.inventory || []).length < 3) {
     const neededTypes = new Set(
-      Array.from(activeDemand.entries()).filter(([, c]) => c > 0).map(([t]) => t),
+      Array.from(shelfDemand.entries()).filter(([, c]) => c > 0).map(([t]) => t),
     );
 
     if (neededTypes.size > 0) {
-      // Find best item: closest matching item not reserved by another bot
       const candidates = state.items.filter((item) =>
         neededTypes.has(item.type) && !reservedItemIds.has(item.id),
       );
@@ -271,7 +298,7 @@ function resolveActiveBotAction({
       for (const item of candidates) {
         if (adjacentManhattan(bot.position, item.position)) {
           reservedItemIds.add(item.id);
-          activeDemand.set(item.type, Math.max(0, (activeDemand.get(item.type) || 0) - 1));
+          shelfDemand.set(item.type, Math.max(0, (shelfDemand.get(item.type) || 0) - 1));
           return { action: 'pick_up', itemId: item.id, nextPath: [bot.position], targetType: 'item', noPath: false };
         }
       }
@@ -289,15 +316,11 @@ function resolveActiveBotAction({
 
       if (bestItem) {
         reservedItemIds.add(bestItem.id);
-        activeDemand.set(bestItem.type, Math.max(0, (activeDemand.get(bestItem.type) || 0) - 1));
+        shelfDemand.set(bestItem.type, Math.max(0, (shelfDemand.get(bestItem.type) || 0) - 1));
 
         const target = closestAdjacentCell(
-          graph,
-          bot.position,
-          bestItem.position,
-          reservations,
-          edgeReservations,
-          profile.routing.horizon,
+          graph, bot.position, bestItem.position,
+          reservations, edgeReservations, profile.routing.horizon,
         );
         if (target?.path?.length >= 2) {
           return { action: moveToAction(target.path[0], target.path[1]), nextPath: target.path, targetType: 'item', noPath: false };
@@ -307,25 +330,21 @@ function resolveActiveBotAction({
     }
   }
 
-  // Nothing to do on active team — park near drop-off
+  // Nothing to pick up — park near drop-off (ready for next delivery)
   const dropOff = nearestDropOff(bot.position, state);
   const parking = chooseParkingAction({
-    bot,
-    graph,
-    reservations,
-    edgeReservations,
-    horizon: profile.routing.horizon,
-    dropOff,
-    otherBots: state.bots,
-    items: state.items,
-    gridWidth: state.grid?.width,
-    gridHeight: state.grid?.height,
+    bot, graph, reservations, edgeReservations,
+    horizon: profile.routing.horizon, dropOff,
+    otherBots: state.bots, items: state.items,
+    gridWidth: state.grid?.width, gridHeight: state.grid?.height,
   });
   return { action: parking.action, nextPath: parking.path, targetType: 'parking', noPath: false };
 }
 
 /**
  * Resolve action for a single bot on the prefetch team.
+ * FIX #2: Full-inventory bots with no deliverable items park near
+ * drop-off instead of waiting forever. Bots with deliverables deliver.
  */
 function resolvePrefetchBotAction({
   bot,
@@ -338,20 +357,22 @@ function resolvePrefetchBotAction({
   targetOrder,
   reservedItemIds,
 }) {
-  // If we already have deliverable items for the active order, go drop them first
-  if (hasDeliverableInventory(bot, world.activeDemand)) {
-    if (isAtAnyDropOff(bot.position, state)) {
-      return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off', noPath: false };
-    }
+  // FIX #2: Deliver if carrying items for active order (uses original demand)
+  const deliveryAction = tryDeliverForActiveOrder({
+    bot, state, world, graph, reservations, edgeReservations, profile,
+  });
+  if (deliveryAction) return deliveryAction;
+
+  // FIX #2: Full inventory with nothing deliverable — park near drop-off, don't wait forever
+  if ((bot.inventory || []).length >= 3) {
     const dropOff = nearestDropOff(bot.position, state);
-    const path = findTimeAwarePath({
-      graph, start: bot.position, goal: dropOff,
-      reservations, edgeReservations, startTime: 0, horizon: profile.routing.horizon,
+    const parking = chooseParkingAction({
+      bot, graph, reservations, edgeReservations,
+      horizon: profile.routing.horizon, dropOff,
+      otherBots: state.bots, items: state.items,
+      gridWidth: state.grid?.width, gridHeight: state.grid?.height,
     });
-    if (path && path.length >= 2) {
-      return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'drop_off', noPath: false };
-    }
-    return { action: 'wait', nextPath: [bot.position], targetType: 'drop_off', noPath: true };
+    return { action: parking.action, nextPath: parking.path, targetType: 'prefetch_parking', noPath: false };
   }
 
   if (!targetOrder) {
@@ -364,7 +385,7 @@ function resolvePrefetchBotAction({
     Array.from(demand.entries()).filter(([, c]) => c > 0).map(([t]) => t),
   );
 
-  if (neededTypes.size === 0 || (bot.inventory || []).length >= 3) {
+  if (neededTypes.size === 0) {
     // Pre-position near the order's item cluster
     const cluster = orderItemClusterCenter(targetOrder, state.items);
     if (cluster) {
@@ -384,7 +405,6 @@ function resolvePrefetchBotAction({
     Array.from(world.activeDemand.entries()).filter(([, c]) => c > 0).map(([t]) => t),
   );
 
-  // Filter candidates: needed for prefetch, not conflicting with active demand, not reserved
   const candidates = state.items.filter((item) =>
     neededTypes.has(item.type)
     && !activeTypes.has(item.type)
@@ -439,20 +459,21 @@ function resolvePrefetchBotAction({
 
 /**
  * Resolve action for an idle bot.
+ * FIX #2: Idle bots also deliver if carrying active items.
  */
-function resolveIdleBotAction({ bot, state, graph, reservations, edgeReservations, profile }) {
+function resolveIdleBotAction({ bot, state, world, graph, reservations, edgeReservations, profile }) {
+  // Deliver if carrying items for active order
+  const deliveryAction = tryDeliverForActiveOrder({
+    bot, state, world, graph, reservations, edgeReservations, profile,
+  });
+  if (deliveryAction) return deliveryAction;
+
   const dropOff = nearestDropOff(bot.position, state);
   const parking = chooseParkingAction({
-    bot,
-    graph,
-    reservations,
-    edgeReservations,
-    horizon: profile.routing.horizon,
-    dropOff,
-    otherBots: state.bots,
-    items: state.items,
-    gridWidth: state.grid?.width,
-    gridHeight: state.grid?.height,
+    bot, graph, reservations, edgeReservations,
+    horizon: profile.routing.horizon, dropOff,
+    otherBots: state.bots, items: state.items,
+    gridWidth: state.grid?.width, gridHeight: state.grid?.height,
   });
   return { action: parking.action, nextPath: parking.path, targetType: 'idle_parking', noPath: false };
 }
@@ -502,24 +523,23 @@ export function executeTeamStrategy({
   const edgeReservations = new Map();
   const reservedItemIds = new Set();
 
-  // Working copy of active demand that gets decremented as bots claim items
-  const activeDemand = new Map(world.activeDemand);
+  // FIX #1: shelfDemand is decremented for PICKUP reservations only.
+  // Delivery decisions use world.activeDemand (original, immutable).
+  const shelfDemand = new Map(world.activeDemand);
 
-  // Priority ordering: active droppers > active pickers > prefetch > idle
+  // Priority: any bot with deliverables first, then active > prefetch > idle
   const rolePriority = { active: 0, prefetch: 1, idle: 2 };
   const botsByPriority = [...state.bots].sort((a, b) => {
+    // Any bot with deliverable items gets top priority (regardless of team)
+    const aDel = hasDeliverableInventory(a, world.activeDemand) ? 0 : 1;
+    const bDel = hasDeliverableInventory(b, world.activeDemand) ? 0 : 1;
+    if (aDel !== bDel) return aDel - bDel;
+    // Then by team role
     const aTeam = teamByBot.get(a.id);
     const bTeam = teamByBot.get(b.id);
     const aRole = rolePriority[aTeam?.role] ?? 9;
     const bRole = rolePriority[bTeam?.role] ?? 9;
     if (aRole !== bRole) return aRole - bRole;
-    // Within active team: droppers first
-    if (aTeam?.role === 'active') {
-      const aDel = hasDeliverableInventory(a, world.activeDemand) ? 0 : 1;
-      const bDel = hasDeliverableInventory(b, world.activeDemand) ? 0 : 1;
-      if (aDel !== bDel) return aDel - bDel;
-    }
-    // Then by distance to target
     return a.id - b.id;
   });
 
@@ -563,7 +583,7 @@ export function executeTeamStrategy({
       resolved = resolveActiveBotAction({
         bot, state, world, graph,
         reservations, edgeReservations, profile: planner.profile,
-        reservedItemIds, activeDemand,
+        reservedItemIds, shelfDemand,
       });
     } else if (team?.role === 'prefetch') {
       const targetOrder = previewOrder
@@ -578,7 +598,7 @@ export function executeTeamStrategy({
       });
     } else {
       resolved = resolveIdleBotAction({
-        bot, state, graph,
+        bot, state, world, graph,
         reservations, edgeReservations, profile: planner.profile,
       });
     }

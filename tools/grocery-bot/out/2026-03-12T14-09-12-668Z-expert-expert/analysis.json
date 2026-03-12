@@ -1,0 +1,217 @@
+{
+  "finalScore": 5,
+  "ordersCompleted": 0,
+  "itemsDelivered": 5,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 3
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 2
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 0
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 0
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 0
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 0
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 0
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 0
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 34,
+      "length": 35
+    },
+    {
+      "startTick": 43,
+      "endTick": 52,
+      "length": 10
+    },
+    {
+      "startTick": 53,
+      "endTick": 67,
+      "length": 15
+    },
+    {
+      "startTick": 68,
+      "endTick": 299,
+      "length": 232
+    }
+  ],
+  "failedPickups": {
+    "total": 0,
+    "byItemId": {},
+    "byItemType": {}
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 20,
+      "byReason": {
+        "conflict_stationary_occupant": 20
+      }
+    },
+    "waitActions": 2589,
+    "nonScoringDropoffs": 0
+  },
+  "multiBotCoordination": {
+    "botCount": 10,
+    "totalStalls": 2593,
+    "maxStalledBots": 10,
+    "peakTaskCount": 8,
+    "forcedWaitActions": 30,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "controlModeTimeline": [],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [],
+    "activeCloseEtaTimeline": [],
+    "queueAssignmentsPeak": 0,
+    "serviceBayAssignmentsPeak": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 5,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 6,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 7,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 8,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 9,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "yogurt",
+    "yogurt",
+    "yogurt",
+    "cereal",
+    "cereal",
+    "cereal",
+    "oats",
+    "oats",
+    "oats",
+    "cereal",
+    "cereal",
+    "flour",
+    "flour",
+    "cheese",
+    "eggs",
+    "eggs",
+    "eggs",
+    "cereal",
+    "cereal",
+    "onions",
+    "cereal",
+    "cereal",
+    "cereal",
+    "cream",
+    "cream",
+    "flour",
+    "flour",
+    "flour"
+  ]
+}

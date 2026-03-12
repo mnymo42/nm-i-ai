@@ -70,13 +70,14 @@ export function buildOrderAssignments(oracle, itemsByType, dropOff) {
     });
 
     for (const [type, count] of types) {
-      const available = (itemsByType.get(type) || []).filter((item) => !usedItemIds.has(item.id));
-      if (available.length < count) {
-        throw new Error(`Not enough shelves for type ${type}`);
-      }
+      const allOfType = itemsByType.get(type) || [];
+      const available = allOfType.filter((item) => !usedItemIds.has(item.id));
 
       for (let index = 0; index < count; index += 1) {
-        const item = available[index];
+        // Prefer unused shelves; fall back to reusing (items respawn after pickup)
+        const item = index < available.length
+          ? available[index]
+          : allOfType[index % allOfType.length];
         usedItemIds.add(item.id);
         allocations.push({
           itemId: item.id,

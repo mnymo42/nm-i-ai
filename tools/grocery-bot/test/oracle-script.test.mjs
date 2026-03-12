@@ -121,18 +121,19 @@ function writeStackedStartReplay(oracle, botCount = 4, start = [9, 8]) {
   ]);
 }
 
-test('global shelf allocation uses each shelf at most once on real oracle fixture', () => {
+test('shelf allocation uses each shelf at most once within a single order', () => {
   const oraclePath = path.resolve(process.cwd(), 'tools/grocery-bot/config/oracle-expert.json');
   const oracle = JSON.parse(fs.readFileSync(oraclePath, 'utf8'));
   const normalized = normalizeOracle(oracle);
   const world = buildOracleScriptWorld({ oracle: normalized });
   const allocations = buildOrderAssignments(normalized, world.itemsByType, world.dropOff);
-  const used = new Set();
 
   for (const order of allocations) {
+    const usedInOrder = new Set();
     for (const allocation of order.allocations) {
-      assert.equal(used.has(allocation.itemId), false, `duplicate item allocation: ${allocation.itemId}`);
-      used.add(allocation.itemId);
+      assert.equal(usedInOrder.has(allocation.itemId), false,
+        `duplicate item within order ${order.orderId}: ${allocation.itemId}`);
+      usedInOrder.add(allocation.itemId);
     }
   }
 });
