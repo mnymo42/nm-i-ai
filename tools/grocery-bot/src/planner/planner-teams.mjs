@@ -194,10 +194,38 @@ function buildTeamOrderQueue({ world, oracle, round, lookahead, maxFutureOrders 
   return queue;
 }
 
-function computeDesiredSlotSizes({ queueOrders, world, botCount, activeMinBots }) {
+function buildKnownTeamOrderQueue({ world, oracle, round, lookahead }) {
+  const queue = [];
+  if (world.activeOrder) queue.push(world.activeOrder);
+  if (world.previewOrder) queue.push(world.previewOrder);
+
+  const upcomingOrders = getUpcomingOracleOrders(
+    oracle,
+    round,
+    world.activeOrder?.id,
+    world.previewOrder?.id,
+    lookahead,
+  );
+
+  for (const order of upcomingOrders) {
+    if (queue.some((existing) => existing.id === order.id)) continue;
+    queue.push(order);
+  }
+
+  return queue;
+}
+
+function computeFutureSlotCap(order, inventoryCounts = new Map()) {
+  const { remainingDemand } = reserveInventoryForDemand(inventoryCounts, orderDemandForTeam(order));
+  return Math.max(1, Math.ceil(countRemainingDemand(remainingDemand) / 3));
+}
+
+function computeDesiredSlotSizes({ queueOrders, world, botCount, activeMinBots, existingTeams = [], botById = new Map() }) {
   if (queueOrders.length === 0 || botCount <= 0) {
     return [];
   }
+
+  const teams = Array.isArray(existingTeams) ? existingTeams : [];
 
   const activeDemandCount = sumCounts(world.activeDemand || new Map());
   const desiredFront = Math.min(botCount, Math.max(activeMinBots, Math.ceil(activeDemandCount / 3)));
@@ -212,9 +240,15 @@ function computeDesiredSlotSizes({ queueOrders, world, botCount, activeMinBots }
     remaining -= 1;
   }
 
+  const existingTeamByOrderId = new Map(
+    teams
+      .filter((team) => team?.orderId != null)
+      .map((team) => [team.orderId, team]),
+  );
   const desiredCaps = [
     desiredFront,
-    ...futureOrders.slice(0, maxFutureSlots).map((order) => Math.max(1, Math.ceil((order.items_required || []).length / 3))),
+    ...futureOrders.slice(0, maxFutureSlots).map((order) =>
+      computeFutureSlotCap(order, teamInventoryCounts(existingTeamByOrderId.get(order.id) || { botIds: [] }, botById))),
   ];
 
   let madeProgress = true;
@@ -284,6 +318,24 @@ function reserveTeamInventoryForOrder(team, order, botById) {
   return reserveInventoryForDemand(inventoryCounts, orderDemandForTeam(order)).remainingDemand;
 }
 
+function countRelevantInventory(bot, orderDemand) {
+  if (!bot) return 0;
+  const localDemand = cloneCounts(orderDemand);
+  let relevant = 0;
+  for (const itemType of bot.inventory || []) {
+    const remaining = localDemand.get(itemType) || 0;
+    if (remaining <= 0) continue;
+    relevant += 1;
+    localDemand.set(itemType, remaining - 1);
+  }
+  return relevant;
+}
+
+function inventoryFullyRelevant(bot, orderDemand) {
+  return (bot.inventory || []).length > 0
+    && countRelevantInventory(bot, orderDemand) === (bot.inventory || []).length;
+}
+
 function chooseTeamStageGoal({ team, targetOrder, state, graph, maxSlotIndex }) {
   const dropOff = primaryDropOff(state);
   const cluster = orderItemClusterCenter(targetOrder, state.items);
@@ -302,6 +354,27 @@ function chooseTeamStageGoal({ team, targetOrder, state, graph, maxSlotIndex }) 
     Math.round(dropOff[1] + (cluster[1] - dropOff[1]) * factor),
   ];
   return findNearestWalkableGoal(goal, state, graph) || findNearestWalkableGoal(cluster, state, graph);
+}
+
+function chooseReadyStageGoal({ team, state, graph }) {
+  const dropOff = primaryDropOff(state);
+  if (!dropOff) return null;
+
+  const anchors = [
+    [dropOff[0] + 3 + Math.max(0, team.slotIndex - 1), Math.max(1, dropOff[1] - 1)],
+    [dropOff[0] + 4 + Math.max(0, team.slotIndex - 1), dropOff[1]],
+    [dropOff[0] + 5 + Math.max(0, team.slotIndex - 1), Math.min(state.grid.height - 2, dropOff[1] + 1)],
+    [dropOff[0] + 4 + Math.max(0, team.slotIndex - 1), Math.max(1, dropOff[1] - 2)],
+  ];
+
+  for (const anchor of anchors) {
+    const goal = findNearestWalkableGoal(anchor, state, graph);
+    if (goal && !isAtAnyDropOff(goal, state) && manhattanDistance(goal, dropOff) >= 2) {
+      return goal;
+    }
+  }
+
+  return findNearestWalkableGoal([dropOff[0] + 4, dropOff[1]], state, graph);
 }
 
 function findNearestWalkableGoal(goal, state, graph, maxRadius = 4) {
@@ -695,11 +768,19 @@ export function buildTeams({
     lookahead: prefetchLookahead,
     maxFutureOrders: prefetchMaxOrders,
   });
+  const knownQueue = buildKnownTeamOrderQueue({
+    world,
+    oracle,
+    round,
+    lookahead: prefetchLookahead,
+  });
   const desiredSizes = computeDesiredSlotSizes({
     queueOrders: orderQueue,
     world,
     botCount: allBotIds.length,
     activeMinBots,
+    existingTeams,
+    botById,
   });
 
   const nextTeamIdBase = Math.max(0, ...((existingTeams || []).map((team) => team.teamId))) + 1;
@@ -753,6 +834,7 @@ export function buildTeams({
     });
   }
 
+  teams._knownQueue = knownQueue;
   return teams;
 }
 
@@ -896,6 +978,28 @@ function tryClaimOrderItem({
   return null;
 }
 
+function classifyFutureQueuePosture({ bot, team, targetOrder, orderRemainingDemand, botById }) {
+  if (!team || team.slotIndex <= 0 || !targetOrder) return null;
+  const orderDemand = orderDemandForTeam(targetOrder);
+  const relevantInventory = countRelevantInventory(bot, orderDemand);
+  const inventoryCount = (bot.inventory || []).length;
+  const orderSize = (targetOrder.items_required || []).length;
+  const teamInventory = teamInventoryCounts(team, botById);
+  const teamCoveredDemand = countRemainingDemand(reserveInventoryForDemand(teamInventory, orderDemand).remainingDemand) <= 0;
+  const remainingCovered = countRemainingDemand(orderRemainingDemand || new Map()) <= 0;
+  const fullyLoadedForOrder = inventoryCount > 0
+    && inventoryFullyRelevant(bot, orderDemand)
+    && inventoryCount >= Math.min(3, Math.max(2, orderSize));
+
+  const ready = inventoryCount > 0 && (
+    fullyLoadedForOrder
+    || (orderSize <= 4 && relevantInventory >= 2)
+    || ((teamCoveredDemand || remainingCovered) && relevantInventory === inventoryCount)
+  );
+
+  return ready ? 'future_ready' : 'future_collect';
+}
+
 function resolveStageAction({
   bot,
   team,
@@ -906,8 +1010,11 @@ function resolveStageAction({
   edgeReservations,
   profile,
   maxSlotIndex,
+  queuePosture = null,
 }) {
-  const stageGoal = chooseTeamStageGoal({ team, targetOrder, state, graph, maxSlotIndex });
+  const stageGoal = queuePosture === 'future_ready'
+    ? chooseReadyStageGoal({ team, state, graph })
+    : chooseTeamStageGoal({ team, targetOrder, state, graph, maxSlotIndex });
   if (stageGoal) {
     const path = findTimeAwarePath({
       graph,
@@ -919,7 +1026,12 @@ function resolveStageAction({
       horizon: profile.routing.horizon,
     });
     if (path && path.length >= 2) {
-      return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: team.slotIndex === 0 ? 'parking' : 'slot_stage', noPath: false };
+      return {
+        action: moveToAction(path[0], path[1]),
+        nextPath: path,
+        targetType: queuePosture === 'future_ready' ? 'future_ready' : (team.slotIndex === 0 ? 'parking' : 'slot_stage'),
+        noPath: false,
+      };
     }
     const greedyStep = chooseGreedyGoalStep({
       bot,
@@ -929,7 +1041,10 @@ function resolveStageAction({
       edgeReservations,
     });
     if (greedyStep) {
-      return { ...greedyStep, targetType: team.slotIndex === 0 ? 'parking' : 'slot_stage' };
+      return {
+        ...greedyStep,
+        targetType: queuePosture === 'future_ready' ? 'future_ready' : (team.slotIndex === 0 ? 'parking' : 'slot_stage'),
+      };
     }
   }
 
@@ -940,7 +1055,12 @@ function resolveStageAction({
     otherBots: state.bots, items: state.items,
     gridWidth: state.grid?.width, gridHeight: state.grid?.height,
   });
-  return { action: parking.action, nextPath: parking.path, targetType: team.slotIndex === 0 ? 'parking' : 'slot_stage', noPath: false };
+  return {
+    action: parking.action,
+    nextPath: parking.path,
+    targetType: queuePosture === 'future_ready' ? 'future_ready' : (team.slotIndex === 0 ? 'parking' : 'slot_stage'),
+    noPath: false,
+  };
 }
 
 function resolveSlotBotAction({
@@ -959,6 +1079,7 @@ function resolveSlotBotAction({
   zoneCount = 1,
   dropRunnerCount = { value: 0 },
   maxSlotIndex = 0,
+  botById = new Map(),
 }) {
   if (!team || !targetOrder) {
     return resolveStageAction({
@@ -999,6 +1120,14 @@ function resolveSlotBotAction({
   });
   if (claimedItem) return claimedItem;
 
+  const queuePosture = classifyFutureQueuePosture({
+    bot,
+    team,
+    targetOrder,
+    orderRemainingDemand,
+    botById,
+  });
+
   if (team.slotIndex === 0 && hasDeliverableInventory(bot, orderDemand)) {
     return tryDeliverForTeamOrder({
       bot,
@@ -1011,7 +1140,7 @@ function resolveSlotBotAction({
       profile,
       dropRunnerCount,
     }) || resolveStageAction({
-      bot, team, targetOrder, state, graph, reservations, edgeReservations, profile, maxSlotIndex,
+      bot, team, targetOrder, state, graph, reservations, edgeReservations, profile, maxSlotIndex, queuePosture,
     });
   }
 
@@ -1025,6 +1154,7 @@ function resolveSlotBotAction({
     edgeReservations,
     profile,
     maxSlotIndex,
+    queuePosture,
   });
 }
 
@@ -1082,6 +1212,7 @@ export function executeTeamStrategy({
     .filter((team) => team.order)
     .sort((left, right) => left.slotIndex - right.slotIndex)
     .map((team) => team.order);
+  const knownQueue = teams._knownQueue || orderQueue;
   const maxSlotIndex = Math.max(0, ...teams.map((team) => team.slotIndex));
   const orderStateById = new Map(state.orders.map((order) => [order.id, order]));
   const botById = new Map(state.bots.map((bot) => [bot.id, bot]));
@@ -1158,6 +1289,7 @@ export function executeTeamStrategy({
         orderId: team?.orderId ?? null,
         teamId: team?.teamId ?? null,
         teamRole: team?.role ?? null,
+        queuePosture: null,
       });
       continue;
     }
@@ -1191,6 +1323,7 @@ export function executeTeamStrategy({
           target: resolved.nextPath?.at(-1) || null, path: resolved.nextPath || [],
           taskType: 'force_partial_drop', stallCount: planner.stalls.get(stallKey) || 0,
           orderId: team?.orderId ?? null, teamId: team?.teamId ?? null, teamRole: team?.role ?? null,
+          queuePosture: null,
         });
         continue;
       }
@@ -1212,6 +1345,7 @@ export function executeTeamStrategy({
       zoneCount,
       dropRunnerCount,
       maxSlotIndex,
+      botById,
     });
 
     if (
@@ -1319,6 +1453,13 @@ export function executeTeamStrategy({
       teamRole: team?.role ?? null,
       slotIndex: team?.slotIndex ?? null,
       goalBand: team?.goalBand ?? null,
+      queuePosture: classifyFutureQueuePosture({
+        bot,
+        team,
+        targetOrder: team?.order || null,
+        orderRemainingDemand: remainingDemandByTeamId.get(team?.teamId) || new Map(),
+        botById,
+      }),
     });
   }
 
@@ -1331,6 +1472,7 @@ export function executeTeamStrategy({
     teamDistanceRank: t.goalBand,
     botCount: t.botIds.length,
     botIds: t.botIds,
+    assigned: t.orderId !== null,
   }));
 
   planner.lastMetrics = {
@@ -1348,11 +1490,19 @@ export function executeTeamStrategy({
     projectedCompletionFeasible: null,
     prefetchBlockedByActiveDemand: false,
     activeCoverageSatisfied: false,
-    waveOrderIds: orderQueue.map((order) => order.id),
+    waveOrderIds: knownQueue.map((order) => order.id),
     waveReservedCounts: {},
     wavePickupEnabled: true,
     openerBreakoutActive: inOpenerBreakout,
-    queueOrderIds: orderQueue.map((order) => order.id),
+    queueOrderIds: knownQueue.map((order) => order.id),
+    queueOrders: knownQueue.map((order) => ({
+      orderId: order.id,
+      firstSeenTick: order.first_seen_tick ?? null,
+      requiredItems: [...(order.items_required || [])],
+      assigned: teams.some((team) => team.orderId === order.id),
+      slotIndex: teams.find((team) => team.orderId === order.id)?.slotIndex ?? null,
+      teamId: teams.find((team) => team.orderId === order.id)?.teamId ?? null,
+    })),
     lastRotationTick: planner._lastTeamRotationTick ?? null,
     rotatedThisTick,
     teams: teamSummary,

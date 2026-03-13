@@ -252,6 +252,64 @@ test('future-slot bot keeps inventory for its own order until rotation makes it 
   assert.equal(planner.lastMetrics.botDetails['2']?.slotIndex, 1);
 });
 
+test('loaded future-slot bot stages near drop-off with future_ready posture', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  planner.oracle = {
+    known_orders: [
+      { id: 'o1', items_required: ['pasta', 'bread'], first_seen_tick: 20 },
+    ],
+  };
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 8], inventory: [] },
+      { id: 1, position: [2, 8], inventory: [] },
+      { id: 2, position: [8, 2], inventory: ['pasta', 'bread'] },
+      { id: 3, position: [9, 2], inventory: [] },
+    ],
+    items: [],
+    orders: [
+      { id: 'o0', items_required: ['milk', 'eggs'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta', 'bread'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+
+  planner.plan(state);
+
+  const detail = planner.lastMetrics.botDetails['2'];
+  assert.equal(detail.queuePosture, 'future_ready');
+  assert.equal(detail.taskType, 'future_ready');
+  assert.ok(manhattan(detail.target, state.drop_off) <= 6);
+});
+
+test('partially loaded future-slot bot stays in future_collect posture', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  planner.oracle = {
+    known_orders: [
+      { id: 'o1', items_required: ['pasta', 'bread', 'eggs', 'milk'], first_seen_tick: 20 },
+    ],
+  };
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 8], inventory: [] },
+      { id: 1, position: [2, 8], inventory: [] },
+      { id: 2, position: [8, 2], inventory: ['pasta'] },
+      { id: 3, position: [9, 2], inventory: [] },
+    ],
+    items: [
+      { id: 'bread_0', type: 'bread', position: [8, 3] },
+      { id: 'eggs_0', type: 'eggs', position: [9, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk', 'cream'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta', 'bread', 'eggs', 'milk'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+
+  planner.plan(state);
+
+  assert.equal(planner.lastMetrics.botDetails['2']?.queuePosture, 'future_collect');
+});
+
 test('deeper future slots stage farther from drop-off than nearer future slots', () => {
   const planner = new GroceryPlanner(buildExpertProfile());
   planner.oracle = {
@@ -282,6 +340,73 @@ test('deeper future slots stage farther from drop-off than nearer future slots',
   const dropOff = state.drop_off;
 
   assert.equal(manhattan(slotTwoTarget, dropOff) >= manhattan(slotOneTarget, dropOff), true);
+});
+
+test('future-slot sizing spills surplus bots into deeper known orders', () => {
+  const profile = buildExpertProfile();
+  const state = baseState({
+    bots: Array.from({ length: 10 }, (_, id) => ({ id, position: [id + 1, 8], inventory: [] })),
+    orders: [
+      { id: 'o0', items_required: ['milk', 'bread', 'eggs', 'pasta', 'cheese', 'cream'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['apples', 'bananas', 'bread', 'eggs'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  const world = buildWorldContext(state);
+
+  const teams = buildTeams({
+    state,
+    world,
+    oracle: {
+      known_orders: [
+        { id: 'o1', items_required: ['apples', 'bananas', 'bread', 'eggs'], first_seen_tick: 20 },
+        { id: 'o2', items_required: ['rice', 'oats', 'milk', 'cheese'], first_seen_tick: 25 },
+        { id: 'o3', items_required: ['tomatoes', 'yogurt', 'flour', 'cream'], first_seen_tick: 30 },
+      ],
+    },
+    existingTeams: null,
+    profile,
+  });
+
+  assert.equal(teams[1].botIds.length <= 2, true);
+  assert.equal(teams[2].botIds.length >= 2, true);
+});
+
+test('queue metrics include unassigned oracle-known future orders', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  planner.oracle = {
+    known_orders: [
+      { id: 'o1', items_required: ['pasta'], first_seen_tick: 20 },
+      { id: 'o2', items_required: ['cheese'], first_seen_tick: 25 },
+      { id: 'o3', items_required: ['apples'], first_seen_tick: 30 },
+    ],
+  };
+  const state = baseState({
+    bots: Array.from({ length: 3 }, (_, id) => ({ id, position: [id + 1, 8], inventory: [] })),
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+
+  planner.plan(state);
+
+  assert.deepEqual(planner.lastMetrics.queueOrderIds, ['o0', 'o1', 'o2', 'o3']);
+  assert.equal(planner.lastMetrics.queueOrders.find((order) => order.orderId === 'o2')?.assigned, false);
+  assert.equal(planner.lastMetrics.queueOrders.find((order) => order.orderId === 'o3')?.assigned, false);
+});
+
+test('non-oracle queue metrics only expose active and preview orders', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  const state = baseState({
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+
+  planner.plan(state);
+
+  assert.deepEqual(planner.lastMetrics.queueOrderIds, ['o0', 'o1']);
 });
 
 test('recovery mode collapses queue discipline and records slot rotation metrics', () => {

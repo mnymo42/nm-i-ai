@@ -181,10 +181,12 @@ function formatTooltipRow(row) {
   const slot = row.slotIndex != null ? row.slotIndex : '-';
   const order = row.orderId ?? '-';
   const target = row.target ? `[${row.target.join(',')}]` : '-';
+  const posture = row.queuePosture ?? '-';
   return `<div class="bot-tooltip-row">
     <div><b>B${row.botId}</b> · T${row.teamId ?? '-'} · slot ${slot}</div>
     <div>Order: ${escapeHtml(order)}</div>
     <div>Task: ${escapeHtml(row.taskType)}</div>
+    <div>Posture: ${escapeHtml(posture)}</div>
     <div>Inv: ${inventory}</div>
     <div>Target: ${escapeHtml(target)}</div>
   </div>`;
@@ -222,10 +224,13 @@ function renderQueuePanel(snapshotOrders, plannerMetrics) {
   elements.queueView.innerHTML = queueEntries.map((entry) => {
     const cardClasses = ['queue-card'];
     if (entry.isFront) cardClasses.push('front-slot');
-    else if (entry.teamId != null) cardClasses.push('future-slot');
+    else if (entry.assigned) cardClasses.push('future-slot');
     else cardClasses.push('unassigned-slot');
     const progress = `${entry.deliveredItems.length}/${entry.requiredItems.length || '?'}`;
     const status = entry.complete ? 'completed' : entry.status;
+    const assignmentLabel = entry.isFront
+      ? 'front'
+      : (entry.assigned ? 'assigned future' : 'unassigned known');
     const botBadges = entry.botIds.map((botId) => {
       const detail = { teamId: entry.teamId };
       return `<span class="queue-pill" style="background:${TEAM_COLORS[(entry.teamId ?? 0) % TEAM_COLORS.length]}">${renderShapeChip(`${botId}`, detail, 'queue-bot-shape')} B${botId}</span>`;
@@ -236,7 +241,7 @@ function renderQueuePanel(snapshotOrders, plannerMetrics) {
         <div>
           <b>Slot ${entry.slotIndex ?? '•'}</b> · Order ${escapeHtml(entry.orderId)}
         </div>
-        <div class="queue-status">${escapeHtml(status)}</div>
+        <div class="queue-status">${escapeHtml(`${assignmentLabel} · ${status}`)}</div>
       </div>
       <div class="order-progress">${progress} · ${entry.isVisible ? 'visible' : 'planner-only'}</div>
       <div>Need: ${renderItemEmojiList(entry.requiredItems)}</div>
@@ -563,10 +568,12 @@ function renderTick() {
   elements.botsView.innerHTML = bots.map((bot) => {
     const detail = botDetailsMap[bot.id] || {};
     const taskType = detail.taskType || 'none';
+    const queuePosture = detail.queuePosture || null;
     const color = TASK_COLORS[taskType] || TASK_COLORS.none;
     const targetStr = detail.target ? `[${detail.target.join(',')}]` : '-';
     const stallStr = detail.stallCount > 0 ? ` stall:${detail.stallCount}` : '';
     const orderStr = detail.orderId != null ? ` ord:${detail.orderId}` : '';
+    const postureStr = queuePosture ? ` posture:${queuePosture}` : '';
     const teamStr = detail.teamRole
       ? ` [${detail.teamRole}${detail.teamId != null ? ` T${detail.teamId}` : ''} slot:${detail.slotIndex ?? '-'}]`
       : '';
@@ -578,7 +585,7 @@ function renderTick() {
         <b>B${bot.id}</b> @ [${bot.position.join(',')}]${teamStr}
       </div>
       Inv: ${bot.inventory.map((it) => (ITEM_EMOJIS[it.type || it] || ITEM_EMOJIS.default)).join(' ')}<br>
-      Task: <span style="color:${color};font-weight:bold">${taskType}</span> → ${targetStr}${stallStr}${orderStr}
+      Task: <span style="color:${color};font-weight:bold">${taskType}</span> → ${targetStr}${stallStr}${orderStr}${postureStr}
     </div>`;
   }).join('');
 }
