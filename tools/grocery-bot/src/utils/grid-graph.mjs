@@ -117,7 +117,7 @@ export function buildLaneMapV2(graph, dropOffs = []) {
   for (let x = 1; x < graph.width - 1; x += 1) {
     const coord = [x, centerRow];
     if (!graph.isWalkable(coord)) continue;
-    const dir = x <= dropSideX ? 'left' : 'left';
+    const dir = x <= dropSideX ? 'right' : 'left';
     oneWayRoads[encodeCoord(coord)] = [dir];
     directionalPreference.set(encodeCoord(coord), dir);
     trafficLaneCells.add(encodeCoord(coord));
@@ -147,6 +147,60 @@ export function buildLaneMapV2(graph, dropOffs = []) {
     directionalPreference,
     trafficLaneCells,
     centerRow,
+  };
+}
+
+export function buildLaneMapV3(graph, dropOffs = []) {
+  const laneMap = buildLaneMapV2(graph, dropOffs);
+  const dropSideX = dropOffs.length > 0
+    ? Math.round(dropOffs.reduce((sum, coord) => sum + coord[0], 0) / dropOffs.length)
+    : 0;
+  const returnRow = Math.max(1, graph.height - 3);
+  const feederCol = Math.min(graph.width - 2, Math.max(2, dropSideX + 1));
+  const returnCol = Math.min(graph.width - 2, Math.max(feederCol + 2, graph.width - 3));
+
+  for (let x = 1; x < graph.width - 1; x += 1) {
+    const coord = [x, returnRow];
+    if (!graph.isWalkable(coord)) continue;
+    laneMap.oneWayRoads[encodeCoord(coord)] = ['right'];
+    laneMap.directionalPreference.set(encodeCoord(coord), 'right');
+    laneMap.trafficLaneCells.add(encodeCoord(coord));
+  }
+
+  for (let y = 1; y < graph.height - 1; y += 1) {
+    const feederCoord = [feederCol, y];
+    if (graph.isWalkable(feederCoord)) {
+      laneMap.oneWayRoads[encodeCoord(feederCoord)] = ['down'];
+      laneMap.directionalPreference.set(encodeCoord(feederCoord), 'down');
+      laneMap.trafficLaneCells.add(encodeCoord(feederCoord));
+    }
+    const returnCoord = [returnCol, y];
+    if (graph.isWalkable(returnCoord)) {
+      laneMap.oneWayRoads[encodeCoord(returnCoord)] = ['up'];
+      laneMap.directionalPreference.set(encodeCoord(returnCoord), 'up');
+      laneMap.trafficLaneCells.add(encodeCoord(returnCoord));
+    }
+  }
+
+  laneMap.returnRow = returnRow;
+  laneMap.feederCol = feederCol;
+  laneMap.returnCol = returnCol;
+  return laneMap;
+}
+
+export function serializeLaneMap(laneMap) {
+  if (!laneMap) {
+    return null;
+  }
+
+  return {
+    oneWayRoads: laneMap.oneWayRoads,
+    directionalPreference: Object.fromEntries(laneMap.directionalPreference || new Map()),
+    trafficLaneCells: Array.from(laneMap.trafficLaneCells || []),
+    centerRow: laneMap.centerRow ?? null,
+    returnRow: laneMap.returnRow ?? null,
+    feederCol: laneMap.feederCol ?? null,
+    returnCol: laneMap.returnCol ?? null,
   };
 }
 

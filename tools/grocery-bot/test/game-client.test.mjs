@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 
 import { GroceryGameClient, sanitizeActionsForState } from '../src/client/game-client.mjs';
 
@@ -326,4 +327,35 @@ test('game client still sanitizes non-trusted scripted actions', async () => {
   await client.run({ planner, difficulty: 'easy', profileName: 'easy' });
   assert.notDeepEqual(sentActions, [[{ bot: 0, action: 'drop_off' }]]);
   assert.equal(sentActions[0][0].action.startsWith('move_'), true);
+});
+
+test('game client includes websocket error details in connect timeout failures', async () => {
+  class FakeWs extends EventEmitter {
+    constructor() {
+      super();
+      this.readyState = 0;
+      queueMicrotask(() => {
+        this.emit('error', { message: 'getaddrinfo EAI_AGAIN game.ainm.no' });
+      });
+    }
+
+    close() {
+      this.readyState = 3;
+    }
+  }
+
+  const client = new GroceryGameClient({
+    token: 'test-token',
+    connectTimeoutMs: 5,
+    webSocketFactory: () => new FakeWs(),
+  });
+
+  try {
+    await assert.rejects(
+      () => client.connect(),
+      /WebSocket connect timeout \(WebSocket error: getaddrinfo EAI_AGAIN game\.ainm\.no\)/,
+    );
+  } finally {
+    client.close();
+  }
 });

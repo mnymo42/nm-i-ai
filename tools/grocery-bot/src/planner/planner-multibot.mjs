@@ -326,6 +326,7 @@ export function chooseFallbackAction(
 
 function computeParkingSlots(graph, gridWidth, gridHeight, items) {
   const trafficLaneCells = graph.trafficLaneCells || new Set();
+  const directionalPreference = graph.directionalPreference || new Map();
   const itemCols = [...new Set(items.map((item) => item.position[0]))].sort((a, b) => a - b);
   const slots = [];
   for (const col of itemCols) {
@@ -338,6 +339,7 @@ function computeParkingSlots(graph, gridWidth, gridHeight, items) {
       for (const candidate of candidates) {
         const key = encodeCoord(candidate);
         if (!graph.isWalkable(candidate) || trafficLaneCells.has(key)) continue;
+        if (directionalPreference.has(key)) continue;
         const laneAdjacency = graph.neighbors(candidate)
           .some((neighbor) => trafficLaneCells.has(encodeCoord(neighbor)));
         if (!laneAdjacency) continue;
@@ -374,6 +376,12 @@ export function chooseParkingAction({
       .filter((other) => manhattanDistance(other.position, dropOff) <= 1)
       .map((other) => encodeCoord(other.position)),
   );
+  const feederCells = new Set();
+  for (let y = Math.max(1, dropOff[1] - 2); y <= Math.min((gridHeight || 18) - 2, dropOff[1] + 1); y += 1) {
+    for (let x = Math.max(1, dropOff[0]); x <= Math.min((gridWidth || 28) - 2, dropOff[0] + 3); x += 1) {
+      feederCells.add(encodeCoord([x, y]));
+    }
+  }
 
   let targetSlot = null;
   if (slots.length > 0) {
@@ -393,6 +401,7 @@ export function chooseParkingAction({
     for (let i = 0; i < slots.length; i += 1) {
       if (otherBotSlots.has(i)) continue;
       if (queueCells.has(encodeCoord(slots[i]))) continue;
+      if (feederCells.has(encodeCoord(slots[i]))) continue;
       const d = manhattanDistance(bot.position, slots[i]);
       if (d < bestDist) { bestDist = d; targetSlot = slots[i]; }
     }
@@ -401,6 +410,7 @@ export function chooseParkingAction({
       let fallbackBest = Infinity;
       for (const slot of slots) {
         if (queueCells.has(encodeCoord(slot))) continue;
+        if (feederCells.has(encodeCoord(slot))) continue;
         const d = manhattanDistance(bot.position, slot);
         if (d < fallbackBest) { fallbackBest = d; targetSlot = slot; }
       }

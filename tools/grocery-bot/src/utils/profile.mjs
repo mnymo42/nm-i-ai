@@ -165,10 +165,14 @@ export const defaultProfiles = {
       prefetch_lookahead_ticks: 80,
       opener_breakout_ticks: 8,
       opener_breakout_active_cap: 3,
+      zone_count: 3,
+      zone_strategy: 'x_bands',
+      active_cross_zone_cap: 2,
     },
     opener: {
       enabled: true,
-      max_ticks: 16,
+      max_ticks: 20,
+      release_mode: 'sequential_compact',
     },
     assignment: {
       travel_to_item: 1.0,
@@ -182,7 +186,7 @@ export const defaultProfiles = {
     routing: {
       horizon: 45,
       hold_goal_steps: 6,
-      use_lane_map_v2: true,
+      lane_map_version: 'v3',
       lane_map_handoff_relax_ticks: 24,
     },
     anti_deadlock: {

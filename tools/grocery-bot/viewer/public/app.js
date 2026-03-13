@@ -56,10 +56,6 @@ const TEAM_COLORS = [
 
 const DIR_ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 
-/**
- * Build directional preference map from grid walls (mirrors grid-graph.mjs logic).
- * Returns Map<"x,y", "up"|"down"|"left"|"right">.
- */
 function buildDirectionalPreference(width, height, wallSet) {
   const pref = new Map();
 
@@ -102,6 +98,31 @@ function buildDirectionalPreference(width, height, wallSet) {
   }
 
   return pref;
+}
+
+function lanePreferenceForLayout(layout) {
+  const lanePref = layout?.laneMap?.directionalPreference || null;
+  if (lanePref) {
+    return new Map(Object.entries(lanePref));
+  }
+
+  const width = layout?.grid?.width || 0;
+  const height = layout?.grid?.height || 0;
+  const wallSet = new Set((layout?.grid?.walls || []).map(([x, y]) => `${x},${y}`));
+  return buildDirectionalPreference(width, height, wallSet);
+}
+
+function laneRoadsForLayout(layout) {
+  const oneWayRoads = layout?.laneMap?.oneWayRoads || null;
+  if (oneWayRoads) {
+    return new Map(
+      Object.entries(oneWayRoads)
+        .filter(([, dirs]) => Array.isArray(dirs) && dirs.length > 0)
+        .map(([key, dirs]) => [key, dirs[0]]),
+    );
+  }
+
+  return lanePreferenceForLayout(layout);
 }
 
 const ZONE_COLORS = [
@@ -327,10 +348,10 @@ function renderBoard(snapshot, layout, plannerMetrics) {
 
   // Roads overlay: show directional preference lanes as arrows
   if (state.showRoads) {
-    const dirPref = buildDirectionalPreference(width, height, walls);
-    for (const [key, dir] of dirPref) {
+    const laneRoads = laneRoadsForLayout(layout);
+    for (const [key, dir] of laneRoads) {
       const [cx, cy] = key.split(',').map(Number);
-      if (walls.has(key) || drops.has(key)) continue;
+      if (walls.has(key) || drops.has(key) || itemsByCell.has(key)) continue;
       const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.setAttribute('x', cx * CELL_SIZE + CELL_SIZE / 2);
       label.setAttribute('y', cy * CELL_SIZE + CELL_SIZE / 2 + 1);

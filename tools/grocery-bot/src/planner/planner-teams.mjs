@@ -23,6 +23,7 @@ import {
 import {
   sumCounts,
   reserveInventoryForDemand,
+  zoneIndexForX,
 } from './planner-multibot-common.mjs';
 import {
   makeOccupancyReservations,
@@ -111,6 +112,26 @@ function mergeDemandCounts(target, demand) {
   }
 }
 
+function zoneDistance(zoneA, zoneB) {
+  return Math.abs((zoneA ?? 0) - (zoneB ?? 0));
+}
+
+function sortItemsForBotZone(items, botZoneId, zoneCount, gridWidth, origin) {
+  return [...items].sort((left, right) => {
+    const leftZone = zoneIndexForX(left.position[0], gridWidth, zoneCount);
+    const rightZone = zoneIndexForX(right.position[0], gridWidth, zoneCount);
+    const leftZoneDistance = zoneDistance(leftZone, botZoneId);
+    const rightZoneDistance = zoneDistance(rightZone, botZoneId);
+    if (leftZoneDistance !== rightZoneDistance) {
+      return leftZoneDistance - rightZoneDistance;
+    }
+
+    const leftDistance = manhattanDistance(origin, left.position);
+    const rightDistance = manhattanDistance(origin, right.position);
+    return leftDistance - rightDistance;
+  });
+}
+
 export function buildPrefetchWavePlan({
   state,
   world,
@@ -165,6 +186,8 @@ function claimFutureWaveItem({
   reservedItemIds,
   reservedFutureCounts,
   activeDemand,
+  botZoneId = 0,
+  zoneCount = 1,
 }) {
   const futureTypes = new Set(
     Array.from(reservedFutureCounts.entries())
@@ -190,15 +213,13 @@ function claimFutureWaveItem({
     return { action: 'pick_up', itemId: item.id, nextPath: [bot.position], targetType: 'prefetch_item', noPath: false };
   }
 
-  let bestTarget = null;
-  let bestDistance = Infinity;
-  for (const item of candidates) {
-    const distance = manhattanDistance(bot.position, item.position);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestTarget = item;
-    }
-  }
+  const [bestTarget] = sortItemsForBotZone(
+    candidates,
+    botZoneId,
+    zoneCount,
+    state.grid.width,
+    bot.position,
+  );
   if (!bestTarget) return null;
 
   reservedItemIds.add(bestTarget.id);
@@ -249,6 +270,54 @@ function chooseGreedyApproachStep({
     action: moveToAction(bot.position, bestNeighbor),
     nextPath: [bot.position, bestNeighbor],
     targetType: 'item_approach',
+    noPath: false,
+  };
+}
+
+function chooseGreedyGoalStep({
+  bot,
+  goal,
+  graph,
+  reservations,
+  edgeReservations,
+}) {
+  const currentDistance = manhattanDistance(bot.position, goal);
+  let bestNeighbor = null;
+  let bestDistance = currentDistance;
+
+  for (const neighbor of graph.neighbors(bot.position)) {
+    const neighborKey = encodeCoord(neighbor);
+    const currentKey = encodeCoord(bot.position);
+    if (reservations.get(1)?.has(neighborKey)) continue;
+    if (edgeReservations.get(1)?.has(`${neighborKey}>${currentKey}`)) continue;
+
+    const distance = manhattanDistance(neighbor, goal);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestNeighbor = neighbor;
+    }
+  }
+
+  if (!bestNeighbor) {
+    for (const neighbor of graph.neighbors(bot.position)) {
+      const neighborKey = encodeCoord(neighbor);
+      const currentKey = encodeCoord(bot.position);
+      if (reservations.get(1)?.has(neighborKey)) continue;
+      if (edgeReservations.get(1)?.has(`${neighborKey}>${currentKey}`)) continue;
+      if (!bestNeighbor || manhattanDistance(neighbor, goal) < manhattanDistance(bestNeighbor, goal)) {
+        bestNeighbor = neighbor;
+      }
+    }
+  }
+
+  if (!bestNeighbor) {
+    return null;
+  }
+
+  return {
+    action: moveToAction(bot.position, bestNeighbor),
+    nextPath: [bot.position, bestNeighbor],
+    targetType: 'goal_approach',
     noPath: false,
   };
 }
@@ -324,6 +393,14 @@ function chooseBreakoutAction({
   };
 }
 
+function isZeroProgressAssignment(bot, resolved) {
+  if (!resolved) return false;
+  const nextPath = resolved.nextPath || [];
+  const target = nextPath.at(-1);
+  return nextPath.length <= 1
+    || (target && target[0] === bot.position[0] && target[1] === bot.position[1]);
+}
+
 /**
  * Build or update teams based on current game state.
  * FIX #3: Preserve ALL existing teams within cooldown, not just active.
@@ -335,6 +412,8 @@ export function buildTeams({
   existingTeams,
   profile,
   lastOpenerRound = null,
+  zoneAssignmentByBot = null,
+  initialBotOrder = null,
 }) {
   const round = state.round;
   const teamsConfig = profile.teams || {};
@@ -357,11 +436,17 @@ export function buildTeams({
 
   const allBotIds = state.bots.map((b) => b.id);
   const botById = new Map(state.bots.map((b) => [b.id, b]));
+  const initialOrderIds = Array.isArray(initialBotOrder) && initialBotOrder.length > 0
+    ? initialBotOrder.filter((id) => botById.has(id))
+    : [...allBotIds].sort((a, b) => a - b);
+  const initialOrderRank = new Map(initialOrderIds.map((id, index) => [id, index]));
   const teams = [];
   const assignedBots = new Set();
   let nextTeamId = 0;
   const openerBreakoutTicks = teamsConfig.opener_breakout_ticks ?? 8;
   const openerBreakoutActiveCap = teamsConfig.opener_breakout_active_cap ?? 3;
+  const zoneCount = Math.max(1, teamsConfig.zone_count ?? 3);
+  const activeCrossZoneCap = Math.max(0, teamsConfig.active_cross_zone_cap ?? 2);
   const inOpenerBreakout = lastOpenerRound !== null
     && (round - lastOpenerRound) <= openerBreakoutTicks;
 
@@ -397,6 +482,7 @@ export function buildTeams({
 
     // Prioritize bots carrying deliverable items, then by distance
     const cluster = orderItemClusterCenter(activeOrder, state.items);
+    const targetZoneId = zoneIndexForX(cluster?.[0] ?? botById.get(allBotIds[0])?.position?.[0] ?? 0, state.grid.width, zoneCount);
     const availableBots = allBotIds
       .filter((id) => !assignedBots.has(id))
       .sort((aId, bId) => {
@@ -405,14 +491,32 @@ export function buildTeams({
         const aDel = hasDeliverableInventory(aBot, activeDemand) ? 0 : 1;
         const bDel = hasDeliverableInventory(bBot, activeDemand) ? 0 : 1;
         if (aDel !== bDel) return aDel - bDel;
+        const aZone = zoneAssignmentByBot?.[aId] ?? 0;
+        const bZone = zoneAssignmentByBot?.[bId] ?? 0;
+        const aZoneDistance = zoneDistance(aZone, targetZoneId);
+        const bZoneDistance = zoneDistance(bZone, targetZoneId);
+        if (aZoneDistance !== bZoneDistance) return aZoneDistance - bZoneDistance;
+        const aSpawnRank = initialOrderRank.get(aId) ?? aId;
+        const bSpawnRank = initialOrderRank.get(bId) ?? bId;
+        if (aSpawnRank !== bSpawnRank) return aSpawnRank - bSpawnRank;
         const aDist = cluster ? manhattanDistance(aBot.position, cluster) : aId;
         const bDist = cluster ? manhattanDistance(bBot.position, cluster) : bId;
         return aDist - bDist;
       });
 
-    const picked = inOpenerBreakout
-      ? pickDiversifiedBots(availableBots, botById, teamSize, 2)
+    let picked = inOpenerBreakout
+      ? availableBots.slice(0, teamSize)
       : availableBots.slice(0, teamSize);
+    const inZone = picked.filter((botId) => zoneDistance(zoneAssignmentByBot?.[botId] ?? 0, targetZoneId) === 0);
+    const crossZone = picked.filter((botId) => zoneDistance(zoneAssignmentByBot?.[botId] ?? 0, targetZoneId) > 0);
+    if (crossZone.length > activeCrossZoneCap) {
+      picked = [...inZone, ...crossZone.slice(0, activeCrossZoneCap)];
+      for (const botId of availableBots) {
+        if (picked.length >= teamSize) break;
+        if (picked.includes(botId)) continue;
+        picked.push(botId);
+      }
+    }
     if (picked.length > 0) {
       teams.push({
         teamId: nextTeamId++,
@@ -453,9 +557,24 @@ export function buildTeams({
     const teamSize = Math.min(previewMaxBots, Math.max(1, Math.ceil(itemsRequired * previewBotRatio)));
 
     const cluster = orderItemClusterCenter(prefetchTarget, state.items);
+    const targetZoneId = zoneIndexForX(cluster?.[0] ?? 0, state.grid.width, zoneCount);
+    const activeZoneId = activeOrder
+      ? zoneIndexForX(orderItemClusterCenter(activeOrder, state.items)?.[0] ?? 0, state.grid.width, zoneCount)
+      : null;
     const availableBots = allBotIds
       .filter((id) => !assignedBots.has(id))
       .sort((aId, bId) => {
+        const aZone = zoneAssignmentByBot?.[aId] ?? 0;
+        const bZone = zoneAssignmentByBot?.[bId] ?? 0;
+        const aAvoidActive = activeZoneId !== null && aZone === activeZoneId ? 1 : 0;
+        const bAvoidActive = activeZoneId !== null && bZone === activeZoneId ? 1 : 0;
+        if (aAvoidActive !== bAvoidActive) return aAvoidActive - bAvoidActive;
+        const aZoneDistance = zoneDistance(aZone, targetZoneId);
+        const bZoneDistance = zoneDistance(bZone, targetZoneId);
+        if (aZoneDistance !== bZoneDistance) return aZoneDistance - bZoneDistance;
+        const aSpawnRank = initialOrderRank.get(aId) ?? aId;
+        const bSpawnRank = initialOrderRank.get(bId) ?? bId;
+        if (aSpawnRank !== bSpawnRank) return aSpawnRank - bSpawnRank;
         const aDist = cluster ? manhattanDistance(botById.get(aId).position, cluster) : aId;
         const bDist = cluster ? manhattanDistance(botById.get(bId).position, cluster) : bId;
         return aDist - bDist;
@@ -519,6 +638,16 @@ function tryDeliverForActiveOrder({ bot, state, world, graph, reservations, edge
   if (path && path.length >= 2) {
     return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'drop_off', noPath: false };
   }
+  const greedyStep = chooseGreedyGoalStep({
+    bot,
+    goal: dropOff,
+    graph,
+    reservations,
+    edgeReservations,
+  });
+  if (greedyStep) {
+    return { ...greedyStep, targetType: 'drop_off' };
+  }
   return { action: 'wait', nextPath: [bot.position], targetType: 'drop_off', noPath: true };
 }
 
@@ -541,6 +670,8 @@ function resolveActiveBotAction({
   reservedItemIds,
   shelfDemand,
   allowBreakout = false,
+  botZoneId = 0,
+  zoneCount = 1,
 }) {
   // Deliver if carrying items for active order (uses original demand)
   const deliveryAction = tryDeliverForActiveOrder({
@@ -555,8 +686,14 @@ function resolveActiveBotAction({
     );
 
     if (neededTypes.size > 0) {
-      const candidates = state.items.filter((item) =>
-        neededTypes.has(item.type) && !reservedItemIds.has(item.id),
+      const candidates = sortItemsForBotZone(
+        state.items.filter((item) =>
+          neededTypes.has(item.type) && !reservedItemIds.has(item.id),
+        ),
+        botZoneId,
+        zoneCount,
+        state.grid.width,
+        bot.position,
       );
 
       // Check if adjacent to a candidate — immediate pick up
@@ -569,15 +706,7 @@ function resolveActiveBotAction({
       }
 
       // Navigate to closest candidate
-      let bestItem = null;
-      let bestScore = Infinity;
-      for (const item of candidates) {
-        const dist = manhattanDistance(bot.position, item.position);
-        if (dist < bestScore) {
-          bestScore = dist;
-          bestItem = item;
-        }
-      }
+      const [bestItem] = candidates;
 
       if (bestItem) {
         reservedItemIds.add(bestItem.id);
@@ -645,6 +774,8 @@ function resolvePrefetchBotAction({
   targetOrder,
   reservedItemIds,
   prefetchContext,
+  botZoneId = 0,
+  zoneCount = 1,
 }) {
   // FIX #2: Deliver if carrying items for active order (uses original demand)
   const deliveryAction = tryDeliverForActiveOrder({
@@ -707,14 +838,21 @@ function resolvePrefetchBotAction({
     reservedItemIds,
     reservedFutureCounts: prefetchContext.reservedFutureCounts,
     activeDemand: world.activeDemand,
+    botZoneId,
+    zoneCount,
   });
   if (claimedWaveItem) return claimedWaveItem;
 
-  const futureCandidates = state.items.filter((item) =>
-    (prefetchContext.reservedFutureCounts.get(item.type) || 0) > 0 && !reservedItemIds.has(item.id),
+  const futureCandidates = sortItemsForBotZone(
+    state.items.filter((item) =>
+      (prefetchContext.reservedFutureCounts.get(item.type) || 0) > 0 && !reservedItemIds.has(item.id),
+    ),
+    botZoneId,
+    zoneCount,
+    state.grid.width,
+    bot.position,
   );
-  const nearestFutureItem = futureCandidates
-    .sort((a, b) => manhattanDistance(bot.position, a.position) - manhattanDistance(bot.position, b.position))[0];
+  const nearestFutureItem = futureCandidates[0];
   if (nearestFutureItem) {
     const greedyStep = chooseGreedyApproachStep({
       bot,
@@ -785,6 +923,8 @@ export function executeTeamStrategy({
     existingTeams: planner._teams || null,
     profile: planner.profile,
     lastOpenerRound: planner.lastOpenerRound,
+    zoneAssignmentByBot: planner.zoneAssignmentByBot,
+    initialBotOrder: planner.initialTeamOrder,
   });
   planner._teams = teams;
 
@@ -831,6 +971,7 @@ export function executeTeamStrategy({
   const openerBreakoutTicks = teamsConfig.opener_breakout_ticks ?? 8;
   const inOpenerBreakout = planner.lastOpenerRound !== null
     && (state.round - planner.lastOpenerRound) <= openerBreakoutTicks;
+  const zoneCount = Math.max(1, teamsConfig.zone_count ?? 3);
 
   // Priority: any bot with deliverables first, then active > prefetch > idle
   const rolePriority = { active: 0, prefetch: 1, idle: 2 };
@@ -890,6 +1031,8 @@ export function executeTeamStrategy({
         reservations, edgeReservations, profile: planner.profile,
         reservedItemIds, shelfDemand,
         allowBreakout: inOpenerBreakout,
+        botZoneId: planner.zoneAssignmentByBot?.[bot.id] ?? 0,
+        zoneCount,
       });
     } else if (team?.role === 'prefetch') {
       const targetOrder = previewOrder
@@ -902,12 +1045,32 @@ export function executeTeamStrategy({
         reservations, edgeReservations, profile: planner.profile,
         targetOrder, reservedItemIds,
         prefetchContext,
+        botZoneId: planner.zoneAssignmentByBot?.[bot.id] ?? 0,
+        zoneCount,
       });
     } else {
       resolved = resolveIdleBotAction({
         bot, state, world, graph,
         reservations, edgeReservations, profile: planner.profile,
       });
+    }
+
+    if (
+      inOpenerBreakout
+      && ['item', 'prefetch_hold', 'prefetch_idle', 'idle_parking', 'parking'].includes(resolved.targetType)
+      && isZeroProgressAssignment(bot, resolved)
+    ) {
+      const breakout = chooseBreakoutAction({
+        bot,
+        state,
+        graph,
+        reservations,
+        edgeReservations,
+        horizon: planner.profile.routing.horizon,
+      });
+      if (breakout) {
+        resolved = breakout;
+      }
     }
 
     // Anti-deadlock detection
@@ -929,7 +1092,7 @@ export function executeTeamStrategy({
       team?.role === 'active'
       && inOpenerBreakout
       && resolved.targetType === 'item'
-      && (!resolved.nextPath || resolved.nextPath.length <= 1)
+      && isZeroProgressAssignment(bot, resolved)
     ) {
       const breakout = chooseBreakoutAction({
         bot,

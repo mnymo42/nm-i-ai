@@ -97,15 +97,18 @@ test('listReplayRuns discovers runs and filters by difficulty/profile', () => {
 
 test('loadReplayRun returns summary, analysis, layout, and rebuilt ticks', () => {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'grocery-viewer-'));
-  const runDir = writeRun(outDir, '2026-03-07T00-00-00-000Z-nightmare-nightmare', {
-    difficulty: 'nightmare',
-    profile: 'nightmare',
+  const runDir = writeRun(outDir, '2026-03-07T00-00-00-000Z-expert-expert', {
+    difficulty: 'expert',
+    profile: 'expert',
     dropOffs: [[1, 3], [3, 3]],
   });
 
   const payload = loadReplayRun(runDir, outDir);
-  assert.equal(payload.summary.difficulty, 'nightmare');
+  assert.equal(payload.summary.difficulty, 'expert');
   assert.deepEqual(payload.layout.drop_offs, [[1, 3], [3, 3]]);
+  assert.equal(Array.isArray(payload.layout.laneMap?.oneWayRoads?.['1,2']), true);
+  assert.equal(Array.isArray(payload.layout.laneMap?.trafficLaneCells), true);
+  assert.equal(payload.layout.laneMap?.returnRow !== null, true);
   assert.equal(payload.ticks.length, 1);
   assert.deepEqual(payload.ticks[0].state_snapshot.grid, { width: 5, height: 5, walls: [] });
 });

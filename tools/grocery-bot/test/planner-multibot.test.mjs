@@ -8,7 +8,7 @@ import {
   chooseParkingAction,
 } from '../src/planner/planner-multibot.mjs';
 import { buildMediumMissionAssignments } from '../src/planner/planner-missions.mjs';
-import { GridGraph, buildLaneMapV2 } from '../src/utils/grid-graph.mjs';
+import { GridGraph, buildLaneMapV2, buildLaneMapV3 } from '../src/utils/grid-graph.mjs';
 import { defaultProfiles } from '../src/utils/profile.mjs';
 import { buildWorldContext } from '../src/utils/world-model.mjs';
 
@@ -392,6 +392,44 @@ test('chooseParkingAction targets off-lane parking when lane map v2 is active', 
 
   assert.notEqual(result.action, 'wait');
   assert.equal(graph.trafficLaneCells.has(result.path.at(-1).join(',')), false);
+});
+
+test('chooseParkingAction avoids feeder cells under lane map v3', () => {
+  const state = baseState({
+    grid: { width: 14, height: 10, walls: [] },
+    bots: [
+      { id: 0, position: [3, 8], inventory: [] },
+      { id: 1, position: [1, 8], inventory: [] },
+      { id: 2, position: [2, 7], inventory: [] },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+      { id: 'bread_0', type: 'bread', position: [7, 3] },
+      { id: 'eggs_0', type: 'eggs', position: [11, 3] },
+    ],
+    drop_off: [1, 8],
+  });
+  const graph = buildGraph(state);
+  const laneMap = buildLaneMapV3(graph, [state.drop_off]);
+  graph.trafficLaneCells = laneMap.trafficLaneCells;
+  graph.directionalPreference = laneMap.directionalPreference;
+  const result = chooseParkingAction({
+    bot: state.bots[0],
+    graph,
+    reservations: new Map(),
+    edgeReservations: new Map(),
+    horizon: 10,
+    dropOff: state.drop_off,
+    otherBots: state.bots,
+    items: state.items,
+    gridWidth: state.grid.width,
+    gridHeight: state.grid.height,
+  });
+
+  assert.notEqual(result.action, 'wait');
+  const target = result.path.at(-1);
+  assert.equal(target[0] <= 4 && target[1] >= 6 && target[1] <= 8, false);
+  assert.equal(graph.trafficLaneCells.has(target.join(',')), false);
 });
 
 test('buildTasks suppresses preview when too many bots already carry non-active items', () => {

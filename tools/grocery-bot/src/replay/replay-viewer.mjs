@@ -2,6 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
+  GridGraph,
+  buildLaneMapV2,
+  buildLaneMapV3,
+  serializeLaneMap,
+} from '../utils/grid-graph.mjs';
+import { defaultProfiles, resolveProfile } from '../utils/profile.mjs';
+import {
   collectReplayPaths,
   extractLayout,
   parseJsonl,
@@ -41,6 +48,16 @@ function inferRunMetadata(runDir) {
     difficulty: match.groups.difficulty,
     profile: match.groups.profile,
   };
+}
+
+function resolveLaneMapVersion(difficulty, profileName) {
+  try {
+    const profile = resolveProfile(defaultProfiles, difficulty || profileName, profileName || null);
+    return profile?.routing?.lane_map_version
+      ?? (profile?.routing?.use_lane_map_v2 ? 'v2' : null);
+  } catch {
+    return null;
+  }
 }
 
 export function listReplayRuns(outDir, filters = {}) {
@@ -103,6 +120,25 @@ export function loadReplayRun(runDir, outDir) {
 
   const rows = parseJsonl(replayPath);
   const layout = extractLayout(rows);
+  if (layout?.grid) {
+    const inferred = inferRunMetadata(safeRunDir);
+    const summary = safeReadJson(path.join(safeRunDir, 'summary.json')) || summarizeReplay(replayPath);
+    const difficulty = summary?.difficulty || inferred.difficulty;
+    const profileName = summary?.profile || inferred.profile;
+    const laneMapVersion = resolveLaneMapVersion(difficulty, profileName);
+    const laneMap = laneMapVersion === 'v3'
+      ? buildLaneMapV3(
+        new GridGraph(layout.grid),
+        layout.drop_offs || (layout.drop_off ? [layout.drop_off] : []),
+      )
+      : laneMapVersion === 'v2'
+        ? buildLaneMapV2(
+          new GridGraph(layout.grid),
+          layout.drop_offs || (layout.drop_off ? [layout.drop_off] : []),
+        )
+        : null;
+    layout.laneMap = serializeLaneMap(laneMap);
+  }
   const summary = safeReadJson(path.join(safeRunDir, 'summary.json')) || summarizeReplay(replayPath);
   const analysis = safeReadJson(path.join(safeRunDir, 'analysis.json')) || generateAnalysis(replayPath);
   const ticks = rows

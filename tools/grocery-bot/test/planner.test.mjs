@@ -202,7 +202,117 @@ test('computeOpenerTargets packs opener staging columns without one-tile gaps', 
 });
 
 test('expert opener budget is long enough to finish the compact staging move', () => {
-  assert.equal(defaultProfiles.expert.opener.max_ticks, 16);
+  assert.equal(defaultProfiles.expert.opener.max_ticks, 20);
+});
+
+test('expert opener releases bots with left-plus-up spawn sequencing', () => {
+  const planner = new GroceryPlanner(structuredClone(defaultProfiles.expert));
+  const state0 = {
+    type: 'game_state',
+    round: 0,
+    max_rounds: 300,
+    grid: { width: 12, height: 8, walls: [] },
+    bots: [
+      { id: 0, position: [10, 6], inventory: [] },
+      { id: 1, position: [10, 6], inventory: [] },
+      { id: 2, position: [10, 6], inventory: [] },
+      { id: 3, position: [10, 6], inventory: [] },
+    ],
+    items: [],
+    orders: [{ id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false }],
+    drop_off: [1, 6],
+    drop_offs: [[1, 6]],
+    score: 0,
+  };
+
+  const actions0 = planner.plan(state0);
+  assert.equal(actions0.find((action) => action.bot === 0)?.action, 'move_left');
+  assert.equal(actions0.find((action) => action.bot === 1)?.action, 'move_up');
+  assert.equal(actions0.find((action) => action.bot === 2)?.action, 'wait');
+  assert.equal(actions0.find((action) => action.bot === 3)?.action, 'wait');
+
+  const state1 = {
+    ...state0,
+    round: 1,
+    bots: [
+      { id: 0, position: [9, 6], inventory: [] },
+      { id: 1, position: [10, 5], inventory: [] },
+      { id: 2, position: [10, 6], inventory: [] },
+      { id: 3, position: [10, 6], inventory: [] },
+    ],
+  };
+  const actions1 = planner.plan(state1);
+  assert.equal(actions1.find((action) => action.bot === 0)?.action, 'move_left');
+  assert.equal(actions1.find((action) => action.bot === 1)?.action, 'move_left');
+  assert.equal(actions1.find((action) => action.bot === 2)?.action, 'move_left');
+});
+
+test('expert opener continues the same release pattern on the next round', () => {
+  const planner = new GroceryPlanner(structuredClone(defaultProfiles.expert));
+  planner.openerTick = 2;
+  planner.openerSpawn = [10, 6];
+  planner.openerTargetPositions = [[3, 6], [3, 5], [4, 6], [4, 5], [5, 6], [5, 5]];
+  const state = {
+    type: 'game_state',
+    round: 2,
+    max_rounds: 300,
+    grid: { width: 12, height: 8, walls: [] },
+    bots: [
+      { id: 0, position: [8, 6], inventory: [] },
+      { id: 1, position: [9, 5], inventory: [] },
+      { id: 2, position: [9, 6], inventory: [] },
+      { id: 3, position: [10, 5], inventory: [] },
+      { id: 4, position: [10, 6], inventory: [] },
+      { id: 5, position: [10, 6], inventory: [] },
+    ],
+    items: [],
+    orders: [{ id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false }],
+    drop_off: [1, 6],
+    drop_offs: [[1, 6]],
+    score: 0,
+  };
+
+  const actions = planner.plan(state);
+  assert.equal(actions.find((action) => action.bot === 0)?.action, 'move_left');
+  assert.equal(actions.find((action) => action.bot === 1)?.action, 'move_left');
+  assert.equal(actions.find((action) => action.bot === 2)?.action, 'move_left');
+  assert.equal(actions.find((action) => action.bot === 3)?.action, 'move_left');
+  assert.equal(actions.find((action) => action.bot === 4)?.action, 'move_left');
+  assert.equal(actions.find((action) => action.bot === 5)?.action, 'move_up');
+});
+
+test('expert opener hands off immediately after the spawn stack is empty', () => {
+  const planner = new GroceryPlanner(structuredClone(defaultProfiles.expert));
+  planner.openerSpawn = [10, 6];
+  planner.openerTargetPositions = [[3, 6], [3, 5], [4, 6], [4, 5]];
+  planner.openerReleasedBotOrder = [0, 1, 2, 3];
+  planner.openerTick = 4;
+
+  const state = {
+    type: 'game_state',
+    round: 4,
+    max_rounds: 300,
+    grid: { width: 12, height: 8, walls: [] },
+    bots: [
+      { id: 0, position: [6, 6], inventory: [] },
+      { id: 1, position: [7, 5], inventory: [] },
+      { id: 2, position: [8, 6], inventory: [] },
+      { id: 3, position: [9, 5], inventory: [] },
+    ],
+    items: [{ id: 'item_0', type: 'milk', position: [3, 3] }],
+    orders: [{ id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false }],
+    drop_off: [1, 6],
+    drop_offs: [[1, 6]],
+    score: 0,
+  };
+
+  const actions = planner.plan(state);
+
+  assert.equal(planner.openerActive, false);
+  assert.equal(planner.lastOpenerRound, 4);
+  assert.deepEqual(planner.initialTeamOrder, [0, 1, 2, 3]);
+  assert.equal(planner.lastMetrics.phase === 'opener', false);
+  assert.equal(actions.some((action) => action.action.startsWith('move_') || action.action === 'pick_up'), true);
 });
 
 test('expert lane map stays relaxed immediately after opener handoff', () => {

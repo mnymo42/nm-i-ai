@@ -84,16 +84,21 @@ export class GroceryGameClient {
     token,
     urlBase = 'wss://game.ainm.no/ws',
     idleTimeoutMs = 15_000,
+    connectTimeoutMs = 10_000,
     minRoundSendIntervalMs = 0,
+    webSocketFactory = null,
   }) {
     this.url = `${urlBase}?token=${encodeURIComponent(token)}`;
     this.idleTimeoutMs = idleTimeoutMs;
+    this.connectTimeoutMs = connectTimeoutMs;
     this.minRoundSendIntervalMs = minRoundSendIntervalMs;
+    this.webSocketFactory = webSocketFactory;
     this.ws = null;
     this.queue = [];
     this.pending = [];
     this.closed = false;
     this.closeReason = null;
+    this.lastConnectError = null;
     this.lastSentRound = null;
     this.lastSentPayload = null;
     this.lastSendAt = 0;
@@ -101,7 +106,8 @@ export class GroceryGameClient {
   }
 
   async connect() {
-    this.ws = new WebSocketImpl(this.url);
+    const socketFactory = this.webSocketFactory || ((url) => new WebSocketImpl(url));
+    this.ws = socketFactory(this.url);
 
     bindWsEvent(this.ws, 'message', (event) => {
       const payload = normalizeMessagePayload(event);
@@ -126,11 +132,28 @@ export class GroceryGameClient {
       }
     });
 
-    bindWsEvent(this.ws, 'error', () => {
-      this.closeReason = 'WebSocket error';
+    bindWsEvent(this.ws, 'error', (event) => {
+      const detail = event?.message
+        || event?.error?.message
+        || event?.code
+        || null;
+      this.lastConnectError = detail ? `WebSocket error: ${detail}` : 'WebSocket error';
+      this.closeReason = this.lastConnectError;
     });
 
-    await withTimeout(wsEventPromise(this.ws, 'open'), 10_000, 'WebSocket connect timeout');
+    const timeoutMessage = this.lastConnectError
+      ? `WebSocket connect timeout (${this.lastConnectError})`
+      : 'WebSocket connect timeout';
+    await withTimeout(
+      wsEventPromise(this.ws, 'open'),
+      this.connectTimeoutMs,
+      timeoutMessage,
+    ).catch((error) => {
+      if (error?.message === 'WebSocket connect timeout' && this.lastConnectError) {
+        throw new Error(`WebSocket connect timeout (${this.lastConnectError})`);
+      }
+      throw error;
+    });
   }
 
   async recv() {

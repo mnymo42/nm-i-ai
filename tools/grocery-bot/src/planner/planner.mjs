@@ -4,7 +4,7 @@
  * Public API: plan(state), getLastMetrics()
  */
 import { encodeCoord, moveToAction, manhattanDistance } from '../utils/coords.mjs';
-import { GridGraph, buildDirectionalPreference, buildLaneMapV2 } from '../utils/grid-graph.mjs';
+import { GridGraph, buildDirectionalPreference, buildLaneMapV2, buildLaneMapV3 } from '../utils/grid-graph.mjs';
 import { buildWorldContext } from '../utils/world-model.mjs';
 import { getRoundPhase } from './planner-utils.mjs';
 import { findTimeAwarePath, reservePath } from '../routing/routing.mjs';
@@ -25,6 +25,7 @@ import {
   updateApproachStats,
 } from './planner-singlebot.mjs';
 import { buildComparableReplayState, diffComparableReplayValues } from '../replay/replay-transition-diff.mjs';
+import { zoneIndexForX } from './planner-multibot-common.mjs';
 
 export class GroceryPlanner {
   constructor(profile, options = {}) {
@@ -67,6 +68,9 @@ export class GroceryPlanner {
     this.openerTargetPositions = null;
     this.openerTick = 0;
     this.lastOpenerRound = null;
+    this.openerSpawn = null;
+    this.openerReleasedBotOrder = [];
+    this.initialTeamOrder = null;
   }
 
   resetIntentState() {
@@ -164,52 +168,66 @@ export class GroceryPlanner {
     const isScripted = !this.scriptDisabled && this.script?.tickMap?.has(state.round);
     const openerEnabled = this.profile.opener?.enabled === true;
     const openerMaxTicks = this.profile.opener?.max_ticks ?? 15;
-    if (openerEnabled && this.openerActive && isMultiBot && !isScripted && this.openerTick < openerMaxTicks) {
+    if (openerEnabled && this.openerActive && isMultiBot && !isScripted) {
       if (!this.openerTargetPositions) {
         const itemWalls = state.items.map(i => i.position);
         const openerGraph = new GridGraph({ ...state.grid, walls: [...state.grid.walls, ...itemWalls] });
         const dropOff = getDropOffs(state)[0] || [0, 0];
         this.openerTargetPositions = computeOpenerTargets(state, openerGraph, dropOff);
+        this.openerSpawn = [...state.bots[0].position];
+        this.openerReleasedBotOrder = [];
       }
-      // Each tick: route each bot toward its target using single-step A*
-      const itemWalls = state.items.map(i => i.position);
-      const openerGraph = new GridGraph({ ...state.grid, walls: [...state.grid.walls, ...itemWalls] });
-      const reservations = new Map();
-      const edgeReservations = new Map();
-      const allDone = state.bots.every((bot, i) => {
-        const target = this.openerTargetPositions[i];
-        return !target || (bot.position[0] === target[0] && bot.position[1] === target[1]);
-      });
-      if (allDone) {
+      for (const bot of [...state.bots].sort((a, b) => a.id - b.id)) {
+        const atSpawn = this.openerSpawn
+          && bot.position[0] === this.openerSpawn[0]
+          && bot.position[1] === this.openerSpawn[1];
+        if (!atSpawn && !this.openerReleasedBotOrder.includes(bot.id)) {
+          this.openerReleasedBotOrder.push(bot.id);
+        }
+      }
+      const spawnCleared = !this.openerSpawn || state.bots.every((bot) =>
+        bot.position[0] !== this.openerSpawn[0] || bot.position[1] !== this.openerSpawn[1],
+      );
+      if (spawnCleared || this.openerTick >= openerMaxTicks) {
         this.openerActive = false;
         this.lastOpenerRound = state.round;
+        this.initialTeamOrder = this.openerReleasedBotOrder.length > 0
+          ? [...this.openerReleasedBotOrder]
+          : [...state.bots].sort((a, b) => a.id - b.id).map((bot) => bot.id);
       } else {
-        // Process farthest-from-target bots first so they can route through
-        const botOrder = state.bots.map((bot, i) => {
-          const target = this.openerTargetPositions[i];
-          const atTarget = target && bot.position[0] === target[0] && bot.position[1] === target[1];
-          const dist = target ? manhattanDistance(bot.position, target) : 0;
-          return { bot, i, target, atTarget, dist };
-        }).sort((a, b) => b.dist - a.dist);
+        const itemWalls = state.items.map(i => i.position);
+        const openerGraph = new GridGraph({ ...state.grid, walls: [...state.grid.walls, ...itemWalls] });
+        const reservations = new Map();
+        const edgeReservations = new Map();
         const actionMap = new Map();
-        for (const { bot, i, target, atTarget } of botOrder) {
+        const releaseMode = this.profile.opener?.release_mode ?? 'sequential_compact';
+        const botOrder = state.bots.map((bot, i) => ({ bot, i, target: this.openerTargetPositions[i] }))
+          .sort((a, b) => a.bot.id - b.bot.id);
+        for (const { bot, i, target } of botOrder) {
+          const atTarget = target && bot.position[0] === target[0] && bot.position[1] === target[1];
           if (!target || atTarget) {
             reservePath({ path: [bot.position], startTime: 0, reservations, edgeReservations, horizon: 6, holdAtGoal: true });
             actionMap.set(bot.id, { bot: bot.id, action: 'wait' });
             continue;
           }
-          const openerHorizon = Math.max(30, manhattanDistance(bot.position, target) + 10);
-          const path = findTimeAwarePath({
-            graph: openerGraph, start: bot.position, goal: target,
-            reservations, edgeReservations, startTime: 0, horizon: openerHorizon,
+          const openerMove = chooseOpenerReleaseAction({
+            bot,
+            target,
+            graph: openerGraph,
+            reservations,
+            edgeReservations,
+            releaseMode,
+            openerTick: this.openerTick,
+            openerSpawn: this.openerSpawn,
           });
-          if (path && path.length >= 2) {
-            reservePath({ path, startTime: 0, reservations, edgeReservations, horizon: openerHorizon, holdAtGoal: false });
-            actionMap.set(bot.id, { bot: bot.id, action: moveToAction(path[0], path[1]) });
-          } else {
-            reservePath({ path: [bot.position], startTime: 0, reservations, edgeReservations, horizon: 6, holdAtGoal: true });
-            actionMap.set(bot.id, { bot: bot.id, action: 'wait' });
+          if (openerMove) {
+            reservePath({ path: openerMove.path, startTime: 0, reservations, edgeReservations, horizon: 8, holdAtGoal: false });
+            actionMap.set(bot.id, { bot: bot.id, action: openerMove.action });
+            continue;
           }
+
+          reservePath({ path: [bot.position], startTime: 0, reservations, edgeReservations, horizon: 6, holdAtGoal: true });
+          actionMap.set(bot.id, { bot: bot.id, action: 'wait' });
         }
         const actions = state.bots.map(bot => actionMap.get(bot.id));
         this.openerTick += 1;
@@ -403,13 +421,17 @@ export class GroceryPlanner {
     const shelfWalls = state.items.map((item) => item.position);
     const baseGrid = new GridGraph(state.grid);
     const laneMapRelaxTicks = this.profile.routing?.lane_map_handoff_relax_ticks ?? 0;
-    const allowLaneMap = this.profile.routing?.use_lane_map_v2
+    const laneMapVersion = this.profile.routing?.lane_map_version
+      ?? (this.profile.routing?.use_lane_map_v2 ? 'v2' : null);
+    const allowLaneMap = laneMapVersion
       && (
         this.lastOpenerRound === null
         || state.round > (this.lastOpenerRound + laneMapRelaxTicks)
       );
     const lanePolicy = allowLaneMap
-      ? buildLaneMapV2(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
+      ? (laneMapVersion === 'v3'
+        ? buildLaneMapV3(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
+        : buildLaneMapV2(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : [])))
       : null;
     const graph = new GridGraph({
       ...state.grid,
@@ -419,12 +441,13 @@ export class GroceryPlanner {
     graph.trafficLaneCells = lanePolicy?.trafficLaneCells || new Set();
 
     // Attach directional preference + congestion settings for A* routing
-    if (!this._dirPrefCache || this._dirPrefCacheMode !== (allowLaneMap ? 'lane_v2' : 'default')) {
+    const cacheMode = allowLaneMap ? `lane_${laneMapVersion}` : 'default';
+    if (!this._dirPrefCache || this._dirPrefCacheMode !== cacheMode) {
       // Build once from base grid (without shelf walls) and cache
       this._dirPrefCache = allowLaneMap
         ? lanePolicy.directionalPreference
         : buildDirectionalPreference(baseGrid);
-      this._dirPrefCacheMode = allowLaneMap ? 'lane_v2' : 'default';
+      this._dirPrefCacheMode = cacheMode;
     }
     graph.directionalPreference = this._dirPrefCache;
     graph.directionPenalty = this.profile.routing?.direction_penalty || 0;
@@ -481,33 +504,32 @@ export class GroceryPlanner {
 
     // Assign bots to zones, allow dynamic switching if needed
     if (!this.zoneAssignmentByBot) {
-      this.zoneAssignmentByBot = assignInitialZones(state);
+      this.zoneAssignmentByBot = assignInitialZones(state, this.openerTargetPositions, this.profile, this.initialTeamOrder);
     }
     updateDynamicZones(state, this.zoneAssignmentByBot);
     const blockedItemsByBot = new Map(
       state.bots.map((bot) => [bot.id, this.blockedPickupByBot.get(bot.id) || new Map()]),
     );
     // --- Zone Assignment Helpers ---
-    function assignInitialZones(state) {
-      // Assign each bot to a zone (e.g., left, middle, right, etc.)
+    function assignInitialZones(state, openerTargetPositions, profile, initialTeamOrder) {
       const zones = {};
-      const botOrder = [...state.bots].sort((a, b) => a.id - b.id);
+      const zoneCount = Math.max(1, profile.teams?.zone_count ?? 3);
+      const order = Array.isArray(initialTeamOrder) && initialTeamOrder.length > 0
+        ? initialTeamOrder
+        : [...state.bots].sort((a, b) => a.id - b.id).map((bot) => bot.id);
+      const botOrder = order
+        .map((id) => state.bots.find((bot) => bot.id === id))
+        .filter(Boolean);
       for (let i = 0; i < botOrder.length; ++i) {
-        zones[botOrder[i].id] = i;
+        const zoneX = openerTargetPositions?.[i]?.[0] ?? botOrder[i].position[0];
+        zones[botOrder[i].id] = zoneIndexForX(zoneX, state.grid.width, zoneCount);
       }
       return zones;
     }
 
     function updateDynamicZones(state, zones) {
-      // Allow bots to switch zones if their zone is congested or in recovery
-      // Placeholder: if a bot is stuck (no progress for 4+ rounds), reassign to next zone
-      for (const bot of state.bots) {
-        const botId = bot.id;
-        // Example: if bot is in recovery or has not moved, switch zone
-        // (Real logic should use actual congestion/recovery detection)
-        // For now, do nothing unless you want to implement dynamic switching
-        // zones[botId] = ...
-      }
+      void state;
+      void zones;
     }
     if (runtime.multi_bot_strategy === 'mission_v1') {
       const actions = executeMissionStrategy({
@@ -625,6 +647,114 @@ export class GroceryPlanner {
     }
     return actions;
   }
+}
+
+function chooseOpenerReleaseAction({
+  bot,
+  target,
+  graph,
+  reservations,
+  edgeReservations,
+  releaseMode,
+  openerTick,
+  openerSpawn,
+}) {
+  const scriptedMove = chooseSequentialCompactOpenerAction({
+    bot,
+    target,
+    graph,
+    reservations,
+    edgeReservations,
+    releaseMode,
+    openerTick,
+    openerSpawn,
+  });
+  if (scriptedMove) {
+    return scriptedMove;
+  }
+
+  const candidates = graph.neighbors(bot.position)
+    .map((neighbor) => {
+      const key = encodeCoord(neighbor);
+      const currentKey = encodeCoord(bot.position);
+      if (reservations.get(1)?.has(key)) return null;
+      if (edgeReservations.get(1)?.has(`${key}>${currentKey}`)) return null;
+      return neighbor;
+    })
+    .filter(Boolean)
+    .sort((left, right) => {
+      const leftVertical = left[1] !== bot.position[1] ? 0 : 1;
+      const rightVertical = right[1] !== bot.position[1] ? 0 : 1;
+      if (leftVertical !== rightVertical) return leftVertical - rightVertical;
+      const leftDistance = manhattanDistance(left, target);
+      const rightDistance = manhattanDistance(right, target);
+      if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+      const leftPriority = Math.abs(left[0] - target[0]);
+      const rightPriority = Math.abs(right[0] - target[0]);
+      return leftPriority - rightPriority;
+    });
+
+  const best = candidates[0];
+  if (!best) {
+    return null;
+  }
+
+  return {
+    action: moveToAction(bot.position, best),
+    path: [bot.position, best],
+  };
+}
+
+function chooseSequentialCompactOpenerAction({
+  bot,
+  target,
+  graph,
+  reservations,
+  edgeReservations,
+  releaseMode,
+  openerTick,
+  openerSpawn,
+}) {
+  if (releaseMode !== 'sequential_compact' || !openerSpawn) {
+    return null;
+  }
+
+  const leftLimit = Math.min(bot.id, openerTick * 2);
+  const upBotId = openerTick * 2 + 1;
+  let preferredNeighbor = null;
+  const atSpawn = bot.position[0] === openerSpawn[0] && bot.position[1] === openerSpawn[1];
+
+  if (bot.id <= leftLimit) {
+    preferredNeighbor = [bot.position[0] - 1, bot.position[1]];
+  } else if (bot.id === upBotId && atSpawn) {
+    preferredNeighbor = [bot.position[0], bot.position[1] - 1];
+  } else if (atSpawn) {
+    return {
+      action: 'wait',
+      path: [bot.position],
+    };
+  }
+
+  if (!preferredNeighbor || !graph.isWalkable(preferredNeighbor)) {
+    return null;
+  }
+
+  const key = encodeCoord(preferredNeighbor);
+  const currentKey = encodeCoord(bot.position);
+  if (reservations.get(1)?.has(key)) return null;
+  if (edgeReservations.get(1)?.has(`${key}>${currentKey}`)) return null;
+
+  if (target && preferredNeighbor[0] === target[0] && preferredNeighbor[1] === target[1]) {
+    return {
+      action: moveToAction(bot.position, preferredNeighbor),
+      path: [bot.position, preferredNeighbor],
+    };
+  }
+
+  return {
+    action: moveToAction(bot.position, preferredNeighbor),
+    path: [bot.position, preferredNeighbor],
+  };
 }
 
 function compactOpenerColumns(baseColumns, count) {

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { GroceryPlanner } from '../src/planner/planner.mjs';
-import { buildPrefetchWavePlan } from '../src/planner/planner-teams.mjs';
+import { buildPrefetchWavePlan, buildTeams } from '../src/planner/planner-teams.mjs';
 import { defaultProfiles } from '../src/utils/profile.mjs';
 import { buildWorldContext } from '../src/utils/world-model.mjs';
 
@@ -195,4 +195,101 @@ test('team planner takes an approach step instead of freezing on active item ass
     if (detail.taskType !== 'item') continue;
     assert.notDeepEqual(detail.path, [detail.target]);
   }
+});
+
+test('team planner makes drop-off progress when full drop route is unavailable', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  planner.profile.routing.horizon = 1;
+  const state = baseState({
+    bots: [
+      { id: 0, position: [8, 2], inventory: ['milk'] },
+      { id: 1, position: [2, 2], inventory: [] },
+      { id: 2, position: [9, 2], inventory: [] },
+      { id: 3, position: [10, 2], inventory: [] },
+    ],
+    items: [],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+    ],
+  });
+
+  const actions = planner.plan(state);
+  assert.equal(actions.find((action) => action.bot === 0)?.action.startsWith('move_'), true);
+});
+
+test('team planner favors active bots from the order zone before cross-zone borrowing', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  const state = baseState({
+    grid: { width: 24, height: 10, walls: [] },
+    bots: [
+      { id: 0, position: [2, 2], inventory: [] },
+      { id: 1, position: [4, 2], inventory: [] },
+      { id: 2, position: [8, 2], inventory: [] },
+      { id: 3, position: [12, 2], inventory: [] },
+      { id: 4, position: [18, 2], inventory: [] },
+      { id: 5, position: [21, 2], inventory: [] },
+    ],
+    items: [
+      { id: 'apples_0', type: 'apples', position: [3, 3] },
+      { id: 'apples_1', type: 'apples', position: [4, 4] },
+      { id: 'cream_0', type: 'cream', position: [5, 3] },
+      { id: 'onions_0', type: 'onions', position: [17, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['apples', 'apples', 'cream'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['onions'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    drop_off: [1, 8],
+    drop_offs: [[1, 8]],
+  });
+
+  planner.plan(state);
+  const activeTeam = planner.lastMetrics.teams.find((team) => team.role === 'active');
+  assert.deepEqual(new Set(activeTeam.botIds.slice(0, 2)), new Set([0, 1]));
+});
+
+test('team builder preserves spawn-order blocks during initial post-opener assignment', () => {
+  const profile = buildExpertProfile();
+  const state = baseState({
+    round: 9,
+    grid: { width: 28, height: 18, walls: [] },
+    bots: [
+      { id: 0, position: [6, 16], inventory: [] },
+      { id: 1, position: [7, 15], inventory: [] },
+      { id: 2, position: [8, 16], inventory: [] },
+      { id: 3, position: [10, 15], inventory: [] },
+      { id: 4, position: [11, 16], inventory: [] },
+      { id: 5, position: [12, 16], inventory: [] },
+      { id: 6, position: [13, 16], inventory: [] },
+      { id: 7, position: [14, 16], inventory: [] },
+      { id: 8, position: [16, 16], inventory: [] },
+      { id: 9, position: [21, 16], inventory: [] },
+    ],
+    items: [
+      { id: 'apples_0', type: 'apples', position: [5, 3] },
+      { id: 'apples_1', type: 'apples', position: [5, 4] },
+      { id: 'cream_0', type: 'cream', position: [7, 3] },
+      { id: 'bread_0', type: 'bread', position: [21, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['apples', 'apples', 'cream'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['bread'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  const world = buildWorldContext(state);
+  const zoneAssignmentByBot = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2 };
+
+  const teams = buildTeams({
+    state,
+    world,
+    oracle: null,
+    existingTeams: null,
+    profile,
+    lastOpenerRound: 8,
+    zoneAssignmentByBot,
+    initialBotOrder: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  });
+
+  const activeTeam = teams.find((team) => team.role === 'active');
+  assert.deepEqual(activeTeam.botIds, [0, 1, 2]);
 });
