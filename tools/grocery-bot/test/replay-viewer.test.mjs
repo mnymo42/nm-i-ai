@@ -108,7 +108,8 @@ test('loadReplayRun returns summary, analysis, layout, and rebuilt ticks', () =>
   assert.deepEqual(payload.layout.drop_offs, [[1, 3], [3, 3]]);
   assert.equal(Array.isArray(payload.layout.laneMap?.oneWayRoads?.['1,2']), true);
   assert.equal(Array.isArray(payload.layout.laneMap?.trafficLaneCells), true);
-  assert.equal(payload.layout.laneMap?.returnRow !== null, true);
+  assert.equal(payload.layout.laneMap?.version, 'v4');
+  assert.equal(payload.layout.laneMap?.roadGroups !== null, true);
   assert.equal(payload.ticks.length, 1);
   assert.deepEqual(payload.ticks[0].state_snapshot.grid, { width: 5, height: 5, walls: [] });
 });

@@ -401,6 +401,65 @@ function isZeroProgressAssignment(bot, resolved) {
     || (target && target[0] === bot.position[0] && target[1] === bot.position[1]);
 }
 
+function isPerimeterCell(coord, state) {
+  if (!coord || !state?.grid) return false;
+  const [x, y] = coord;
+  return x <= 1 || y <= 1 || x >= state.grid.width - 2 || y >= state.grid.height - 2;
+}
+
+function isInvalidStaticTarget({ bot, resolved, state, graph }) {
+  if (!resolved) return false;
+  if (resolved.action === 'drop_off') return false;
+  if (!isZeroProgressAssignment(bot, resolved)) return false;
+
+  const target = resolved.nextPath?.at(-1) || bot.position;
+  const targetKey = encodeCoord(target);
+  const roadSet = graph.trafficLaneCells || new Set();
+  const dropSet = new Set((state.drop_offs || (state.drop_off ? [state.drop_off] : [])).map(encodeCoord));
+  return dropSet.has(targetKey)
+    || roadSet.has(targetKey)
+    || isPerimeterCell(target, state);
+}
+
+function resolveTransitFallback({
+  bot,
+  team,
+  state,
+  world,
+  graph,
+  reservations,
+  edgeReservations,
+  profile,
+}) {
+  const roadSet = graph.trafficLaneCells || new Set();
+  if (roadSet.has(encodeCoord(bot.position))) {
+    const fallback = chooseFallbackAction(
+      bot,
+      graph,
+      reservations,
+      edgeReservations,
+      profile.routing.horizon,
+    );
+    return { action: fallback.action, nextPath: fallback.path, targetType: 'road_transit', noPath: false };
+  }
+
+  const parking = chooseParkingAction({
+    bot, graph, reservations, edgeReservations,
+    horizon: profile.routing.horizon,
+    dropOff: nearestDropOff(bot.position, state),
+    otherBots: state.bots,
+    items: state.items,
+    gridWidth: state.grid?.width,
+    gridHeight: state.grid?.height,
+  });
+  return {
+    action: parking.action,
+    nextPath: parking.path,
+    targetType: team?.role === 'active' ? 'parking' : 'idle_parking',
+    noPath: false,
+  };
+}
+
 /**
  * Build or update teams based on current game state.
  * FIX #3: Preserve ALL existing teams within cooldown, not just active.
@@ -952,7 +1011,8 @@ export function executeTeamStrategy({
 
   // FIX #1: shelfDemand is decremented for PICKUP reservations only.
   // Delivery decisions use world.activeDemand (original, immutable).
-  const shelfDemand = new Map(world.activeDemand);
+  const inventoryCounts = countInventoryByType(state.bots);
+  const { remainingDemand: shelfDemand } = reserveInventoryForDemand(inventoryCounts, world.activeDemand);
   const teamsConfig = planner.profile.teams || {};
   const coverage = analyzeActiveDemandCoverage({
     state,
@@ -1071,6 +1131,19 @@ export function executeTeamStrategy({
       if (breakout) {
         resolved = breakout;
       }
+    }
+
+    if (isInvalidStaticTarget({ bot, resolved, state, graph })) {
+      resolved = resolveTransitFallback({
+        bot,
+        team,
+        state,
+        world,
+        graph,
+        reservations,
+        edgeReservations,
+        profile: planner.profile,
+      });
     }
 
     // Anti-deadlock detection

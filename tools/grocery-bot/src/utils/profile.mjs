@@ -186,7 +186,7 @@ export const defaultProfiles = {
     routing: {
       horizon: 45,
       hold_goal_steps: 6,
-      lane_map_version: 'v3',
+      lane_map_version: 'v4',
       lane_map_handoff_relax_ticks: 24,
     },
     anti_deadlock: {

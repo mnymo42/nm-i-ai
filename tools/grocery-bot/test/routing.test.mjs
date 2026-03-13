@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GridGraph, buildLaneMapV2, buildLaneMapV3 } from '../src/utils/grid-graph.mjs';
+import { GridGraph, buildLaneMapV2, buildLaneMapV3, buildLaneMapV4 } from '../src/utils/grid-graph.mjs';
 import { findTimeAwarePath } from '../src/routing/routing.mjs';
 
 test('findTimeAwarePath returns a direct path when no reservations exist', () => {
@@ -110,4 +110,25 @@ test('GridGraph neighbors enforce one-way movement on lane cells', () => {
 
   assert.deepEqual(graph.neighbors([5, 7]), [[6, 7]]);
   assert.deepEqual(graph.neighbors([11, 4]), [[11, 3]]);
+});
+
+test('buildLaneMapV4 keeps only the narrow backbone and alternating vertical spines', () => {
+  const walls = [];
+  for (let y = 2; y <= 8; y += 1) {
+    walls.push([2, y], [6, y], [10, y], [14, y], [18, y], [22, y]);
+  }
+  for (let y = 10; y <= 14; y += 1) {
+    walls.push([2, y], [6, y], [10, y], [14, y], [18, y], [22, y]);
+  }
+  const graph = new GridGraph({ width: 28, height: 18, walls });
+  const laneMap = buildLaneMapV4(graph, [[1, 16]]);
+
+  assert.deepEqual(laneMap.oneWayRoads['5,1'], ['right']);
+  assert.deepEqual(laneMap.oneWayRoads['5,9'], ['right']);
+  assert.deepEqual(laneMap.oneWayRoads['5,16'], ['left']);
+  assert.deepEqual(laneMap.oneWayRoads['1,5'], ['up']);
+  assert.deepEqual(laneMap.oneWayRoads['26,5'], ['up']);
+  assert.deepEqual(laneMap.oneWayRoads['4,5'], ['down']);
+  assert.deepEqual(laneMap.oneWayRoads['8,5'], ['up']);
+  assert.equal(laneMap.oneWayRoads['3,5'], undefined);
 });

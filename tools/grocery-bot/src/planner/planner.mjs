@@ -4,7 +4,7 @@
  * Public API: plan(state), getLastMetrics()
  */
 import { encodeCoord, moveToAction, manhattanDistance } from '../utils/coords.mjs';
-import { GridGraph, buildDirectionalPreference, buildLaneMapV2, buildLaneMapV3 } from '../utils/grid-graph.mjs';
+import { GridGraph, buildDirectionalPreference, buildLaneMapV2, buildLaneMapV3, buildLaneMapV4 } from '../utils/grid-graph.mjs';
 import { buildWorldContext } from '../utils/world-model.mjs';
 import { getRoundPhase } from './planner-utils.mjs';
 import { findTimeAwarePath, reservePath } from '../routing/routing.mjs';
@@ -429,7 +429,9 @@ export class GroceryPlanner {
         || state.round > (this.lastOpenerRound + laneMapRelaxTicks)
       );
     const lanePolicy = allowLaneMap
-      ? (laneMapVersion === 'v3'
+      ? (laneMapVersion === 'v4'
+        ? buildLaneMapV4(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
+        : laneMapVersion === 'v3'
         ? buildLaneMapV3(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
         : buildLaneMapV2(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : [])))
       : null;

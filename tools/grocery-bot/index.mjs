@@ -7,6 +7,7 @@ import { GroceryGameClient } from './src/client/game-client.mjs';
 import { estimateMaxScoreFromReplay } from './src/utils/max-score-estimator.mjs';
 import { tuneProfileFromReplay } from './src/utils/optimizer.mjs';
 import { loadOracleFile, loadScriptFile } from './src/oracle/oracle-script-io.mjs';
+import { benchmarkPlannerAgainstOracleEnvironment } from './src/oracle/oracle-planner-benchmark.mjs';
 import { GroceryPlanner } from './src/planner/planner.mjs';
 import { loadProfiles, resolveProfile } from './src/utils/profile.mjs';
 import { buildRunProvenance } from './src/utils/run-provenance.mjs';
@@ -161,6 +162,41 @@ function runBenchmarkMode(args) {
   console.log(JSON.stringify(benchmark, null, 2));
 }
 
+function runOracleBenchmarkMode(args) {
+  const profiles = loadProfiles(args.configPath);
+  const selectedProfile = resolveProfile(profiles, args.difficulty, args.profile);
+  const oracleLoad = loadOracleFile(args.oracle);
+  if (!oracleLoad?.ok || !oracleLoad.data) {
+    throw new Error(oracleLoad?.message || `Failed to load oracle: ${args.oracle}`);
+  }
+
+  const variants = (args.variants || selectedProfile.routing?.lane_map_version || 'v4')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const plannerFactoryByVariant = Object.fromEntries(variants.map((variant) => [
+    variant,
+    () => {
+      const profile = structuredClone(selectedProfile);
+      profile.routing ||= {};
+      profile.routing.lane_map_version = variant;
+      return new GroceryPlanner(profile, { oracle: oracleLoad.data });
+    },
+  ]));
+
+  const report = benchmarkPlannerAgainstOracleEnvironment({
+    oracle: oracleLoad.data,
+    plannerFactoryByVariant,
+    replayPath: args.replay,
+    runs: args.runs,
+  });
+
+  if (args.report) {
+    fs.writeFileSync(args.report, JSON.stringify(report, null, 2));
+  }
+  console.log(JSON.stringify(report, null, 2));
+}
+
 function runRunsMode(args) {
   const listing = buildRunListing({
     outDir: args.outDir,
@@ -224,6 +260,11 @@ async function main() {
 
   if (args.mode === 'benchmark') {
     runBenchmarkMode(args);
+    return;
+  }
+
+  if (args.mode === 'oracle-benchmark') {
+    runOracleBenchmarkMode(args);
     return;
   }
 

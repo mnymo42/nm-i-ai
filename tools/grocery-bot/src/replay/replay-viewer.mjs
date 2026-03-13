@@ -5,6 +5,7 @@ import {
   GridGraph,
   buildLaneMapV2,
   buildLaneMapV3,
+  buildLaneMapV4,
   serializeLaneMap,
 } from '../utils/grid-graph.mjs';
 import { defaultProfiles, resolveProfile } from '../utils/profile.mjs';
@@ -131,6 +132,11 @@ export function loadReplayRun(runDir, outDir) {
         new GridGraph(layout.grid),
         layout.drop_offs || (layout.drop_off ? [layout.drop_off] : []),
       )
+      : laneMapVersion === 'v4'
+        ? buildLaneMapV4(
+          new GridGraph(layout.grid),
+          layout.drop_offs || (layout.drop_off ? [layout.drop_off] : []),
+        )
       : laneMapVersion === 'v2'
         ? buildLaneMapV2(
           new GridGraph(layout.grid),

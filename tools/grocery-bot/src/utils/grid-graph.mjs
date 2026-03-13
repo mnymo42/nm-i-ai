@@ -188,6 +188,86 @@ export function buildLaneMapV3(graph, dropOffs = []) {
   return laneMap;
 }
 
+export function buildLaneMapV4(graph, dropOffs = []) {
+  const oneWayRoads = {};
+  const directionalPreference = new Map();
+  const trafficLaneCells = new Set();
+  const roadGroups = {
+    topBackbone: [],
+    middleBackbone: [],
+    bottomBackbone: [],
+    leftTravel: [],
+    rightReturn: [],
+    verticalSpines: [],
+  };
+  const topRow = 1;
+  const middleRow = Math.floor(graph.height / 2);
+  const bottomRow = Math.max(1, graph.height - 2);
+  const leftCol = 1;
+  const rightCol = Math.max(1, graph.width - 2);
+  const shelfXs = findShelfColumns(graph);
+
+  function addRoad(coord, dir, groupName, groupIndex = null) {
+    if (!graph.isWalkable(coord)) return;
+    const key = encodeCoord(coord);
+    oneWayRoads[key] = [dir];
+    directionalPreference.set(key, dir);
+    trafficLaneCells.add(key);
+    if (groupName === 'verticalSpines') {
+      roadGroups.verticalSpines[groupIndex] ||= [];
+      roadGroups.verticalSpines[groupIndex].push(key);
+      return;
+    }
+    roadGroups[groupName].push(key);
+  }
+
+  for (let x = 1; x < graph.width - 1; x += 1) {
+    addRoad([x, topRow], 'right', 'topBackbone');
+    addRoad([x, middleRow], 'right', 'middleBackbone');
+    addRoad([x, bottomRow], 'left', 'bottomBackbone');
+  }
+
+  for (let y = 1; y < graph.height - 1; y += 1) {
+    addRoad([leftCol, y], 'up', 'leftTravel');
+    addRoad([rightCol, y], 'up', 'rightReturn');
+  }
+
+  const gaps = [];
+  if (shelfXs.length > 0) {
+    for (let i = 0; i < shelfXs.length - 1; i += 1) {
+      gaps.push([shelfXs[i] + 1, shelfXs[i + 1] - 1]);
+    }
+    gaps.push([shelfXs[shelfXs.length - 1] + 1, graph.width - 2]);
+  }
+
+  gaps.forEach(([startX, endX], index) => {
+    const walkableCols = [];
+    for (let x = startX; x <= endX; x += 1) {
+      if (graph.isWalkable([x, middleRow])) {
+        walkableCols.push(x);
+      }
+    }
+    if (walkableCols.length === 0) return;
+    const spineX = walkableCols[Math.floor((walkableCols.length - 1) / 2)];
+    const dir = index % 2 === 0 ? 'down' : 'up';
+    for (let y = 1; y < graph.height - 1; y += 1) {
+      addRoad([spineX, y], dir, 'verticalSpines', index);
+    }
+  });
+
+  return {
+    oneWayRoads,
+    directionalPreference,
+    trafficLaneCells,
+    centerRow: middleRow,
+    returnRow: bottomRow,
+    feederCol: leftCol,
+    returnCol: rightCol,
+    roadGroups,
+    version: 'v4',
+  };
+}
+
 export function serializeLaneMap(laneMap) {
   if (!laneMap) {
     return null;
@@ -201,6 +281,8 @@ export function serializeLaneMap(laneMap) {
     returnRow: laneMap.returnRow ?? null,
     feederCol: laneMap.feederCol ?? null,
     returnCol: laneMap.returnCol ?? null,
+    roadGroups: laneMap.roadGroups ?? null,
+    version: laneMap.version ?? null,
   };
 }
 

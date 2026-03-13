@@ -217,6 +217,58 @@ test('team planner makes drop-off progress when full drop route is unavailable',
   assert.equal(actions.find((action) => action.bot === 0)?.action.startsWith('move_'), true);
 });
 
+test('team planner does not assign duplicate pickup for demand already covered by carried inventory', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  const state = baseState({
+    bots: [
+      { id: 0, position: [8, 2], inventory: ['cream'] },
+      { id: 1, position: [2, 2], inventory: [] },
+      { id: 2, position: [9, 2], inventory: [] },
+      { id: 3, position: [10, 2], inventory: [] },
+    ],
+    items: [
+      { id: 'cream_0', type: 'cream', position: [8, 3] },
+      { id: 'eggs_0', type: 'eggs', position: [2, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['cream', 'eggs'], items_delivered: [], status: 'active', complete: false },
+    ],
+  });
+
+  const actions = planner.plan(state);
+  assert.equal(actions.some((action) => action.action === 'pick_up' && action.item_id === 'cream_0'), false);
+});
+
+test('team planner rejects static road-cell item assignments and keeps the bot moving', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  const state = baseState({
+    grid: { width: 28, height: 18, walls: [] },
+    bots: [
+      { id: 0, position: [26, 13], inventory: [] },
+      { id: 1, position: [20, 13], inventory: ['cream'] },
+      { id: 2, position: [12, 9], inventory: [] },
+      { id: 3, position: [14, 9], inventory: [] },
+    ],
+    items: [
+      { id: 'eggs_0', type: 'eggs', position: [3, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['cream', 'eggs'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['milk'], items_delivered: [], status: 'preview', complete: false },
+    ],
+    drop_off: [1, 16],
+    drop_offs: [[1, 16]],
+  });
+
+  const actions = planner.plan(state);
+  const bot0 = actions.find((action) => action.bot === 0);
+  const detail = planner.lastMetrics.botDetails['0'];
+
+  assert.notEqual(bot0?.action, 'wait');
+  assert.notEqual(detail?.taskType, 'item');
+  assert.notDeepEqual(detail?.path, [[26, 13]]);
+});
+
 test('team planner favors active bots from the order zone before cross-zone borrowing', () => {
   const planner = new GroceryPlanner(buildExpertProfile());
   const state = baseState({

@@ -62,6 +62,7 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 | Expert throughput pass v1 | keep | Deterministic opener, zone-aware team control, drop-off fallback, and viewer lane sync |
 | Expert convection lane map v3 | pending | Stronger road backbone with off-road parking to reduce corridor blocking |
 | Lane viewer parity + forced-lane regression lock | keep | Viewer now renders actual one-way roads for the active profile, and tests pin hard lane direction enforcement |
+| Expert road-pattern reset + oracle-fed offline benchmark | pending | Narrower v4 backbone roads, road-aware static-target rejection, and planner-only expert benchmark against oracle environment |
 
 ## Guidance
 

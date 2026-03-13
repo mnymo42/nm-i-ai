@@ -69,10 +69,13 @@ function parseArgs(argv) {
     mode: 'play',
     replay: null,
     randomSeeds: 32,
+    runs: 1,
     limit: 10,
     oracle: null,
     script: null,
     maxTick: 120,
+    variants: null,
+    report: null,
   };
   let difficultyExplicit = false;
 
@@ -84,7 +87,7 @@ function parseArgs(argv) {
       continue;
     }
 
-    if (['--token', '--difficulty', '--profile', '--out-dir', '--config', '--mode', '--replay', '--seeds', '--limit', '--oracle', '--script', '--max-tick'].includes(key)) {
+    if (['--token', '--difficulty', '--profile', '--out-dir', '--config', '--mode', '--replay', '--seeds', '--runs', '--limit', '--oracle', '--script', '--max-tick', '--variants', '--report'].includes(key)) {
       if (value === undefined) {
         throw new Error(`Missing value for ${key}`);
       }
@@ -121,6 +124,9 @@ function parseArgs(argv) {
       case '--limit':
         args.limit = Number(value);
         break;
+      case '--runs':
+        args.runs = Number(value);
+        break;
       case '--oracle':
         args.oracle = path.resolve(process.cwd(), value);
         break;
@@ -129,6 +135,12 @@ function parseArgs(argv) {
         break;
       case '--max-tick':
         args.maxTick = Number(value);
+        break;
+      case '--variants':
+        args.variants = value;
+        break;
+      case '--report':
+        args.report = path.resolve(process.cwd(), value);
         break;
       default:
         break;
@@ -150,7 +162,7 @@ export function parseCliArguments(argv) {
     throw new Error(`Invalid difficulty: ${args.difficulty}`);
   }
 
-  const validModes = new Set(['play', 'summarize', 'simulate', 'tune', 'benchmark', 'runs', 'analyze', 'script-info', 'opening-audit']);
+  const validModes = new Set(['play', 'summarize', 'simulate', 'tune', 'benchmark', 'runs', 'analyze', 'script-info', 'opening-audit', 'oracle-benchmark']);
   validModes.add('estimate-max');
   if (!validModes.has(args.mode)) {
     throw new Error(`Invalid mode: ${args.mode}`);
@@ -174,9 +186,15 @@ export function parseCliArguments(argv) {
   if (args.mode === 'opening-audit' && (!args.script || !args.oracle || !args.replay)) {
     throw new Error('--script, --oracle, and --replay are required for mode=opening-audit');
   }
+  if (args.mode === 'oracle-benchmark' && !args.oracle) {
+    throw new Error('--oracle is required for mode=oracle-benchmark');
+  }
 
   if (!Number.isFinite(args.limit) || args.limit <= 0) {
     throw new Error(`Invalid --limit: ${args.limit}`);
+  }
+  if (!Number.isFinite(args.runs) || args.runs <= 0) {
+    throw new Error(`Invalid --runs: ${args.runs}`);
   }
   if (!Number.isFinite(args.maxTick) || args.maxTick <= 0) {
     throw new Error(`Invalid --max-tick: ${args.maxTick}`);

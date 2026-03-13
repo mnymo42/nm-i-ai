@@ -58,6 +58,23 @@ test('parseCliArguments accepts benchmark mode with replay path', () => {
   assert.match(args.replay, /tools\/grocery-bot\/out$/);
 });
 
+test('parseCliArguments accepts oracle-benchmark mode with oracle, runs, variants, and report', () => {
+  const args = parseCliArguments([
+    '--mode', 'oracle-benchmark',
+    '--difficulty', 'expert',
+    '--oracle', 'tools/grocery-bot/config/oracle-expert.json',
+    '--runs', '3',
+    '--variants', 'v3,v4',
+    '--report', 'tools/grocery-bot/out/oracle-report.json',
+  ]);
+
+  assert.equal(args.mode, 'oracle-benchmark');
+  assert.equal(args.runs, 3);
+  assert.equal(args.variants, 'v3,v4');
+  assert.match(args.oracle, /tools\/grocery-bot\/config\/oracle-expert\.json$/);
+  assert.match(args.report, /tools\/grocery-bot\/out\/oracle-report\.json$/);
+});
+
 test('parseCliArguments accepts runs mode with limit', () => {
   const args = parseCliArguments([
     '--mode', 'runs',
