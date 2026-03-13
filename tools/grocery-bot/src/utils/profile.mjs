@@ -159,15 +159,19 @@ export const defaultProfiles = {
   },
   expert: {
     teams: {
-      prefetch_enable_remaining_threshold: 2,
-      prefetch_require_active_coverage: true,
+      active_bot_ratio: 1.2,
+      active_max_bots: 5,
+      preview_bot_ratio: 0.8,
+      preview_max_bots: 3,
+      prefetch_enable_remaining_threshold: 99,
+      prefetch_require_active_coverage: false,
       wave_order_count: 3,
       prefetch_lookahead_ticks: 80,
-      opener_breakout_ticks: 8,
-      opener_breakout_active_cap: 3,
+      opener_breakout_ticks: 0,
+      opener_breakout_active_cap: 8,
       zone_count: 3,
       zone_strategy: 'x_bands',
-      active_cross_zone_cap: 2,
+      active_cross_zone_cap: 4,
     },
     opener: {
       enabled: true,
@@ -186,8 +190,6 @@ export const defaultProfiles = {
     routing: {
       horizon: 45,
       hold_goal_steps: 6,
-      lane_map_version: 'v4',
-      lane_map_handoff_relax_ticks: 24,
     },
     anti_deadlock: {
       stall_threshold: 2,
@@ -234,11 +236,11 @@ export const defaultProfiles = {
   },
 };
 
-// Team strategy for expert
-defaultProfiles.expert.runtime.multi_bot_strategy = 'team_v1';
-
-defaultProfiles.expert_assignment_v1 = JSON.parse(JSON.stringify(defaultProfiles.expert));
-defaultProfiles.expert_assignment_v1.runtime.multi_bot_strategy = 'assignment_v1';
+// Team strategy available as opt-in profile
+defaultProfiles.expert_team_v1 = JSON.parse(JSON.stringify(defaultProfiles.expert));
+defaultProfiles.expert_team_v1.runtime.multi_bot_strategy = 'team_v1';
+defaultProfiles.expert_team_v1.teams.active_min_bots = 2;
+defaultProfiles.expert_team_v1.teams.prefetch_max_orders = 4;
 
 defaultProfiles.nightmare = JSON.parse(JSON.stringify(defaultProfiles.expert));
 defaultProfiles.nightmare.runtime.multi_bot_strategy = 'warehouse_v1';

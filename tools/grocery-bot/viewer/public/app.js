@@ -1,3 +1,10 @@
+import {
+  buildBotTooltipData,
+  buildQueueEntries,
+  buildTeamLegendEntries,
+  getTeamVisual,
+} from './view-model.mjs';
+
 const state = {
   runs: [],
   selectedRunPath: null,
@@ -22,6 +29,9 @@ const elements = {
   tickSlider: document.querySelector('#tick-slider'),
   tickLabel: document.querySelector('#tick-label'),
   board: document.querySelector('#board'),
+  queueView: document.querySelector('#queue-view'),
+  teamLegendView: document.querySelector('#team-legend-view'),
+  rotationView: document.querySelector('#rotation-view'),
   summaryView: document.querySelector('#summary-view'),
   tickView: document.querySelector('#tick-view'),
   plannerView: document.querySelector('#planner-view'),
@@ -142,6 +152,105 @@ function formatJson(value) {
   return JSON.stringify(value, null, 2);
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function renderShapeChip(label, detailOrTeamId, extraClass = '') {
+  const detail = typeof detailOrTeamId === 'object'
+    ? detailOrTeamId
+    : { teamId: detailOrTeamId };
+  const { teamColor, teamShape } = getTeamVisual(detail, TEAM_COLORS);
+  const classes = ['team-shape-chip', `shape-${teamShape}`];
+  if (extraClass) classes.push(extraClass);
+  return `<span class="${classes.join(' ')}" style="background:${teamColor || TASK_COLORS.none}">${escapeHtml(label)}</span>`;
+}
+
+function renderItemEmojiList(items) {
+  if (!items?.length) return '<span class="muted">unknown</span>';
+  return items.map((item) => ITEM_EMOJIS[item] || ITEM_EMOJIS.default).join(' ');
+}
+
+function formatTooltipRow(row) {
+  const inventory = row.inventory.length > 0 ? row.inventory.map((item) => ITEM_EMOJIS[item] || ITEM_EMOJIS.default).join(' ') : 'empty';
+  const slot = row.slotIndex != null ? row.slotIndex : '-';
+  const order = row.orderId ?? '-';
+  const target = row.target ? `[${row.target.join(',')}]` : '-';
+  return `<div class="bot-tooltip-row">
+    <div><b>B${row.botId}</b> · T${row.teamId ?? '-'} · slot ${slot}</div>
+    <div>Order: ${escapeHtml(order)}</div>
+    <div>Task: ${escapeHtml(row.taskType)}</div>
+    <div>Inv: ${inventory}</div>
+    <div>Target: ${escapeHtml(target)}</div>
+  </div>`;
+}
+
+function renderTeamLegend(plannerMetrics) {
+  const legendEntries = buildTeamLegendEntries(plannerMetrics);
+  if (legendEntries.length === 0) {
+    elements.teamLegendView.innerHTML = '<div class="muted">No team assignments on this tick.</div>';
+    return;
+  }
+
+  elements.teamLegendView.innerHTML = legendEntries.map((entry) => {
+    return `<div class="team-legend-chip${entry.isFront ? ' front-team' : ''}">
+      ${renderShapeChip(`T${entry.teamId}`, entry.teamId)}
+      <span>slot ${entry.slotIndex ?? '-'}</span>
+      <span>ord ${escapeHtml(entry.orderId ?? '-')}</span>
+      <span>${entry.botCount} bots</span>
+    </div>`;
+  }).join('');
+}
+
+function renderQueuePanel(snapshotOrders, plannerMetrics) {
+  const queueEntries = buildQueueEntries(snapshotOrders, plannerMetrics);
+  const rotationBits = [];
+  if (plannerMetrics?.rotatedThisTick) rotationBits.push('rotated now');
+  if (plannerMetrics?.lastRotationTick != null) rotationBits.push(`last rotation ${plannerMetrics.lastRotationTick}`);
+  elements.rotationView.textContent = rotationBits.join(' · ');
+
+  if (queueEntries.length === 0) {
+    elements.queueView.innerHTML = '<div class="muted">No queued orders for this tick.</div>';
+    return;
+  }
+
+  elements.queueView.innerHTML = queueEntries.map((entry) => {
+    const cardClasses = ['queue-card'];
+    if (entry.isFront) cardClasses.push('front-slot');
+    else if (entry.teamId != null) cardClasses.push('future-slot');
+    else cardClasses.push('unassigned-slot');
+    const progress = `${entry.deliveredItems.length}/${entry.requiredItems.length || '?'}`;
+    const status = entry.complete ? 'completed' : entry.status;
+    const botBadges = entry.botIds.map((botId) => {
+      const detail = { teamId: entry.teamId };
+      return `<span class="queue-pill" style="background:${TEAM_COLORS[(entry.teamId ?? 0) % TEAM_COLORS.length]}">${renderShapeChip(`${botId}`, detail, 'queue-bot-shape')} B${botId}</span>`;
+    }).join('');
+    const teamLabel = entry.teamId != null ? `Team ${entry.teamId}` : 'Unassigned';
+    return `<div class="${cardClasses.join(' ')}">
+      <div class="queue-card-header">
+        <div>
+          <b>Slot ${entry.slotIndex ?? '•'}</b> · Order ${escapeHtml(entry.orderId)}
+        </div>
+        <div class="queue-status">${escapeHtml(status)}</div>
+      </div>
+      <div class="order-progress">${progress} · ${entry.isVisible ? 'visible' : 'planner-only'}</div>
+      <div>Need: ${renderItemEmojiList(entry.requiredItems)}</div>
+      <div>Done: ${renderItemEmojiList(entry.deliveredItems)}</div>
+      <div class="queue-meta">
+        <span class="queue-pill" style="background:${entry.teamId != null ? TEAM_COLORS[entry.teamId % TEAM_COLORS.length] : TASK_COLORS.none}">
+          ${entry.teamId != null ? renderShapeChip(`T${entry.teamId}`, entry.teamId, 'queue-team-shape') : '·'} ${escapeHtml(teamLabel)}
+        </span>
+        ${entry.botIds.length > 0 ? `<div class="queue-bots">${botBadges}</div>` : '<span class="muted">No assigned bots</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function stopPlayback() {
   if (state.timer) {
     window.clearInterval(state.timer);
@@ -259,11 +368,12 @@ function renderBoard(snapshot, layout, plannerMetrics) {
       const bots = botsByCell.get(key) || [];
       if (bots.length > 0) {
         const botEl = document.createElement('div');
-        botEl.className = 'bot';
-        const firstBotDetail = botDetails[bots[0]?.id];
+        const firstBotDetail = botDetails[bots[0]?.id] || {};
+        const { teamColor, teamShape } = getTeamVisual(firstBotDetail, TEAM_COLORS);
+        botEl.className = `bot shape-${teamShape}`;
         const taskType = firstBotDetail?.taskType || 'none';
-        botEl.style.background = TASK_COLORS[taskType] || TASK_COLORS.none;
-        botEl.textContent = bots.map((bot) => `${bot.id}`).join(' ');
+        botEl.style.background = teamColor || TASK_COLORS[taskType] || TASK_COLORS.none;
+        botEl.innerHTML = `<span class="bot-label">${escapeHtml(bots.map((bot) => `${bot.id}`).join(' '))}</span>`;
         cell.appendChild(botEl);
         if (bots.length > 1) {
           const stackEl = document.createElement('div');
@@ -271,6 +381,12 @@ function renderBoard(snapshot, layout, plannerMetrics) {
           stackEl.textContent = `x${bots.length}`;
           cell.appendChild(stackEl);
         }
+
+        const tooltipRows = buildBotTooltipData(bots, botDetails).map(formatTooltipRow).join('');
+        const tooltip = document.createElement('div');
+        tooltip.className = 'bot-tooltip';
+        tooltip.innerHTML = tooltipRows;
+        cell.appendChild(tooltip);
       }
 
       elements.board.appendChild(cell);
@@ -381,6 +497,8 @@ function renderTick() {
   elements.runHeader.textContent = `${state.runData.run.runId} | ${state.runData.summary.finalScore ?? '?'} pts`;
 
   renderBoard(tick.state_snapshot, state.runData.layout, tick.planner_metrics || {});
+  renderTeamLegend(tick.planner_metrics || {});
+  renderQueuePanel(tick.state_snapshot?.orders || [], tick.planner_metrics || {});
 
   elements.summaryView.textContent = formatJson({
     difficulty: state.runData.summary.difficulty ?? state.runData.run.difficulty,
@@ -405,14 +523,6 @@ function renderTick() {
   const bots = tick.state_snapshot?.bots || [];
   const botDetailsMap = tick.planner_metrics?.botDetails || {};
 
-  // Build bot→order inverse map
-  const orderBotMap = {};
-  for (const [id, d] of Object.entries(botDetailsMap)) {
-    if (d.orderId != null) {
-      (orderBotMap[d.orderId] ??= []).push(id);
-    }
-  }
-
   // Group orders: active, upcoming (preview), completed
   const activeOrders = orders.filter(o => o.status === 'active' && !o.complete);
   const upcomingOrders = orders.filter(o => o.status === 'preview' || (o.status !== 'active' && !o.complete));
@@ -423,13 +533,13 @@ function renderTick() {
     const deliveredItems = order.items_delivered || [];
     const progress = deliveredItems.length;
     const total = requiredItems.length;
-    const assignedBots = orderBotMap[order.id] || [];
-    const botBadges = assignedBots.map(id => {
-      const color = TASK_COLORS[botDetailsMap[id]?.taskType] || TASK_COLORS.none;
-      return `<span class="order-bot-badge" style="background:${color}">B${id}</span>`;
-    }).join('');
+    const statusLabel = order.complete ? 'done' : order.status;
     return `<div class="order-card ${cssClass}">
-      <b>Order ${order.id}</b> (${progress}/${total})${botBadges}<br>
+      <div class="order-card-header">
+        <b>Order ${order.id}</b>
+        <span class="queue-status">${escapeHtml(statusLabel)}</span>
+      </div>
+      <div class="order-progress">${progress}/${total}</div>
       Required: ${requiredItems.map(it => ITEM_EMOJIS[it] || ITEM_EMOJIS.default).join(' ')}<br>
       Delivered: ${deliveredItems.map(it => ITEM_EMOJIS[it] || ITEM_EMOJIS.default).join(' ')}
     </div>`;
@@ -457,11 +567,16 @@ function renderTick() {
     const targetStr = detail.target ? `[${detail.target.join(',')}]` : '-';
     const stallStr = detail.stallCount > 0 ? ` stall:${detail.stallCount}` : '';
     const orderStr = detail.orderId != null ? ` ord:${detail.orderId}` : '';
-    const teamStr = detail.teamRole ? ` [${detail.teamRole}${detail.teamId != null ? ' T' + detail.teamId : ''}]` : '';
-    const teamColor = detail.teamId != null ? TEAM_COLORS[detail.teamId % TEAM_COLORS.length] : null;
+    const teamStr = detail.teamRole
+      ? ` [${detail.teamRole}${detail.teamId != null ? ` T${detail.teamId}` : ''} slot:${detail.slotIndex ?? '-'}]`
+      : '';
+    const { teamColor } = getTeamVisual(detail, TEAM_COLORS);
     const borderColor = teamColor || color;
-    return `<div style="border-left:6px solid ${borderColor};margin-bottom:4px;padding:4px 4px 4px 8px;font-size:0.9rem;">
-      <b>B${bot.id}</b> @ [${bot.position.join(',')}]${teamStr}<br>
+    return `<div class="bot-row" style="border-left-color:${borderColor}">
+      <div class="bot-row-header">
+        ${detail.teamId != null ? renderShapeChip(`T${detail.teamId}`, detail) : ''}
+        <b>B${bot.id}</b> @ [${bot.position.join(',')}]${teamStr}
+      </div>
       Inv: ${bot.inventory.map((it) => (ITEM_EMOJIS[it.type || it] || ITEM_EMOJIS.default)).join(' ')}<br>
       Task: <span style="color:${color};font-weight:bold">${taskType}</span> → ${targetStr}${stallStr}${orderStr}
     </div>`;

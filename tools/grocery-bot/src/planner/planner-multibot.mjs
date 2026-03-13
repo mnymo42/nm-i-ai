@@ -100,6 +100,8 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
     }
   }
 
+  // Collect all bots eligible for drop-off, then cap to avoid congestion at drop zone
+  const dropCandidates = [];
   for (const bot of state.bots) {
     const deliverable = hasDeliverableInventory(bot, world.activeDemand);
 
@@ -111,18 +113,26 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
       botCount: state.bots.length,
     })) {
       const deliverableCount = countDeliverableInventory(bot, world.activeDemand);
-      const dropDist = manhattanDistance(bot.position, nearestDropOff(bot.position, state));
-      const distanceCompensation = Math.max(0, dropDist * 0.8);
-      tasks.push({
-        key: `drop:${bot.id}`,
-        kind: 'drop_off',
-        botScoped: true,
-        botId: bot.id,
-        target: nearestDropOff(bot.position, state),
-        item: null,
-        demandScore: 4 + deliverableCount * 3 + distanceCompensation,
-      });
+      const dropOff = nearestDropOff(bot.position, state);
+      const dropDist = manhattanDistance(bot.position, dropOff);
+      dropCandidates.push({ bot, deliverableCount, dropOff, dropDist });
     }
+  }
+
+  // Sort by distance (closest first), cap to avoid drop-off gridlock
+  const maxDropRunners = profile.assignment.max_drop_runners ?? 3;
+  dropCandidates.sort((a, b) => a.dropDist - b.dropDist);
+  for (const { bot, deliverableCount, dropOff, dropDist } of dropCandidates.slice(0, maxDropRunners)) {
+    const distanceCompensation = Math.max(0, dropDist * 0.8);
+    tasks.push({
+      key: `drop:${bot.id}`,
+      kind: 'drop_off',
+      botScoped: true,
+      botId: bot.id,
+      target: dropOff,
+      item: null,
+      demandScore: 4 + deliverableCount * 3 + distanceCompensation,
+    });
   }
 
   const itemsByType = new Map();
@@ -326,31 +336,60 @@ export function chooseFallbackAction(
 
 function computeParkingSlots(graph, gridWidth, gridHeight, items) {
   const trafficLaneCells = graph.trafficLaneCells || new Set();
-  const directionalPreference = graph.directionalPreference || new Map();
+  const hasLanes = trafficLaneCells.size > 0;
+
   const itemCols = [...new Set(items.map((item) => item.position[0]))].sort((a, b) => a - b);
-  const slots = [];
-  for (const col of itemCols) {
-    for (let y = 1; y < gridHeight - 1; y += 1) {
-      const candidates = [
-        [col, y],
-        [col + 1, y],
-        [col - 1, y],
-      ];
-      for (const candidate of candidates) {
-        const key = encodeCoord(candidate);
-        if (!graph.isWalkable(candidate) || trafficLaneCells.has(key)) continue;
-        if (directionalPreference.has(key)) continue;
-        const laneAdjacency = graph.neighbors(candidate)
-          .some((neighbor) => trafficLaneCells.has(encodeCoord(neighbor)));
-        if (!laneAdjacency) continue;
-        slots.push(candidate);
-        y = gridHeight;
-        break;
+
+  // Lane-aware parking: find cells adjacent to lanes but not on them
+  if (hasLanes) {
+    const directionalPreference = graph.directionalPreference || new Map();
+    const slots = [];
+    for (const col of itemCols) {
+      for (let y = 1; y < gridHeight - 1; y += 1) {
+        const candidates = [[col, y], [col + 1, y], [col - 1, y]];
+        for (const candidate of candidates) {
+          const key = encodeCoord(candidate);
+          if (!graph.isWalkable(candidate) || trafficLaneCells.has(key)) continue;
+          if (directionalPreference.has(key)) continue;
+          const laneAdjacency = graph.neighbors(candidate)
+            .some((neighbor) => trafficLaneCells.has(encodeCoord(neighbor)));
+          if (!laneAdjacency) continue;
+          slots.push(candidate);
+          y = gridHeight;
+          break;
+        }
       }
     }
+    return [...new Map(slots.map((slot) => [encodeCoord(slot), slot])).values()];
   }
 
-  return [...new Map(slots.map((slot) => [encodeCoord(slot), slot])).values()];
+  // Default parking: use corridor rows
+  const corridorRows = [];
+  for (let y = 1; y < gridHeight - 1; y += 1) {
+    let open = 0;
+    for (let x = 1; x < gridWidth - 1; x += 1) {
+      if (graph.isWalkable([x, y])) open += 1;
+    }
+    if (open >= gridWidth - 4) corridorRows.push(y);
+  }
+
+  const parkRow = corridorRows.length >= 2
+    ? corridorRows[corridorRows.length - 2]
+    : corridorRows.length > 0
+      ? corridorRows[corridorRows.length - 1]
+      : gridHeight - 2;
+
+  const slots = [];
+  for (const col of itemCols) {
+    if (graph.isWalkable([col, parkRow])) {
+      slots.push([col, parkRow]);
+    } else if (graph.isWalkable([col + 1, parkRow])) {
+      slots.push([col + 1, parkRow]);
+    } else if (graph.isWalkable([col - 1, parkRow])) {
+      slots.push([col - 1, parkRow]);
+    }
+  }
+  return slots;
 }
 
 export function chooseParkingAction({

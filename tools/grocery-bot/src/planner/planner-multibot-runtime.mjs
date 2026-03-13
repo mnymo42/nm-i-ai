@@ -385,25 +385,7 @@ export function executeAssignedTaskStrategy({
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
   const activeOrderId = state.orders?.find((o) => o.status === 'active' && !o.complete)?.id ?? null;
-  const activeDemand = world?.activeDemand || new Map();
-
-  // Priority ordering: deliverable carriers first, then by task distance
-  const botsByPriority = [...state.bots].sort((a, b) => {
-    const aDeliverable = hasDeliverableInventory(a, activeDemand) ? 0 : 1;
-    const bDeliverable = hasDeliverableInventory(b, activeDemand) ? 0 : 1;
-    if (aDeliverable !== bDeliverable) return aDeliverable - bDeliverable;
-    const aTask = taskByBot.get(a.id);
-    const bTask = taskByBot.get(b.id);
-    // drop_off tasks get priority
-    const aKind = aTask?.kind === 'drop_off' ? 0 : 1;
-    const bKind = bTask?.kind === 'drop_off' ? 0 : 1;
-    if (aKind !== bKind) return aKind - bKind;
-    // Closer to target = higher priority
-    const aDist = aTask?.target ? manhattanDistance(a.position, aTask.target) : 99;
-    const bDist = bTask?.target ? manhattanDistance(b.position, bTask.target) : 99;
-    if (aDist !== bDist) return aDist - bDist;
-    return a.id - b.id;
-  });
+  const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
   const actions = [];
   let forcedWaits = 0;
 

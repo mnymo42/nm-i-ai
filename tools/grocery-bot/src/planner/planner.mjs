@@ -296,7 +296,16 @@ export class GroceryPlanner {
       this.noProgressRounds = 0;
       this.recoveryBurstRounds = 0;
     } else if (operationalProgress) {
-      this.noProgressRounds = 0;
+      // Don't count inventory changes as progress if score is stuck and bots are loaded
+      // This prevents preview pickups from masking delivery gridlock
+      const totalInv = state.bots.reduce((s, b) => s + (b.inventory || []).length, 0);
+      const invCap = state.bots.length * 3;
+      if (totalInv < invCap * 0.6) {
+        this.noProgressRounds = 0;
+      } else {
+        // Slow decay instead of full reset — acknowledge some progress but keep pressure
+        this.noProgressRounds = Math.max(0, this.noProgressRounds - 2);
+      }
     } else {
       this.noProgressRounds += 1;
     }
@@ -419,51 +428,10 @@ export class GroceryPlanner {
     this.lastActiveOrderId = activeOrderId;
 
     const shelfWalls = state.items.map((item) => item.position);
-    const baseGrid = new GridGraph(state.grid);
-    const laneMapRelaxTicks = this.profile.routing?.lane_map_handoff_relax_ticks ?? 0;
-    const laneMapVersion = this.profile.routing?.lane_map_version
-      ?? (this.profile.routing?.use_lane_map_v2 ? 'v2' : null);
-    const allowLaneMap = laneMapVersion
-      && (
-        this.lastOpenerRound === null
-        || state.round > (this.lastOpenerRound + laneMapRelaxTicks)
-      );
-    const lanePolicy = allowLaneMap
-      ? (laneMapVersion === 'v4'
-        ? buildLaneMapV4(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
-        : laneMapVersion === 'v3'
-        ? buildLaneMapV3(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : []))
-        : buildLaneMapV2(baseGrid, state.drop_offs || (state.drop_off ? [state.drop_off] : [])))
-      : null;
     const graph = new GridGraph({
       ...state.grid,
       walls: [...state.grid.walls, ...shelfWalls],
-      oneWayRoads: lanePolicy?.oneWayRoads || null,
     });
-    graph.trafficLaneCells = lanePolicy?.trafficLaneCells || new Set();
-
-    // Attach directional preference + congestion settings for A* routing
-    const cacheMode = allowLaneMap ? `lane_${laneMapVersion}` : 'default';
-    if (!this._dirPrefCache || this._dirPrefCacheMode !== cacheMode) {
-      // Build once from base grid (without shelf walls) and cache
-      this._dirPrefCache = allowLaneMap
-        ? lanePolicy.directionalPreference
-        : buildDirectionalPreference(baseGrid);
-      this._dirPrefCacheMode = cacheMode;
-    }
-    graph.directionalPreference = this._dirPrefCache;
-    graph.directionPenalty = this.profile.routing?.direction_penalty || 0;
-    graph.congestionWeight = this.profile.routing?.congestion_weight || 0;
-
-    // Build congestion map from current bot positions
-    if (graph.congestionWeight > 0 && state.bots.length > 1) {
-      const congMap = new Map();
-      for (const bot of state.bots) {
-        const key = encodeCoord(bot.position);
-        congMap.set(key, (congMap.get(key) || 0) + 1);
-      }
-      graph.congestionMap = congMap;
-    }
 
     const world = buildWorldContext(state);
 
@@ -571,6 +539,7 @@ export class GroceryPlanner {
         graph,
         phase,
         recoveryMode,
+        forcePartialDrop,
         recoveryThreshold,
         blockedItemsByBot,
         oracle: this.oracle,

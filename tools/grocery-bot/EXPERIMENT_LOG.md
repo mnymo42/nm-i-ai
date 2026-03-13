@@ -58,11 +58,13 @@ Purpose: keep an operational record of strategy experiments so we can avoid repe
 | Replay handoff fidelity + provenance | keep | Tooling, not main blocker |
 | Oracle optimizer harness | keep | Preferred offline entrypoint |
 | Replay compression optimizer | keep | Deterministic post-processing |
+| Expert pipeline team sizing | pending | Active team now sized by carrying capacity, with surplus bots pushed into deeper prefetch orders |
 | Expert opener breakout + longer compact staging | pending | Intended to clear post-opener freeze and remove staged air gaps |
 | Expert throughput pass v1 | keep | Deterministic opener, zone-aware team control, drop-off fallback, and viewer lane sync |
 | Expert convection lane map v3 | pending | Stronger road backbone with off-road parking to reduce corridor blocking |
 | Lane viewer parity + forced-lane regression lock | keep | Viewer now renders actual one-way roads for the active profile, and tests pin hard lane direction enforcement |
 | Expert road-pattern reset + oracle-fed offline benchmark | pending | Narrower v4 backbone roads, road-aware static-target rejection, and planner-only expert benchmark against oracle environment |
+| Team slot-stage occupied-next-step avoidance | revert | Oracle overrides improved 25→18, but score fell 17→16 and stalls rose sharply |
 
 ## Guidance
 

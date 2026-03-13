@@ -1,20 +1,14 @@
 /**
  * Team-based bot assignment strategy (team_v1).
- * Splits bots into persistent teams assigned to orders.
- * Active teams pick up + deliver items for the current order.
- * Prefetch teams pre-position near items for upcoming orders.
- * Idle bots spread to parking positions.
- *
- * KEY DESIGN: Any bot carrying deliverable items for the active order
- * will deliver them regardless of team assignment. Delivery decisions
- * use the full (original) demand, not decremented copies.
+ * Builds persistent queue slots that rotate inward as orders advance.
+ * Slot 0 fulfills the active order near drop-off.
+ * Higher slots stage future orders progressively farther from drop-off.
  */
 import { encodeCoord, manhattanDistance, moveToAction, adjacentManhattan } from '../utils/coords.mjs';
 import { findTimeAwarePath, reservePath } from '../routing/routing.mjs';
 import { buildDemand, countInventoryByType } from '../utils/world-model.mjs';
 import {
   hasDeliverableInventory,
-  countDeliverableInventory,
   nearestDropOff,
   isAtAnyDropOff,
   closestAdjacentCell,
@@ -48,6 +42,8 @@ function cloneCounts(map) {
  * @property {number[]} botIds
  * @property {'active'|'prefetch'|'idle'} role
  * @property {number} assignedAtTick
+ * @property {number} slotIndex
+ * @property {number} goalBand
  */
 
 // ─── Team building ──────────────────────────────────────────────────
@@ -174,6 +170,216 @@ export function buildPrefetchWavePlan({
     reservedFutureCounts,
     wavePickupEnabled: !prefetchBlockedByActiveDemand && reservedFutureCounts.size > 0,
   };
+}
+
+function buildTeamOrderQueue({ world, oracle, round, lookahead, maxFutureOrders }) {
+  const queue = [];
+  if (world.activeOrder) queue.push(world.activeOrder);
+  if (world.previewOrder) queue.push(world.previewOrder);
+
+  const upcomingOrders = getUpcomingOracleOrders(
+    oracle,
+    round,
+    world.activeOrder?.id,
+    world.previewOrder?.id,
+    lookahead,
+  );
+
+  for (const order of upcomingOrders) {
+    if (queue.length >= (1 + maxFutureOrders)) break;
+    if (queue.some((existing) => existing.id === order.id)) continue;
+    queue.push(order);
+  }
+
+  return queue;
+}
+
+function computeDesiredSlotSizes({ queueOrders, world, botCount, activeMinBots }) {
+  if (queueOrders.length === 0 || botCount <= 0) {
+    return [];
+  }
+
+  const activeDemandCount = sumCounts(world.activeDemand || new Map());
+  const desiredFront = Math.min(botCount, Math.max(activeMinBots, Math.ceil(activeDemandCount / 3)));
+  const futureOrders = queueOrders.slice(1);
+  const maxFutureSlots = Math.min(futureOrders.length, Math.max(0, botCount - desiredFront));
+
+  const sizes = [desiredFront];
+  let remaining = botCount - desiredFront;
+
+  for (let i = 0; i < maxFutureSlots; i += 1) {
+    sizes.push(1);
+    remaining -= 1;
+  }
+
+  const desiredCaps = [
+    desiredFront,
+    ...futureOrders.slice(0, maxFutureSlots).map((order) => Math.max(1, Math.ceil((order.items_required || []).length / 3))),
+  ];
+
+  let madeProgress = true;
+  while (remaining > 0 && madeProgress) {
+    madeProgress = false;
+    for (let slotIndex = 0; slotIndex < sizes.length && remaining > 0; slotIndex += 1) {
+      if (sizes[slotIndex] >= desiredCaps[slotIndex]) continue;
+      sizes[slotIndex] += 1;
+      remaining -= 1;
+      madeProgress = true;
+    }
+  }
+
+  let nextFutureOrderIndex = maxFutureSlots;
+  while (remaining > 0 && nextFutureOrderIndex < futureOrders.length) {
+    sizes.push(1);
+    remaining -= 1;
+    nextFutureOrderIndex += 1;
+  }
+
+  while (remaining > 0) {
+    for (let slotIndex = sizes.length - 1; slotIndex >= 0 && remaining > 0; slotIndex -= 1) {
+      sizes[slotIndex] += 1;
+      remaining -= 1;
+    }
+  }
+
+  return sizes;
+}
+
+function makeInitialRank(allBotIds, botById, initialBotOrder, dropOff) {
+  const rankMap = new Map();
+  if (Array.isArray(initialBotOrder) && initialBotOrder.length > 0) {
+    initialBotOrder.forEach((id, index) => rankMap.set(id, index));
+  }
+
+  return [...allBotIds].sort((aId, bId) => {
+    const aBot = botById.get(aId);
+    const bBot = botById.get(bId);
+    const aDist = dropOff ? manhattanDistance(aBot.position, dropOff) : aId;
+    const bDist = dropOff ? manhattanDistance(bBot.position, dropOff) : bId;
+    if (aDist !== bDist) return aDist - bDist;
+    const aRank = rankMap.get(aId) ?? aId;
+    const bRank = rankMap.get(bId) ?? bId;
+    return aRank - bRank;
+  });
+}
+
+function orderDemandForTeam(order) {
+  return order ? buildDemand(order) : new Map();
+}
+
+function teamInventoryCounts(team, botById) {
+  const counts = new Map();
+  for (const botId of team.botIds || []) {
+    const bot = botById.get(botId);
+    if (!bot) continue;
+    for (const itemType of bot.inventory || []) {
+      counts.set(itemType, (counts.get(itemType) || 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function reserveTeamInventoryForOrder(team, order, botById) {
+  const inventoryCounts = teamInventoryCounts(team, botById);
+  return reserveInventoryForDemand(inventoryCounts, orderDemandForTeam(order)).remainingDemand;
+}
+
+function chooseTeamStageGoal({ team, targetOrder, state, graph, maxSlotIndex }) {
+  const dropOff = primaryDropOff(state);
+  const cluster = orderItemClusterCenter(targetOrder, state.items);
+  if (!dropOff && !cluster) return null;
+
+  const anchor = cluster || dropOff;
+  if (!anchor) return null;
+
+  if (team.slotIndex === 0 || !dropOff || !cluster || maxSlotIndex <= 0) {
+    return findNearestWalkableGoal(anchor, state, graph);
+  }
+
+  const factor = Math.min(0.95, Math.max(0.2, team.slotIndex / maxSlotIndex));
+  const goal = [
+    Math.round(dropOff[0] + (cluster[0] - dropOff[0]) * factor),
+    Math.round(dropOff[1] + (cluster[1] - dropOff[1]) * factor),
+  ];
+  return findNearestWalkableGoal(goal, state, graph) || findNearestWalkableGoal(cluster, state, graph);
+}
+
+function findNearestWalkableGoal(goal, state, graph, maxRadius = 4) {
+  if (!goal) return null;
+  for (let radius = 0; radius <= maxRadius; radius += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        if (Math.abs(dx) + Math.abs(dy) !== radius) continue;
+        const candidate = [goal[0] + dx, goal[1] + dy];
+        if (!graph.isWalkable(candidate)) continue;
+        if (candidate[0] < 1 || candidate[1] < 1 || candidate[0] >= state.grid.width - 1 || candidate[1] >= state.grid.height - 1) continue;
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+function fillTeamsWithBots({
+  teams,
+  desiredSizes,
+  allBotIds,
+  botById,
+  state,
+  initialBotOrder,
+}) {
+  const dropOff = primaryDropOff(state);
+  const preferredBotOrder = makeInitialRank(allBotIds, botById, initialBotOrder, dropOff);
+  const usedBots = new Set();
+
+  for (const team of teams) {
+    const desiredSize = desiredSizes[team.slotIndex] ?? 0;
+    const retained = [];
+    for (const botId of team.botIds || []) {
+      if (!botById.has(botId) || usedBots.has(botId)) continue;
+      if (retained.length >= desiredSize) continue;
+      retained.push(botId);
+      usedBots.add(botId);
+    }
+    team.botIds = retained;
+  }
+
+  const remainingBots = preferredBotOrder.filter((botId) => !usedBots.has(botId));
+  const dropOffCoord = dropOff;
+
+  for (const team of teams) {
+    const desiredSize = desiredSizes[team.slotIndex] ?? 0;
+    if (team.botIds.length >= desiredSize) continue;
+
+    const demand = orderDemandForTeam(team.order);
+    const cluster = orderItemClusterCenter(team.order, state.items || []);
+    const candidates = [...remainingBots].sort((aId, bId) => {
+      const aBot = botById.get(aId);
+      const bBot = botById.get(bId);
+      const aCarry = hasDeliverableInventory(aBot, demand) ? 0 : 1;
+      const bCarry = hasDeliverableInventory(bBot, demand) ? 0 : 1;
+      if (aCarry !== bCarry) return aCarry - bCarry;
+
+      if (team.slotIndex === 0 && dropOffCoord) {
+        const aDrop = manhattanDistance(aBot.position, dropOffCoord);
+        const bDrop = manhattanDistance(bBot.position, dropOffCoord);
+        if (aDrop !== bDrop) return aDrop - bDrop;
+      }
+
+      const aCluster = cluster ? manhattanDistance(aBot.position, cluster) : aId;
+      const bCluster = cluster ? manhattanDistance(bBot.position, cluster) : bId;
+      if (aCluster !== bCluster) return aCluster - bCluster;
+
+      return preferredBotOrder.indexOf(aId) - preferredBotOrder.indexOf(bId);
+    });
+
+    for (const botId of candidates) {
+      if (team.botIds.length >= desiredSize) break;
+      if (usedBots.has(botId)) continue;
+      team.botIds.push(botId);
+      usedBots.add(botId);
+    }
+  }
 }
 
 function claimFutureWaveItem({
@@ -476,190 +682,73 @@ export function buildTeams({
 }) {
   const round = state.round;
   const teamsConfig = profile.teams || {};
-  const activeBotRatio = teamsConfig.active_bot_ratio ?? 1.2;
-  const activeMaxBots = teamsConfig.active_max_bots ?? 5;
-  const previewBotRatio = teamsConfig.preview_bot_ratio ?? 0.8;
-  const previewMaxBots = teamsConfig.preview_max_bots ?? 3;
-  const reassignCooldown = teamsConfig.reassign_cooldown ?? 5;
   const prefetchLookahead = teamsConfig.prefetch_lookahead_ticks ?? 80;
-
-  const activeOrder = world.activeOrder;
-  const previewOrder = world.previewOrder;
-  const upcomingOrders = getUpcomingOracleOrders(
-    oracle,
-    round,
-    activeOrder?.id,
-    previewOrder?.id,
-    prefetchLookahead,
-  );
+  const activeMinBots = teamsConfig.active_min_bots ?? 2;
+  const prefetchMaxOrders = teamsConfig.prefetch_max_orders ?? Math.max(2, Math.floor(state.bots.length / 2) - 1);
 
   const allBotIds = state.bots.map((b) => b.id);
   const botById = new Map(state.bots.map((b) => [b.id, b]));
-  const initialOrderIds = Array.isArray(initialBotOrder) && initialBotOrder.length > 0
-    ? initialBotOrder.filter((id) => botById.has(id))
-    : [...allBotIds].sort((a, b) => a - b);
-  const initialOrderRank = new Map(initialOrderIds.map((id, index) => [id, index]));
+  const orderQueue = buildTeamOrderQueue({
+    world,
+    oracle,
+    round,
+    lookahead: prefetchLookahead,
+    maxFutureOrders: prefetchMaxOrders,
+  });
+  const desiredSizes = computeDesiredSlotSizes({
+    queueOrders: orderQueue,
+    world,
+    botCount: allBotIds.length,
+    activeMinBots,
+  });
+
+  const nextTeamIdBase = Math.max(0, ...((existingTeams || []).map((team) => team.teamId))) + 1;
+  let nextTeamId = nextTeamIdBase;
+  const reusableTeams = [...(existingTeams || [])]
+    .filter((team) => team.orderId !== null)
+    .sort((left, right) => (left.slotIndex ?? 99) - (right.slotIndex ?? 99) || left.teamId - right.teamId);
+  const unusedTeams = [...reusableTeams];
   const teams = [];
-  const assignedBots = new Set();
-  let nextTeamId = 0;
-  const openerBreakoutTicks = teamsConfig.opener_breakout_ticks ?? 8;
-  const openerBreakoutActiveCap = teamsConfig.opener_breakout_active_cap ?? 3;
-  const zoneCount = Math.max(1, teamsConfig.zone_count ?? 3);
-  const activeCrossZoneCap = Math.max(0, teamsConfig.active_cross_zone_cap ?? 2);
-  const inOpenerBreakout = lastOpenerRound !== null
-    && (round - lastOpenerRound) <= openerBreakoutTicks;
 
-  // FIX #3: Preserve existing active team if order unchanged and within cooldown
-  const existingActiveTeam = existingTeams?.find((t) => t.role === 'active');
-  if (
-    existingActiveTeam
-    && activeOrder
-    && existingActiveTeam.orderId === activeOrder.id
-    && (round - existingActiveTeam.assignedAtTick) < reassignCooldown * 10
-  ) {
-    const validBots = existingActiveTeam.botIds.filter((id) => botById.has(id));
-    if (validBots.length > 0) {
-      teams.push({
-        teamId: nextTeamId++,
-        orderId: activeOrder.id,
-        botIds: validBots,
-        role: 'active',
-        assignedAtTick: existingActiveTeam.assignedAtTick,
-      });
-      validBots.forEach((id) => assignedBots.add(id));
-    }
+  for (let slotIndex = 0; slotIndex < desiredSizes.length; slotIndex += 1) {
+    const order = orderQueue[slotIndex];
+    if (!order) break;
+
+    const matchedIndex = unusedTeams.findIndex((team) => team.orderId === order.id);
+    const sourceTeam = matchedIndex >= 0
+      ? unusedTeams.splice(matchedIndex, 1)[0]
+      : unusedTeams.shift() || null;
+
+    teams.push({
+      teamId: sourceTeam?.teamId ?? nextTeamId++,
+      orderId: order.id,
+      order,
+      botIds: sourceTeam?.botIds ? [...sourceTeam.botIds] : [],
+      role: slotIndex === 0 ? 'active' : 'prefetch',
+      slotIndex,
+      goalBand: slotIndex,
+      assignedAtTick: sourceTeam?.orderId === order.id ? sourceTeam.assignedAtTick : round,
+    });
   }
 
-  // Build active team if not preserved
-  if (activeOrder && !teams.find((t) => t.role === 'active')) {
-    const activeDemand = world.activeDemand;
-    const itemsNeeded = sumCounts(activeDemand);
-    let teamSize = Math.min(activeMaxBots, Math.max(2, Math.ceil(itemsNeeded * activeBotRatio)));
-    if (inOpenerBreakout) {
-      teamSize = Math.min(teamSize, openerBreakoutActiveCap);
-    }
+  fillTeamsWithBots({
+    teams,
+    desiredSizes,
+    allBotIds,
+    botById,
+    state,
+    initialBotOrder,
+  });
 
-    // Prioritize bots carrying deliverable items, then by distance
-    const cluster = orderItemClusterCenter(activeOrder, state.items);
-    const targetZoneId = zoneIndexForX(cluster?.[0] ?? botById.get(allBotIds[0])?.position?.[0] ?? 0, state.grid.width, zoneCount);
-    const availableBots = allBotIds
-      .filter((id) => !assignedBots.has(id))
-      .sort((aId, bId) => {
-        const aBot = botById.get(aId);
-        const bBot = botById.get(bId);
-        const aDel = hasDeliverableInventory(aBot, activeDemand) ? 0 : 1;
-        const bDel = hasDeliverableInventory(bBot, activeDemand) ? 0 : 1;
-        if (aDel !== bDel) return aDel - bDel;
-        const aZone = zoneAssignmentByBot?.[aId] ?? 0;
-        const bZone = zoneAssignmentByBot?.[bId] ?? 0;
-        const aZoneDistance = zoneDistance(aZone, targetZoneId);
-        const bZoneDistance = zoneDistance(bZone, targetZoneId);
-        if (aZoneDistance !== bZoneDistance) return aZoneDistance - bZoneDistance;
-        const aSpawnRank = initialOrderRank.get(aId) ?? aId;
-        const bSpawnRank = initialOrderRank.get(bId) ?? bId;
-        if (aSpawnRank !== bSpawnRank) return aSpawnRank - bSpawnRank;
-        const aDist = cluster ? manhattanDistance(aBot.position, cluster) : aId;
-        const bDist = cluster ? manhattanDistance(bBot.position, cluster) : bId;
-        return aDist - bDist;
-      });
-
-    let picked = inOpenerBreakout
-      ? availableBots.slice(0, teamSize)
-      : availableBots.slice(0, teamSize);
-    const inZone = picked.filter((botId) => zoneDistance(zoneAssignmentByBot?.[botId] ?? 0, targetZoneId) === 0);
-    const crossZone = picked.filter((botId) => zoneDistance(zoneAssignmentByBot?.[botId] ?? 0, targetZoneId) > 0);
-    if (crossZone.length > activeCrossZoneCap) {
-      picked = [...inZone, ...crossZone.slice(0, activeCrossZoneCap)];
-      for (const botId of availableBots) {
-        if (picked.length >= teamSize) break;
-        if (picked.includes(botId)) continue;
-        picked.push(botId);
-      }
-    }
-    if (picked.length > 0) {
-      teams.push({
-        teamId: nextTeamId++,
-        orderId: activeOrder.id,
-        botIds: picked,
-        role: 'active',
-        assignedAtTick: round,
-      });
-      picked.forEach((id) => assignedBots.add(id));
-    }
-  }
-
-  // FIX #3: Preserve existing prefetch team if target unchanged and within cooldown
-  const existingPrefetchTeam = existingTeams?.find((t) => t.role === 'prefetch');
-  const prefetchTarget = previewOrder || upcomingOrders[0] || null;
-  if (
-    existingPrefetchTeam
-    && prefetchTarget
-    && existingPrefetchTeam.orderId === prefetchTarget.id
-    && (round - existingPrefetchTeam.assignedAtTick) < reassignCooldown * 10
-  ) {
-    const validBots = existingPrefetchTeam.botIds.filter((id) => botById.has(id) && !assignedBots.has(id));
-    if (validBots.length > 0) {
-      teams.push({
-        teamId: nextTeamId++,
-        orderId: prefetchTarget.id,
-        botIds: validBots,
-        role: 'prefetch',
-        assignedAtTick: existingPrefetchTeam.assignedAtTick,
-      });
-      validBots.forEach((id) => assignedBots.add(id));
-    }
-  }
-
-  // Build prefetch team if not preserved
-  if (!inOpenerBreakout && prefetchTarget && !teams.find((t) => t.role === 'prefetch')) {
-    const itemsRequired = (prefetchTarget.items_required || []).length;
-    const teamSize = Math.min(previewMaxBots, Math.max(1, Math.ceil(itemsRequired * previewBotRatio)));
-
-    const cluster = orderItemClusterCenter(prefetchTarget, state.items);
-    const targetZoneId = zoneIndexForX(cluster?.[0] ?? 0, state.grid.width, zoneCount);
-    const activeZoneId = activeOrder
-      ? zoneIndexForX(orderItemClusterCenter(activeOrder, state.items)?.[0] ?? 0, state.grid.width, zoneCount)
-      : null;
-    const availableBots = allBotIds
-      .filter((id) => !assignedBots.has(id))
-      .sort((aId, bId) => {
-        const aZone = zoneAssignmentByBot?.[aId] ?? 0;
-        const bZone = zoneAssignmentByBot?.[bId] ?? 0;
-        const aAvoidActive = activeZoneId !== null && aZone === activeZoneId ? 1 : 0;
-        const bAvoidActive = activeZoneId !== null && bZone === activeZoneId ? 1 : 0;
-        if (aAvoidActive !== bAvoidActive) return aAvoidActive - bAvoidActive;
-        const aZoneDistance = zoneDistance(aZone, targetZoneId);
-        const bZoneDistance = zoneDistance(bZone, targetZoneId);
-        if (aZoneDistance !== bZoneDistance) return aZoneDistance - bZoneDistance;
-        const aSpawnRank = initialOrderRank.get(aId) ?? aId;
-        const bSpawnRank = initialOrderRank.get(bId) ?? bId;
-        if (aSpawnRank !== bSpawnRank) return aSpawnRank - bSpawnRank;
-        const aDist = cluster ? manhattanDistance(botById.get(aId).position, cluster) : aId;
-        const bDist = cluster ? manhattanDistance(botById.get(bId).position, cluster) : bId;
-        return aDist - bDist;
-      });
-
-    const picked = availableBots.slice(0, teamSize);
-    if (picked.length > 0) {
-      teams.push({
-        teamId: nextTeamId++,
-        orderId: prefetchTarget.id,
-        botIds: picked,
-        role: 'prefetch',
-        assignedAtTick: round,
-      });
-      picked.forEach((id) => assignedBots.add(id));
-    }
-  }
-
-  // Remaining bots form idle team
-  const idleBots = allBotIds.filter((id) => !assignedBots.has(id));
-  if (idleBots.length > 0) {
+  if (teams.length === 0 && allBotIds.length > 0) {
     teams.push({
       teamId: nextTeamId++,
       orderId: null,
-      botIds: idleBots,
+      order: null,
+      botIds: [...allBotIds],
       role: 'idle',
+      slotIndex: -1,
+      goalBand: 0,
       assignedAtTick: round,
     });
   }
@@ -667,23 +756,32 @@ export function buildTeams({
   return teams;
 }
 
-// ─── Universal delivery check ───────────────────────────────────────
+function tryDeliverForTeamOrder({
+  bot,
+  team,
+  orderDemand,
+  state,
+  graph,
+  reservations,
+  edgeReservations,
+  profile,
+  dropRunnerCount = { value: 0 },
+}) {
+  if (!team || team.slotIndex !== 0 || !hasDeliverableInventory(bot, orderDemand)) {
+    return null;
+  }
 
-/**
- * FIX #1 + #2: Any bot carrying deliverable items for the active order
- * should deliver, regardless of team. Uses the ORIGINAL demand (not
- * decremented), so multiple carriers all see they should deliver.
- */
-function tryDeliverForActiveOrder({ bot, state, world, graph, reservations, edgeReservations, profile }) {
-  // Check against the original demand (not decremented by other bots)
-  if (!hasDeliverableInventory(bot, world.activeDemand)) {
+  const maxDropRunners = profile.assignment?.max_drop_runners ?? 3;
+  if (!isAtAnyDropOff(bot.position, state) && dropRunnerCount.value >= maxDropRunners) {
     return null;
   }
 
   if (isAtAnyDropOff(bot.position, state)) {
+    dropRunnerCount.value++;
     return { action: 'drop_off', nextPath: [bot.position], targetType: 'drop_off', noPath: false };
   }
 
+  dropRunnerCount.value++;
   const dropOff = nearestDropOff(bot.position, state);
   const path = findTimeAwarePath({
     graph,
@@ -710,38 +808,25 @@ function tryDeliverForActiveOrder({ bot, state, world, graph, reservations, edge
   return { action: 'wait', nextPath: [bot.position], targetType: 'drop_off', noPath: true };
 }
 
-// ─── Task resolution per team ───────────────────────────────────────
-
-/**
- * Resolve action for a single bot on the active team.
- * FIX #1: Uses shelfDemand (decremented) for PICKUP decisions only.
- * Delivery decisions use the universal tryDeliverForActiveOrder which
- * checks the original world.activeDemand.
- */
-function resolveActiveBotAction({
+function tryClaimOrderItem({
   bot,
+  team,
+  targetOrder,
   state,
-  world,
   graph,
   reservations,
   edgeReservations,
   profile,
   reservedItemIds,
-  shelfDemand,
+  remainingDemand,
+  targetType = 'item',
   allowBreakout = false,
   botZoneId = 0,
   zoneCount = 1,
 }) {
-  // Deliver if carrying items for active order (uses original demand)
-  const deliveryAction = tryDeliverForActiveOrder({
-    bot, state, world, graph, reservations, edgeReservations, profile,
-  });
-  if (deliveryAction) return deliveryAction;
-
-  // Pick up an item for the active order (uses shelf demand — decremented)
   if ((bot.inventory || []).length < 3) {
     const neededTypes = new Set(
-      Array.from(shelfDemand.entries()).filter(([, c]) => c > 0).map(([t]) => t),
+      Array.from(remainingDemand.entries()).filter(([, count]) => count > 0).map(([type]) => type),
     );
 
     if (neededTypes.size > 0) {
@@ -759,24 +844,22 @@ function resolveActiveBotAction({
       for (const item of candidates) {
         if (adjacentManhattan(bot.position, item.position)) {
           reservedItemIds.add(item.id);
-          shelfDemand.set(item.type, Math.max(0, (shelfDemand.get(item.type) || 0) - 1));
-          return { action: 'pick_up', itemId: item.id, nextPath: [bot.position], targetType: 'item', noPath: false };
+          remainingDemand.set(item.type, Math.max(0, (remainingDemand.get(item.type) || 0) - 1));
+          return { action: 'pick_up', itemId: item.id, nextPath: [bot.position], targetType, noPath: false };
         }
       }
 
-      // Navigate to closest candidate
       const [bestItem] = candidates;
-
       if (bestItem) {
         reservedItemIds.add(bestItem.id);
-        shelfDemand.set(bestItem.type, Math.max(0, (shelfDemand.get(bestItem.type) || 0) - 1));
+        remainingDemand.set(bestItem.type, Math.max(0, (remainingDemand.get(bestItem.type) || 0) - 1));
 
         const target = closestAdjacentCell(
           graph, bot.position, bestItem.position,
           reservations, edgeReservations, profile.routing.horizon,
         );
         if (target?.path?.length >= 2) {
-          return { action: moveToAction(target.path[0], target.path[1]), nextPath: target.path, targetType: 'item', noPath: false };
+          return { action: moveToAction(target.path[0], target.path[1]), nextPath: target.path, targetType, noPath: false };
         }
         const greedyStep = chooseGreedyApproachStep({
           bot,
@@ -801,164 +884,148 @@ function resolveActiveBotAction({
             return breakout;
           }
         }
-        return { action: 'wait', nextPath: [bot.position], targetType: 'item', noPath: true };
+        return { action: 'wait', nextPath: [bot.position], targetType, noPath: true };
       }
     }
   }
 
-  // Nothing to pick up — park near drop-off (ready for next delivery)
-  const dropOff = nearestDropOff(bot.position, state);
+  if (team?.slotIndex === 0 && targetOrder && !hasDeliverableInventory(bot, orderDemandForTeam(targetOrder))) {
+    return null;
+  }
+
+  return null;
+}
+
+function resolveStageAction({
+  bot,
+  team,
+  targetOrder,
+  state,
+  graph,
+  reservations,
+  edgeReservations,
+  profile,
+  maxSlotIndex,
+}) {
+  const stageGoal = chooseTeamStageGoal({ team, targetOrder, state, graph, maxSlotIndex });
+  if (stageGoal) {
+    const path = findTimeAwarePath({
+      graph,
+      start: bot.position,
+      goal: stageGoal,
+      reservations,
+      edgeReservations,
+      startTime: 0,
+      horizon: profile.routing.horizon,
+    });
+    if (path && path.length >= 2) {
+      return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: team.slotIndex === 0 ? 'parking' : 'slot_stage', noPath: false };
+    }
+    const greedyStep = chooseGreedyGoalStep({
+      bot,
+      goal: stageGoal,
+      graph,
+      reservations,
+      edgeReservations,
+    });
+    if (greedyStep) {
+      return { ...greedyStep, targetType: team.slotIndex === 0 ? 'parking' : 'slot_stage' };
+    }
+  }
+
+  const dropOff = team.slotIndex === 0 ? nearestDropOff(bot.position, state) : stageGoal || nearestDropOff(bot.position, state);
   const parking = chooseParkingAction({
     bot, graph, reservations, edgeReservations,
     horizon: profile.routing.horizon, dropOff,
     otherBots: state.bots, items: state.items,
     gridWidth: state.grid?.width, gridHeight: state.grid?.height,
   });
-  return { action: parking.action, nextPath: parking.path, targetType: 'parking', noPath: false };
+  return { action: parking.action, nextPath: parking.path, targetType: team.slotIndex === 0 ? 'parking' : 'slot_stage', noPath: false };
 }
 
-/**
- * Resolve action for a single bot on the prefetch team.
- * FIX #2: Full-inventory bots with no deliverable items park near
- * drop-off instead of waiting forever. Bots with deliverables deliver.
- */
-function resolvePrefetchBotAction({
+function resolveSlotBotAction({
   bot,
+  team,
+  targetOrder,
   state,
-  world,
   graph,
   reservations,
   edgeReservations,
   profile,
-  targetOrder,
+  orderRemainingDemand,
   reservedItemIds,
-  prefetchContext,
+  allowBreakout = false,
   botZoneId = 0,
   zoneCount = 1,
+  dropRunnerCount = { value: 0 },
+  maxSlotIndex = 0,
 }) {
-  // FIX #2: Deliver if carrying items for active order (uses original demand)
-  const deliveryAction = tryDeliverForActiveOrder({
-    bot, state, world, graph, reservations, edgeReservations, profile,
+  if (!team || !targetOrder) {
+    return resolveStageAction({
+      bot, team: team || { slotIndex: -1 }, targetOrder,
+      state, graph, reservations, edgeReservations, profile, maxSlotIndex,
+    });
+  }
+
+  const orderDemand = orderDemandForTeam(targetOrder);
+  const deliveryAction = tryDeliverForTeamOrder({
+    bot,
+    team,
+    orderDemand,
+    state,
+    graph,
+    reservations,
+    edgeReservations,
+    profile,
+    dropRunnerCount,
   });
   if (deliveryAction) return deliveryAction;
 
-  // FIX #2: Full inventory with nothing deliverable — park near drop-off, don't wait forever
-  if ((bot.inventory || []).length >= 3) {
-    const dropOff = nearestDropOff(bot.position, state);
-    const parking = chooseParkingAction({
-      bot, graph, reservations, edgeReservations,
-      horizon: profile.routing.horizon, dropOff,
-      otherBots: state.bots, items: state.items,
-      gridWidth: state.grid?.width, gridHeight: state.grid?.height,
-    });
-    return { action: parking.action, nextPath: parking.path, targetType: 'prefetch_parking', noPath: false };
-  }
-
-  if (!targetOrder) {
-    return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_idle', noPath: false };
-  }
-
-  if (!prefetchContext.wavePickupEnabled) {
-    const cluster = orderItemClusterCenter(targetOrder, state.items);
-    if (cluster) {
-      const path = findTimeAwarePath({
-        graph, start: bot.position, goal: cluster,
-        reservations, edgeReservations, startTime: 0, horizon: profile.routing.horizon,
-      });
-      if (path && path.length >= 2) {
-        return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'prefetch_position', noPath: false };
-      }
-    }
-    return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_hold', noPath: false };
-  }
-
-  if ((prefetchContext.reservedFutureCounts?.size || 0) === 0) {
-    // Pre-position near the order's item cluster
-    const cluster = orderItemClusterCenter(targetOrder, state.items);
-    if (cluster) {
-      const path = findTimeAwarePath({
-        graph, start: bot.position, goal: cluster,
-        reservations, edgeReservations, startTime: 0, horizon: profile.routing.horizon,
-      });
-      if (path && path.length >= 2) {
-        return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'prefetch_position', noPath: false };
-      }
-    }
-    return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_idle', noPath: false };
-  }
-
-  const claimedWaveItem = claimFutureWaveItem({
+  const claimedItem = tryClaimOrderItem({
     bot,
+    team,
+    targetOrder,
     state,
     graph,
     reservations,
     edgeReservations,
     profile,
     reservedItemIds,
-    reservedFutureCounts: prefetchContext.reservedFutureCounts,
-    activeDemand: world.activeDemand,
+    remainingDemand: orderRemainingDemand,
+    targetType: team.slotIndex === 0 ? 'item' : 'future_item',
+    allowBreakout,
     botZoneId,
     zoneCount,
   });
-  if (claimedWaveItem) return claimedWaveItem;
+  if (claimedItem) return claimedItem;
 
-  const futureCandidates = sortItemsForBotZone(
-    state.items.filter((item) =>
-      (prefetchContext.reservedFutureCounts.get(item.type) || 0) > 0 && !reservedItemIds.has(item.id),
-    ),
-    botZoneId,
-    zoneCount,
-    state.grid.width,
-    bot.position,
-  );
-  const nearestFutureItem = futureCandidates[0];
-  if (nearestFutureItem) {
-    const greedyStep = chooseGreedyApproachStep({
+  if (team.slotIndex === 0 && hasDeliverableInventory(bot, orderDemand)) {
+    return tryDeliverForTeamOrder({
       bot,
-      item: nearestFutureItem,
+      team,
+      orderDemand,
+      state,
       graph,
       reservations,
       edgeReservations,
+      profile,
+      dropRunnerCount,
+    }) || resolveStageAction({
+      bot, team, targetOrder, state, graph, reservations, edgeReservations, profile, maxSlotIndex,
     });
-    if (greedyStep) {
-      return { ...greedyStep, targetType: 'prefetch_approach' };
-    }
   }
 
-  // No candidates — position near cluster
-  const cluster = orderItemClusterCenter(targetOrder, state.items);
-  if (cluster) {
-    const path = findTimeAwarePath({
-      graph, start: bot.position, goal: cluster,
-      reservations, edgeReservations, startTime: 0, horizon: profile.routing.horizon,
-    });
-    if (path && path.length >= 2) {
-      return { action: moveToAction(path[0], path[1]), nextPath: path, targetType: 'prefetch_position', noPath: false };
-    }
-  }
-
-  return { action: 'wait', nextPath: [bot.position], targetType: 'prefetch_idle', noPath: false };
-}
-
-/**
- * Resolve action for an idle bot.
- * FIX #2: Idle bots also deliver if carrying active items.
- */
-function resolveIdleBotAction({ bot, state, world, graph, reservations, edgeReservations, profile }) {
-  // Deliver if carrying items for active order
-  const deliveryAction = tryDeliverForActiveOrder({
-    bot, state, world, graph, reservations, edgeReservations, profile,
+  return resolveStageAction({
+    bot,
+    team,
+    targetOrder,
+    state,
+    graph,
+    reservations,
+    edgeReservations,
+    profile,
+    maxSlotIndex,
   });
-  if (deliveryAction) return deliveryAction;
-
-  const dropOff = nearestDropOff(bot.position, state);
-  const parking = chooseParkingAction({
-    bot, graph, reservations, edgeReservations,
-    horizon: profile.routing.horizon, dropOff,
-    otherBots: state.bots, items: state.items,
-    gridWidth: state.grid?.width, gridHeight: state.grid?.height,
-  });
-  return { action: parking.action, nextPath: parking.path, targetType: 'idle_parking', noPath: false };
 }
 
 // ─── Strategy executor (called from planner-multibot-runtime.mjs) ───
@@ -970,22 +1037,30 @@ export function executeTeamStrategy({
   graph,
   phase,
   recoveryMode,
+  forcePartialDrop = false,
   recoveryThreshold,
   blockedItemsByBot,
   oracle,
 }) {
-  // Build or update teams
+  const previousTeams = planner._teams || null;
   const teams = buildTeams({
     state,
     world,
     oracle,
-    existingTeams: planner._teams || null,
+    existingTeams: previousTeams,
     profile: planner.profile,
     lastOpenerRound: planner.lastOpenerRound,
     zoneAssignmentByBot: planner.zoneAssignmentByBot,
     initialBotOrder: planner.initialTeamOrder,
   });
   planner._teams = teams;
+
+  const previousFrontTeamId = previousTeams?.find((team) => (team.slotIndex ?? 0) === 0)?.teamId ?? null;
+  const currentFrontTeamId = teams.find((team) => team.slotIndex === 0)?.teamId ?? null;
+  const rotatedThisTick = previousFrontTeamId !== null && currentFrontTeamId !== null && previousFrontTeamId !== currentFrontTeamId;
+  if (rotatedThisTick) {
+    planner._lastTeamRotationTick = state.round;
+  }
 
   // Build team lookup
   const teamByBot = new Map();
@@ -995,62 +1070,66 @@ export function executeTeamStrategy({
     }
   }
 
-  // Find the target order for prefetch teams
-  const previewOrder = world.previewOrder;
-  const upcomingOrders = getUpcomingOracleOrders(
-    oracle,
-    state.round,
-    world.activeOrder?.id,
-    previewOrder?.id,
-    planner.profile.teams?.prefetch_lookahead_ticks ?? 80,
-  );
-
   const reservations = makeOccupancyReservations(state);
   const edgeReservations = new Map();
   const reservedItemIds = new Set();
-
-  // FIX #1: shelfDemand is decremented for PICKUP reservations only.
-  // Delivery decisions use world.activeDemand (original, immutable).
-  const inventoryCounts = countInventoryByType(state.bots);
-  const { remainingDemand: shelfDemand } = reserveInventoryForDemand(inventoryCounts, world.activeDemand);
   const teamsConfig = planner.profile.teams || {};
-  const coverage = analyzeActiveDemandCoverage({
-    state,
-    world,
-    threshold: teamsConfig.prefetch_enable_remaining_threshold ?? 2,
-    requireCoverage: teamsConfig.prefetch_require_active_coverage ?? true,
-  });
-  const prefetchContext = buildPrefetchWavePlan({
-    state,
-    world,
-    oracle,
-    lookahead: teamsConfig.prefetch_lookahead_ticks ?? 80,
-    orderCount: teamsConfig.wave_order_count ?? 3,
-    prefetchBlockedByActiveDemand: coverage.prefetchBlockedByActiveDemand,
-  });
   const openerBreakoutTicks = teamsConfig.opener_breakout_ticks ?? 8;
   const inOpenerBreakout = planner.lastOpenerRound !== null
     && (state.round - planner.lastOpenerRound) <= openerBreakoutTicks;
   const zoneCount = Math.max(1, teamsConfig.zone_count ?? 3);
+  const orderQueue = teams
+    .filter((team) => team.order)
+    .sort((left, right) => left.slotIndex - right.slotIndex)
+    .map((team) => team.order);
+  const maxSlotIndex = Math.max(0, ...teams.map((team) => team.slotIndex));
+  const orderStateById = new Map(state.orders.map((order) => [order.id, order]));
+  const botById = new Map(state.bots.map((bot) => [bot.id, bot]));
+  const remainingDemandByTeamId = new Map();
 
-  // Priority: any bot with deliverables first, then active > prefetch > idle
-  const rolePriority = { active: 0, prefetch: 1, idle: 2 };
+  for (const team of teams) {
+    if (!team.order) continue;
+    const liveOrder = orderStateById.get(team.orderId) || team.order;
+    team.order = liveOrder;
+    remainingDemandByTeamId.set(team.teamId, reserveTeamInventoryForOrder(team, liveOrder, botById));
+  }
+
+  // In recovery mode, rebuild teams to focus all bots on active order
+  if (recoveryMode && world.activeOrder) {
+    const activeTeam = teams.find((t) => t.role === 'active');
+    if (activeTeam) {
+      // Move all non-active bots to the active team
+      const allBotIds = state.bots.map((b) => b.id);
+      const activeBotSet = new Set(activeTeam.botIds);
+      for (const botId of allBotIds) {
+        if (!activeBotSet.has(botId)) {
+          activeTeam.botIds.push(botId);
+          activeBotSet.add(botId);
+        }
+      }
+      // Remove prefetch and idle teams
+      for (let i = teams.length - 1; i >= 0; i--) {
+        if (teams[i].role !== 'active') teams.splice(i, 1);
+      }
+      // Update teamByBot
+      for (const botId of allBotIds) {
+        teamByBot.set(botId, activeTeam);
+      }
+    }
+  }
+
   const botsByPriority = [...state.bots].sort((a, b) => {
-    // Any bot with deliverable items gets top priority (regardless of team)
-    const aDel = hasDeliverableInventory(a, world.activeDemand) ? 0 : 1;
-    const bDel = hasDeliverableInventory(b, world.activeDemand) ? 0 : 1;
-    if (aDel !== bDel) return aDel - bDel;
-    // Then by team role
     const aTeam = teamByBot.get(a.id);
     const bTeam = teamByBot.get(b.id);
-    const aRole = rolePriority[aTeam?.role] ?? 9;
-    const bRole = rolePriority[bTeam?.role] ?? 9;
-    if (aRole !== bRole) return aRole - bRole;
+    const aSlot = aTeam?.slotIndex ?? 99;
+    const bSlot = bTeam?.slotIndex ?? 99;
+    if (aSlot !== bSlot) return aSlot - bSlot;
     return a.id - b.id;
   });
 
   const actions = [];
   let forcedWaits = 0;
+  const dropRunnerCount = { value: 0 };  // Shared counter for drop-off cap
 
   for (const bot of botsByPriority) {
     const stallKey = `${bot.id}`;
@@ -1083,41 +1162,61 @@ export function executeTeamStrategy({
       continue;
     }
 
-    // Resolve action based on team role
-    let resolved;
-    if (team?.role === 'active') {
-      resolved = resolveActiveBotAction({
-        bot, state, world, graph,
-        reservations, edgeReservations, profile: planner.profile,
-        reservedItemIds, shelfDemand,
-        allowBreakout: inOpenerBreakout,
-        botZoneId: planner.zoneAssignmentByBot?.[bot.id] ?? 0,
-        zoneCount,
+    if (forcePartialDrop && (bot.inventory || []).length > 0 && team?.slotIndex === 0 && team?.order) {
+      const deliveryAction = tryDeliverForTeamOrder({
+        bot,
+        team,
+        orderDemand: orderDemandForTeam(team.order),
+        state,
+        graph,
+        reservations,
+        edgeReservations,
+        profile: planner.profile,
+        dropRunnerCount,
       });
-    } else if (team?.role === 'prefetch') {
-      const targetOrder = previewOrder
-        || state.orders?.find((o) => o.id === team.orderId)
-        || upcomingOrders.find((o) => o.id === team.orderId)
-        || upcomingOrders[0]
-        || null;
-      resolved = resolvePrefetchBotAction({
-        bot, state, world, graph,
-        reservations, edgeReservations, profile: planner.profile,
-        targetOrder, reservedItemIds,
-        prefetchContext,
-        botZoneId: planner.zoneAssignmentByBot?.[bot.id] ?? 0,
-        zoneCount,
-      });
-    } else {
-      resolved = resolveIdleBotAction({
-        bot, state, world, graph,
-        reservations, edgeReservations, profile: planner.profile,
-      });
+      if (deliveryAction) {
+        const resolved = deliveryAction;
+        planner.previousPositions.set(stallKey, encodeCoord(bot.position));
+        reservePath({
+          path: resolved.nextPath, startTime: 0, reservations, edgeReservations,
+          horizon: planner.profile.routing.horizon, holdAtGoal: false,
+        });
+        if (resolved.action === 'pick_up') {
+          actions.push({ bot: bot.id, action: 'pick_up', item_id: resolved.itemId });
+        } else {
+          actions.push({ bot: bot.id, action: resolved.action });
+        }
+        planner.lastActionByBot.set(bot.id, resolved.action);
+        planner._botDetails.set(bot.id, {
+          target: resolved.nextPath?.at(-1) || null, path: resolved.nextPath || [],
+          taskType: 'force_partial_drop', stallCount: planner.stalls.get(stallKey) || 0,
+          orderId: team?.orderId ?? null, teamId: team?.teamId ?? null, teamRole: team?.role ?? null,
+        });
+        continue;
+      }
     }
+
+    let resolved = resolveSlotBotAction({
+      bot,
+      team,
+      targetOrder: team?.order || null,
+      state,
+      graph,
+      reservations,
+      edgeReservations,
+      profile: planner.profile,
+      orderRemainingDemand: remainingDemandByTeamId.get(team?.teamId) || new Map(),
+      reservedItemIds,
+      allowBreakout: inOpenerBreakout && team?.slotIndex === 0,
+      botZoneId: planner.zoneAssignmentByBot?.[bot.id] ?? 0,
+      zoneCount,
+      dropRunnerCount,
+      maxSlotIndex,
+    });
 
     if (
       inOpenerBreakout
-      && ['item', 'prefetch_hold', 'prefetch_idle', 'idle_parking', 'parking'].includes(resolved.targetType)
+      && ['item', 'slot_stage', 'parking'].includes(resolved.targetType)
       && isZeroProgressAssignment(bot, resolved)
     ) {
       const breakout = chooseBreakoutAction({
@@ -1162,7 +1261,7 @@ export function executeTeamStrategy({
     }
 
     if (
-      team?.role === 'active'
+      team?.slotIndex === 0
       && inOpenerBreakout
       && resolved.targetType === 'item'
       && isZeroProgressAssignment(bot, resolved)
@@ -1218,14 +1317,18 @@ export function executeTeamStrategy({
       orderId: team?.orderId ?? null,
       teamId: team?.teamId ?? null,
       teamRole: team?.role ?? null,
+      slotIndex: team?.slotIndex ?? null,
+      goalBand: team?.goalBand ?? null,
     });
   }
 
-  // Build team summary for metrics
   const teamSummary = teams.map((t) => ({
     teamId: t.teamId,
     role: t.role,
     orderId: t.orderId,
+    slotIndex: t.slotIndex,
+    goalBand: t.goalBand,
+    teamDistanceRank: t.goalBand,
     botCount: t.botIds.length,
     botIds: t.botIds,
   }));
@@ -1233,7 +1336,7 @@ export function executeTeamStrategy({
   planner.lastMetrics = {
     phase,
     strategy: 'team_v1',
-    taskCount: teams.filter((t) => t.role !== 'idle').reduce((s, t) => s + t.botIds.length, 0),
+    taskCount: teams.filter((t) => t.orderId !== null).reduce((s, t) => s + t.botIds.length, 0),
     forcedWaits,
     stalledBots: Array.from(planner.stalls.values()).filter((v) => v > 0).length,
     recoveryMode,
@@ -1243,12 +1346,15 @@ export function executeTeamStrategy({
     approachBlacklistSize: Array.from(blockedItemsByBot.values()).reduce((sum, blocked) => sum + blocked.size, 0),
     orderEtaAtDecision: null,
     projectedCompletionFeasible: null,
-    prefetchBlockedByActiveDemand: coverage.prefetchBlockedByActiveDemand,
-    activeCoverageSatisfied: coverage.activeCoverageSatisfied,
-    waveOrderIds: prefetchContext.waveOrderIds,
-    waveReservedCounts: Object.fromEntries(prefetchContext.reservedFutureCounts),
-    wavePickupEnabled: prefetchContext.wavePickupEnabled,
+    prefetchBlockedByActiveDemand: false,
+    activeCoverageSatisfied: false,
+    waveOrderIds: orderQueue.map((order) => order.id),
+    waveReservedCounts: {},
+    wavePickupEnabled: true,
     openerBreakoutActive: inOpenerBreakout,
+    queueOrderIds: orderQueue.map((order) => order.id),
+    lastRotationTick: planner._lastTeamRotationTick ?? null,
+    rotatedThisTick,
     teams: teamSummary,
     botDetails: Object.fromEntries(planner._botDetails),
     zoneAssignment: planner.zoneAssignmentByBot ? { ...planner.zoneAssignmentByBot } : null,

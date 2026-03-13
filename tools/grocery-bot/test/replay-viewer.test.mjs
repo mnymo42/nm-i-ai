@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { once } from 'node:events';
 import os from 'node:os';
 import path from 'node:path';
 
 import { ReplayLogger } from '../src/replay/replay.mjs';
 import { listReplayRuns, loadReplayRun } from '../src/replay/replay-viewer.mjs';
-import { handleReplayViewerRequest } from '../viewer/server.mjs';
+import { createReplayViewerServer, handleReplayViewerRequest } from '../viewer/server.mjs';
 
 function writeRun(outDir, runId, { difficulty, profile, dropOffs = [[1, 3]] }) {
   const runDir = path.join(outDir, runId);
@@ -127,4 +128,23 @@ test('viewer server helpers serve run list and run payload', () => {
   assert.equal(runResponse.statusCode, 200);
   assert.equal(runResponse.payload.summary.profile, 'expert');
   assert.equal(runResponse.payload.ticks.length, 1);
+});
+
+test('viewer server serves browser modules with a javascript content type', async () => {
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'grocery-viewer-'));
+  const server = createReplayViewerServer({ outDir });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const { port } = server.address();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/view-model.mjs`);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') || '', /application\/javascript/);
+    const body = await response.text();
+    assert.match(body, /TEAM_SHAPES/);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
 });

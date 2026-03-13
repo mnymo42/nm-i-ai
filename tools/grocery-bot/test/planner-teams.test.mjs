@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { GroceryPlanner } from '../src/planner/planner.mjs';
-import { buildPrefetchWavePlan, buildTeams } from '../src/planner/planner-teams.mjs';
+import { buildTeams, executeTeamStrategy } from '../src/planner/planner-teams.mjs';
+import { GridGraph } from '../src/utils/grid-graph.mjs';
 import { defaultProfiles } from '../src/utils/profile.mjs';
 import { buildWorldContext } from '../src/utils/world-model.mjs';
 
 function buildExpertProfile() {
-  const profile = structuredClone(defaultProfiles.expert);
+  const profile = structuredClone(defaultProfiles.expert_team_v1);
   profile.opener.enabled = false;
   profile.routing.use_lane_map_v2 = false;
   return profile;
@@ -21,9 +22,9 @@ function baseState(overrides = {}) {
     grid: { width: 12, height: 10, walls: [] },
     bots: [
       { id: 0, position: [1, 8], inventory: [] },
-      { id: 1, position: [2, 2], inventory: [] },
-      { id: 2, position: [8, 2], inventory: [] },
-      { id: 3, position: [9, 2], inventory: [] },
+      { id: 1, position: [2, 8], inventory: [] },
+      { id: 2, position: [3, 8], inventory: [] },
+      { id: 3, position: [4, 8], inventory: [] },
     ],
     items: [],
     orders: [],
@@ -34,29 +35,197 @@ function baseState(overrides = {}) {
   };
 }
 
-test('team planner blocks preview pickup while active demand remains broad', () => {
-  const planner = new GroceryPlanner(buildExpertProfile());
+test('team builder creates ordered queue slots from active, preview, and oracle orders', () => {
+  const profile = buildExpertProfile();
   const state = baseState({
-    items: [
-      { id: 'milk_0', type: 'milk', position: [2, 3] },
-      { id: 'bread_0', type: 'bread', position: [3, 3] },
-      { id: 'eggs_0', type: 'eggs', position: [4, 3] },
-      { id: 'pasta_0', type: 'pasta', position: [8, 3] },
+    bots: Array.from({ length: 8 }, (_, id) => ({ id, position: [id + 1, 8], inventory: [] })),
+    orders: [
+      { id: 'o0', items_required: ['milk', 'bread', 'eggs'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  const world = buildWorldContext(state);
+
+  const teams = buildTeams({
+    state,
+    world,
+    oracle: {
+      known_orders: [
+        { id: 'o1', items_required: ['pasta'], first_seen_tick: 20 },
+        { id: 'o2', items_required: ['cheese'], first_seen_tick: 25 },
+        { id: 'o3', items_required: ['apples'], first_seen_tick: 30 },
+      ],
+    },
+    existingTeams: null,
+    profile,
+  });
+
+  assert.deepEqual(teams.map((team) => team.orderId), ['o0', 'o1', 'o2', 'o3']);
+  assert.deepEqual(teams.map((team) => team.slotIndex), [0, 1, 2, 3]);
+  assert.equal(teams[0].role, 'active');
+  assert.equal(teams[1].goalBand < teams[2].goalBand, true);
+});
+
+test('team builder rotates team identities inward when the front order advances', () => {
+  const profile = buildExpertProfile();
+  const initialState = baseState({
+    bots: Array.from({ length: 8 }, (_, id) => ({ id, position: [id + 1, 8], inventory: [] })),
+    orders: [
+      { id: 'o0', items_required: ['milk', 'bread'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  const initialWorld = buildWorldContext(initialState);
+  const initialTeams = buildTeams({
+    state: initialState,
+    world: initialWorld,
+    oracle: {
+      known_orders: [
+        { id: 'o1', items_required: ['pasta'], first_seen_tick: 20 },
+        { id: 'o2', items_required: ['cheese'], first_seen_tick: 25 },
+        { id: 'o3', items_required: ['apples'], first_seen_tick: 30 },
+      ],
+    },
+    existingTeams: null,
+    profile,
+  });
+
+  const teamIdByOrder = Object.fromEntries(initialTeams.map((team) => [team.orderId, team.teamId]));
+  const advancedState = baseState({
+    round: 21,
+    bots: initialState.bots,
+    orders: [
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o2', items_required: ['cheese'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  const advancedWorld = buildWorldContext(advancedState);
+  const rotatedTeams = buildTeams({
+    state: advancedState,
+    world: advancedWorld,
+    oracle: {
+      known_orders: [
+        { id: 'o2', items_required: ['cheese'], first_seen_tick: 25 },
+        { id: 'o3', items_required: ['apples'], first_seen_tick: 30 },
+        { id: 'o4', items_required: ['butter'], first_seen_tick: 35 },
+      ],
+    },
+    existingTeams: initialTeams,
+    profile,
+  });
+
+  assert.equal(rotatedTeams[0].orderId, 'o1');
+  assert.equal(rotatedTeams[0].teamId, teamIdByOrder.o1);
+  assert.equal(rotatedTeams[1].orderId, 'o2');
+  assert.equal(rotatedTeams[1].teamId, teamIdByOrder.o2);
+  assert.equal(rotatedTeams[2].orderId, 'o3');
+  assert.equal(rotatedTeams[2].teamId, teamIdByOrder.o3);
+  assert.equal(rotatedTeams[3].orderId, 'o4');
+  assert.equal(rotatedTeams[3].teamId, teamIdByOrder.o0);
+});
+
+test('team builder sizes the front slot ahead of deeper queue slots', () => {
+  const profile = buildExpertProfile();
+  const state = baseState({
+    bots: Array.from({ length: 10 }, (_, id) => ({ id, position: [id + 1, 8], inventory: [] })),
+    orders: [
+      { id: 'o0', items_required: ['milk', 'bread', 'eggs', 'pasta', 'cheese', 'cream', 'butter'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['apples', 'bananas'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  const world = buildWorldContext(state);
+
+  const teams = buildTeams({
+    state,
+    world,
+    oracle: {
+      known_orders: [
+        { id: 'o1', items_required: ['apples', 'bananas'], first_seen_tick: 20 },
+        { id: 'o2', items_required: ['rice', 'oats'], first_seen_tick: 25 },
+        { id: 'o3', items_required: ['tomatoes', 'yogurt'], first_seen_tick: 30 },
+      ],
+    },
+    existingTeams: null,
+    profile,
+  });
+
+  assert.equal(teams[0].botIds.length >= teams[1].botIds.length, true);
+  assert.equal(teams[0].botIds.length >= 3, true);
+  assert.equal(teams.reduce((sum, team) => sum + team.botIds.length, 0), 10);
+});
+
+test('front slot keeps the bots nearest drop-off on first assignment', () => {
+  const profile = buildExpertProfile();
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 8], inventory: [] },
+      { id: 1, position: [2, 8], inventory: [] },
+      { id: 2, position: [8, 2], inventory: [] },
+      { id: 3, position: [9, 2], inventory: [] },
+      { id: 4, position: [10, 2], inventory: [] },
+      { id: 5, position: [11, 2], inventory: [] },
     ],
     orders: [
       { id: 'o0', items_required: ['milk', 'bread', 'eggs'], items_delivered: [], status: 'active', complete: false },
       { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
     ],
   });
+  const world = buildWorldContext(state);
+  const teams = buildTeams({ state, world, oracle: null, existingTeams: null, profile });
+
+  assert.deepEqual(new Set(teams[0].botIds.slice(0, 2)), new Set([0, 1]));
+});
+
+test('strict team boundaries prevent a future-slot bot from dropping active-order inventory', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  planner.oracle = {
+    known_orders: [
+      { id: 'o1', items_required: ['pasta'], first_seen_tick: 20 },
+      { id: 'o2', items_required: ['cheese'], first_seen_tick: 25 },
+    ],
+  };
+
+  const setupState = baseState({
+    bots: [
+      { id: 0, position: [1, 8], inventory: [] },
+      { id: 1, position: [1, 8], inventory: [] },
+      { id: 2, position: [8, 2], inventory: [] },
+      { id: 3, position: [9, 2], inventory: [] },
+      { id: 4, position: [10, 2], inventory: [] },
+      { id: 5, position: [11, 2], inventory: [] },
+    ],
+    items: [
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+      { id: 'pasta_0', type: 'pasta', position: [8, 3] },
+      { id: 'cheese_0', type: 'cheese', position: [10, 3] },
+    ],
+    orders: [
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  planner.plan(setupState);
+
+  const state = baseState({
+    bots: [
+      { id: 0, position: [1, 8], inventory: [] },
+      { id: 1, position: [1, 8], inventory: [] },
+      { id: 2, position: [8, 2], inventory: ['milk'] },
+      { id: 3, position: [9, 2], inventory: [] },
+      { id: 4, position: [10, 2], inventory: [] },
+      { id: 5, position: [11, 2], inventory: [] },
+    ],
+    items: setupState.items,
+    orders: setupState.orders,
+  });
 
   const actions = planner.plan(state);
 
-  assert.equal(actions.some((action) => action.action === 'pick_up' && action.item_id === 'pasta_0'), false);
-  assert.equal(planner.lastMetrics.prefetchBlockedByActiveDemand, true);
-  assert.equal(planner.lastMetrics.wavePickupEnabled, false);
+  assert.notEqual(actions.find((action) => action.bot === 2)?.action, 'drop_off');
+  assert.equal(planner.lastMetrics.teams.find((team) => team.slotIndex === 1)?.botIds.includes(2), true);
 });
 
-test('team planner allows preview pickup once active demand is covered', () => {
+test('future-slot bot keeps inventory for its own order until rotation makes it front slot', () => {
   const planner = new GroceryPlanner(buildExpertProfile());
   planner.oracle = {
     known_orders: [
@@ -65,283 +234,113 @@ test('team planner allows preview pickup once active demand is covered', () => {
   };
   const state = baseState({
     bots: [
-      { id: 0, position: [1, 8], inventory: ['milk'] },
-      { id: 1, position: [2, 2], inventory: [] },
-      { id: 2, position: [8, 2], inventory: [] },
+      { id: 0, position: [1, 8], inventory: [] },
+      { id: 1, position: [2, 8], inventory: [] },
+      { id: 2, position: [8, 2], inventory: ['pasta'] },
       { id: 3, position: [9, 2], inventory: [] },
-    ],
-    items: [
-      { id: 'milk_0', type: 'milk', position: [2, 3] },
-      { id: 'pasta_0', type: 'pasta', position: [8, 3] },
-    ],
-    orders: [
-      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
-      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
-    ],
-  });
-
-  const actions = planner.plan(state);
-
-  assert.equal(actions.some((action) => action.action === 'pick_up' && action.item_id === 'pasta_0'), true);
-  assert.equal(planner.lastMetrics.activeCoverageSatisfied, true);
-  assert.equal(planner.lastMetrics.wavePickupEnabled, true);
-});
-
-test('prefetch wave reserves complementary future item types without duplicate hoarding', () => {
-  const state = baseState({
-    bots: [
-      { id: 0, position: [1, 8], inventory: ['milk'] },
-      { id: 1, position: [2, 2], inventory: [] },
-      { id: 2, position: [8, 2], inventory: [] },
-      { id: 3, position: [9, 2], inventory: [] },
-    ],
-    items: [
-      { id: 'milk_0', type: 'milk', position: [2, 3] },
-      { id: 'pasta_0', type: 'pasta', position: [8, 3] },
-      { id: 'pasta_1', type: 'pasta', position: [9, 3] },
-      { id: 'eggs_0', type: 'eggs', position: [10, 3] },
-    ],
-    orders: [
-      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
-      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
-    ],
-  });
-  const world = buildWorldContext(state);
-
-  const wave = buildPrefetchWavePlan({
-    state,
-    world,
-    oracle: {
-      known_orders: [
-        { id: 'o1', items_required: ['pasta'], first_seen_tick: 20 },
-        { id: 'o2', items_required: ['eggs'], first_seen_tick: 25 },
-      ],
-    },
-    lookahead: 80,
-    orderCount: 3,
-    prefetchBlockedByActiveDemand: false,
-  });
-
-  assert.deepEqual(wave.waveOrderIds, ['o0', 'o1', 'o2']);
-  assert.equal(wave.reservedFutureCounts.get('pasta'), 1);
-  assert.equal(wave.reservedFutureCounts.get('eggs'), 1);
-  assert.equal(wave.wavePickupEnabled, true);
-});
-
-test('team planner takes an approach step instead of freezing on active item assignment', () => {
-  const planner = new GroceryPlanner(buildExpertProfile());
-  planner.lastOpenerRound = 11;
-  const state = baseState({
-    round: 12,
-    max_rounds: 300,
-    grid: {
-      width: 28,
-      height: 18,
-      walls: [
-        [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0], [10, 0], [11, 0], [12, 0], [13, 0], [14, 0], [15, 0], [16, 0], [17, 0], [18, 0], [19, 0], [20, 0], [21, 0], [22, 0], [23, 0], [24, 0], [25, 0], [26, 0], [27, 0],
-        [0, 1], [27, 1],
-        [0, 2], [2, 2], [6, 2], [10, 2], [14, 2], [18, 2], [22, 2], [27, 2],
-        [0, 3], [2, 3], [6, 3], [10, 3], [14, 3], [18, 3], [22, 3], [27, 3],
-        [0, 4], [2, 4], [6, 4], [10, 4], [14, 4], [18, 4], [22, 4], [27, 4],
-        [0, 5], [2, 5], [6, 5], [10, 5], [14, 5], [18, 5], [22, 5], [27, 5],
-        [0, 6], [2, 6], [6, 6], [10, 6], [14, 6], [18, 6], [22, 6], [27, 6],
-        [0, 7], [2, 7], [6, 7], [10, 7], [14, 7], [18, 7], [22, 7], [27, 7],
-        [0, 8], [2, 8], [6, 8], [10, 8], [14, 8], [18, 8], [22, 8], [27, 8],
-        [0, 9], [27, 9],
-        [0, 10], [2, 10], [6, 10], [10, 10], [14, 10], [18, 10], [22, 10], [27, 10],
-        [0, 11], [2, 11], [6, 11], [10, 11], [14, 11], [18, 11], [22, 11], [27, 11],
-        [0, 12], [2, 12], [6, 12], [10, 12], [14, 12], [18, 12], [22, 12], [27, 12],
-        [0, 13], [2, 13], [6, 13], [10, 13], [14, 13], [18, 13], [22, 13], [27, 13],
-        [0, 14], [2, 14], [6, 14], [10, 14], [14, 14], [18, 14], [22, 14], [27, 14],
-        [0, 15], [27, 15],
-        [0, 16], [27, 16],
-        [0, 17], [1, 17], [2, 17], [3, 17], [4, 17], [5, 17], [6, 17], [7, 17], [8, 17], [9, 17], [10, 17], [11, 17], [12, 17], [13, 17], [14, 17], [15, 17], [16, 17], [17, 17], [18, 17], [19, 17], [20, 17], [21, 17], [22, 17], [23, 17], [24, 17], [25, 17], [26, 17], [27, 17],
-      ],
-    },
-    bots: [
-      { id: 0, position: [22, 16], inventory: [] },
-      { id: 1, position: [23, 15], inventory: [] },
-      { id: 2, position: [20, 16], inventory: [] },
-      { id: 3, position: [21, 15], inventory: [] },
-      { id: 4, position: [18, 16], inventory: [] },
-      { id: 5, position: [19, 15], inventory: [] },
-      { id: 6, position: [16, 16], inventory: [] },
-      { id: 7, position: [17, 15], inventory: [] },
-      { id: 8, position: [14, 16], inventory: [] },
-      { id: 9, position: [15, 15], inventory: [] },
-    ],
-    items: [
-      { id: 'cream_0', type: 'cream', position: [19, 2] },
-      { id: 'onions_0', type: 'onions', position: [19, 4] },
-      { id: 'flour_0', type: 'flour', position: [15, 8] },
-      { id: 'cereal_0', type: 'cereal', position: [17, 7] },
-      { id: 'cheese_0', type: 'cheese', position: [17, 6] },
-      { id: 'milk_0', type: 'milk', position: [19, 3] },
-      { id: 'yogurt_0', type: 'yogurt', position: [19, 5] },
-    ],
-    orders: [
-      { id: 'order_0', items_required: ['cream', 'onions', 'flour', 'cereal', 'cheese', 'milk'], items_delivered: [], status: 'active', complete: false },
-      { id: 'order_1', items_required: ['cereal', 'yogurt'], items_delivered: [], status: 'preview', complete: false },
-    ],
-  });
-
-  const actions = planner.plan(state);
-  const movingActions = actions.filter((action) => action.action.startsWith('move_'));
-
-  assert.equal(movingActions.length > 0, true);
-  assert.equal(planner.lastMetrics.openerBreakoutActive, true);
-  assert.equal(planner.lastMetrics.teams.some((team) => team.role === 'prefetch'), false);
-  for (const detail of Object.values(planner.lastMetrics.botDetails)) {
-    if (detail.taskType !== 'item') continue;
-    assert.notDeepEqual(detail.path, [detail.target]);
-  }
-});
-
-test('team planner makes drop-off progress when full drop route is unavailable', () => {
-  const planner = new GroceryPlanner(buildExpertProfile());
-  planner.profile.routing.horizon = 1;
-  const state = baseState({
-    bots: [
-      { id: 0, position: [8, 2], inventory: ['milk'] },
-      { id: 1, position: [2, 2], inventory: [] },
-      { id: 2, position: [9, 2], inventory: [] },
-      { id: 3, position: [10, 2], inventory: [] },
     ],
     items: [],
     orders: [
       { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
     ],
   });
 
   const actions = planner.plan(state);
-  assert.equal(actions.find((action) => action.bot === 0)?.action.startsWith('move_'), true);
+
+  assert.notEqual(actions.find((action) => action.bot === 2)?.action, 'drop_off');
+  assert.equal(planner.lastMetrics.botDetails['2']?.slotIndex, 1);
 });
 
-test('team planner does not assign duplicate pickup for demand already covered by carried inventory', () => {
+test('deeper future slots stage farther from drop-off than nearer future slots', () => {
   const planner = new GroceryPlanner(buildExpertProfile());
-  const state = baseState({
-    bots: [
-      { id: 0, position: [8, 2], inventory: ['cream'] },
-      { id: 1, position: [2, 2], inventory: [] },
-      { id: 2, position: [9, 2], inventory: [] },
-      { id: 3, position: [10, 2], inventory: [] },
+  planner.oracle = {
+    known_orders: [
+      { id: 'o1', items_required: ['pasta'], first_seen_tick: 20 },
+      { id: 'o2', items_required: ['cheese'], first_seen_tick: 25 },
     ],
+  };
+  const state = baseState({
+    bots: Array.from({ length: 6 }, (_, id) => ({ id, position: [id + 1, 8], inventory: [] })),
     items: [
-      { id: 'cream_0', type: 'cream', position: [8, 3] },
-      { id: 'eggs_0', type: 'eggs', position: [2, 3] },
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+      { id: 'pasta_0', type: 'pasta', position: [8, 3] },
+      { id: 'cheese_0', type: 'cheese', position: [10, 3] },
     ],
     orders: [
-      { id: 'o0', items_required: ['cream', 'eggs'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
     ],
-  });
-
-  const actions = planner.plan(state);
-  assert.equal(actions.some((action) => action.action === 'pick_up' && action.item_id === 'cream_0'), false);
-});
-
-test('team planner rejects static road-cell item assignments and keeps the bot moving', () => {
-  const planner = new GroceryPlanner(buildExpertProfile());
-  const state = baseState({
-    grid: { width: 28, height: 18, walls: [] },
-    bots: [
-      { id: 0, position: [26, 13], inventory: [] },
-      { id: 1, position: [20, 13], inventory: ['cream'] },
-      { id: 2, position: [12, 9], inventory: [] },
-      { id: 3, position: [14, 9], inventory: [] },
-    ],
-    items: [
-      { id: 'eggs_0', type: 'eggs', position: [3, 3] },
-    ],
-    orders: [
-      { id: 'o0', items_required: ['cream', 'eggs'], items_delivered: [], status: 'active', complete: false },
-      { id: 'o1', items_required: ['milk'], items_delivered: [], status: 'preview', complete: false },
-    ],
-    drop_off: [1, 16],
-    drop_offs: [[1, 16]],
-  });
-
-  const actions = planner.plan(state);
-  const bot0 = actions.find((action) => action.bot === 0);
-  const detail = planner.lastMetrics.botDetails['0'];
-
-  assert.notEqual(bot0?.action, 'wait');
-  assert.notEqual(detail?.taskType, 'item');
-  assert.notDeepEqual(detail?.path, [[26, 13]]);
-});
-
-test('team planner favors active bots from the order zone before cross-zone borrowing', () => {
-  const planner = new GroceryPlanner(buildExpertProfile());
-  const state = baseState({
-    grid: { width: 24, height: 10, walls: [] },
-    bots: [
-      { id: 0, position: [2, 2], inventory: [] },
-      { id: 1, position: [4, 2], inventory: [] },
-      { id: 2, position: [8, 2], inventory: [] },
-      { id: 3, position: [12, 2], inventory: [] },
-      { id: 4, position: [18, 2], inventory: [] },
-      { id: 5, position: [21, 2], inventory: [] },
-    ],
-    items: [
-      { id: 'apples_0', type: 'apples', position: [3, 3] },
-      { id: 'apples_1', type: 'apples', position: [4, 4] },
-      { id: 'cream_0', type: 'cream', position: [5, 3] },
-      { id: 'onions_0', type: 'onions', position: [17, 3] },
-    ],
-    orders: [
-      { id: 'o0', items_required: ['apples', 'apples', 'cream'], items_delivered: [], status: 'active', complete: false },
-      { id: 'o1', items_required: ['onions'], items_delivered: [], status: 'preview', complete: false },
-    ],
-    drop_off: [1, 8],
-    drop_offs: [[1, 8]],
   });
 
   planner.plan(state);
-  const activeTeam = planner.lastMetrics.teams.find((team) => team.role === 'active');
-  assert.deepEqual(new Set(activeTeam.botIds.slice(0, 2)), new Set([0, 1]));
+
+  const slotOneBotId = planner.lastMetrics.teams.find((team) => team.slotIndex === 1)?.botIds[0];
+  const slotTwoBotId = planner.lastMetrics.teams.find((team) => team.slotIndex === 2)?.botIds[0];
+  const slotOneTarget = planner.lastMetrics.botDetails[String(slotOneBotId)]?.target;
+  const slotTwoTarget = planner.lastMetrics.botDetails[String(slotTwoBotId)]?.target;
+  const dropOff = state.drop_off;
+
+  assert.equal(manhattan(slotTwoTarget, dropOff) >= manhattan(slotOneTarget, dropOff), true);
 });
 
-test('team builder preserves spawn-order blocks during initial post-opener assignment', () => {
-  const profile = buildExpertProfile();
-  const state = baseState({
-    round: 9,
-    grid: { width: 28, height: 18, walls: [] },
-    bots: [
-      { id: 0, position: [6, 16], inventory: [] },
-      { id: 1, position: [7, 15], inventory: [] },
-      { id: 2, position: [8, 16], inventory: [] },
-      { id: 3, position: [10, 15], inventory: [] },
-      { id: 4, position: [11, 16], inventory: [] },
-      { id: 5, position: [12, 16], inventory: [] },
-      { id: 6, position: [13, 16], inventory: [] },
-      { id: 7, position: [14, 16], inventory: [] },
-      { id: 8, position: [16, 16], inventory: [] },
-      { id: 9, position: [21, 16], inventory: [] },
+test('recovery mode collapses queue discipline and records slot rotation metrics', () => {
+  const planner = new GroceryPlanner(buildExpertProfile());
+  planner.oracle = {
+    known_orders: [
+      { id: 'o1', items_required: ['pasta'], first_seen_tick: 20 },
+      { id: 'o2', items_required: ['cheese'], first_seen_tick: 25 },
     ],
+  };
+
+  const firstState = baseState({
+    bots: Array.from({ length: 6 }, (_, id) => ({ id, position: [id + 1, 8], inventory: [] })),
     items: [
-      { id: 'apples_0', type: 'apples', position: [5, 3] },
-      { id: 'apples_1', type: 'apples', position: [5, 4] },
-      { id: 'cream_0', type: 'cream', position: [7, 3] },
-      { id: 'bread_0', type: 'bread', position: [21, 3] },
+      { id: 'milk_0', type: 'milk', position: [3, 3] },
+      { id: 'pasta_0', type: 'pasta', position: [8, 3] },
+      { id: 'cheese_0', type: 'cheese', position: [10, 3] },
     ],
     orders: [
-      { id: 'o0', items_required: ['apples', 'apples', 'cream'], items_delivered: [], status: 'active', complete: false },
-      { id: 'o1', items_required: ['bread'], items_delivered: [], status: 'preview', complete: false },
+      { id: 'o0', items_required: ['milk'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'preview', complete: false },
     ],
   });
-  const world = buildWorldContext(state);
-  const zoneAssignmentByBot = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2 };
+  planner.plan(firstState);
 
-  const teams = buildTeams({
-    state,
+  const secondState = baseState({
+    round: 21,
+    bots: firstState.bots,
+    items: firstState.items,
+    orders: [
+      { id: 'o1', items_required: ['pasta'], items_delivered: [], status: 'active', complete: false },
+      { id: 'o2', items_required: ['cheese'], items_delivered: [], status: 'preview', complete: false },
+    ],
+  });
+  const graph = new GridGraph({
+    ...secondState.grid,
+    walls: [...secondState.grid.walls, ...secondState.items.map((item) => item.position)],
+  });
+  const world = buildWorldContext(secondState);
+
+  executeTeamStrategy({
+    planner,
+    state: secondState,
     world,
-    oracle: null,
-    existingTeams: null,
-    profile,
-    lastOpenerRound: 8,
-    zoneAssignmentByBot,
-    initialBotOrder: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    graph,
+    phase: 'mid',
+    recoveryMode: true,
+    forcePartialDrop: false,
+    recoveryThreshold: 20,
+    blockedItemsByBot: new Map(),
+    oracle: planner.oracle,
   });
 
-  const activeTeam = teams.find((team) => team.role === 'active');
-  assert.deepEqual(activeTeam.botIds, [0, 1, 2]);
+  assert.equal(planner.lastMetrics.lastRotationTick, 21);
+  assert.equal(planner.lastMetrics.rotatedThisTick, true);
+  assert.equal(new Set(planner.lastMetrics.teams[0].botIds).size, secondState.bots.length);
 });
+
+function manhattan(left, right) {
+  if (!left || !right) return -Infinity;
+  return Math.abs(left[0] - right[0]) + Math.abs(left[1] - right[1]);
+}
