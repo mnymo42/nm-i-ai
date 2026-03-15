@@ -429,16 +429,10 @@ export function executeAssignedTaskStrategy({
       if (isEmpty || !hasDeliverable) {
         const dropOff = nearestDropOff(bot.position, state);
         const parking = chooseParkingAction({
-          bot,
-          graph,
-          reservations,
-          edgeReservations,
+          bot, graph, reservations, edgeReservations,
           horizon: planner.profile.routing.horizon,
-          dropOff,
-          otherBots: state.bots,
-          items: state.items,
-          gridWidth: state.grid?.width,
-          gridHeight: state.grid?.height,
+          dropOff, otherBots: state.bots, items: state.items,
+          gridWidth: state.grid?.width, gridHeight: state.grid?.height,
         });
         resolved = { action: parking.action, nextPath: parking.path, targetType: 'parking' };
       } else {

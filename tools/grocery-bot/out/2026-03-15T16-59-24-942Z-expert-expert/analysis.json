@@ -1,0 +1,224 @@
+{
+  "finalScore": 43,
+  "ordersCompleted": 4,
+  "itemsDelivered": 23,
+  "totalTicks": 300,
+  "scoreByWindow": [
+    {
+      "start": 0,
+      "end": 24,
+      "delta": 0
+    },
+    {
+      "start": 25,
+      "end": 49,
+      "delta": 3
+    },
+    {
+      "start": 50,
+      "end": 74,
+      "delta": 0
+    },
+    {
+      "start": 75,
+      "end": 99,
+      "delta": 8
+    },
+    {
+      "start": 100,
+      "end": 124,
+      "delta": 10
+    },
+    {
+      "start": 125,
+      "end": 149,
+      "delta": 2
+    },
+    {
+      "start": 150,
+      "end": 174,
+      "delta": 9
+    },
+    {
+      "start": 175,
+      "end": 199,
+      "delta": 8
+    },
+    {
+      "start": 200,
+      "end": 224,
+      "delta": 2
+    },
+    {
+      "start": 225,
+      "end": 249,
+      "delta": 0
+    },
+    {
+      "start": 250,
+      "end": 274,
+      "delta": 0
+    },
+    {
+      "start": 275,
+      "end": 299,
+      "delta": 0
+    }
+  ],
+  "stagnationWindows": [
+    {
+      "startTick": 0,
+      "endTick": 40,
+      "length": 41
+    },
+    {
+      "startTick": 49,
+      "endTick": 85,
+      "length": 37
+    },
+    {
+      "startTick": 108,
+      "endTick": 121,
+      "length": 14
+    },
+    {
+      "startTick": 131,
+      "endTick": 146,
+      "length": 16
+    },
+    {
+      "startTick": 155,
+      "endTick": 169,
+      "length": 15
+    },
+    {
+      "startTick": 176,
+      "endTick": 197,
+      "length": 22
+    },
+    {
+      "startTick": 207,
+      "endTick": 299,
+      "length": 93
+    }
+  ],
+  "failedPickups": {
+    "total": 1,
+    "byItemId": {
+      "item_71": 1
+    },
+    "byItemType": {
+      "oats": 1
+    }
+  },
+  "actionEfficiency": {
+    "sanitizerOverrides": {
+      "total": 69,
+      "byReason": {
+        "conflict_stationary_occupant": 69
+      }
+    },
+    "waitActions": 791,
+    "nonScoringDropoffs": 87
+  },
+  "multiBotCoordination": {
+    "botCount": 10,
+    "totalStalls": 1115,
+    "maxStalledBots": 10,
+    "peakTaskCount": 28,
+    "forcedWaitActions": 198,
+    "missionTypeByBot": {},
+    "missionReassignments": 0,
+    "activeMissionsAssigned": 0,
+    "previewMissionsAssigned": 0,
+    "previewSuppressed": 0,
+    "dropMissionsAssigned": 0,
+    "missionTimeouts": 0,
+    "controlModeTimeline": [],
+    "previewWipPeak": 0,
+    "previewWipTimeline": [],
+    "activeCloseEtaTimeline": [],
+    "queueAssignmentsPeak": 0,
+    "serviceBayAssignmentsPeak": 0,
+    "endInventoryByBot": [
+      {
+        "bot": 0,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 1,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 2,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 3,
+        "inventoryCount": 0,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 0
+      },
+      {
+        "bot": 4,
+        "inventoryCount": 1,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 5,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 6,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      },
+      {
+        "bot": 7,
+        "inventoryCount": 2,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 1
+      },
+      {
+        "bot": 8,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 1,
+        "nonDeliverableItems": 2
+      },
+      {
+        "bot": 9,
+        "inventoryCount": 3,
+        "deliverableActiveItems": 0,
+        "nonDeliverableItems": 3
+      }
+    ]
+  },
+  "wastedInventoryAtEnd": [
+    "tomatoes",
+    "pasta",
+    "apples",
+    "apples",
+    "apples",
+    "bananas",
+    "pasta",
+    "pasta",
+    "oats",
+    "oats",
+    "butter",
+    "butter",
+    "butter",
+    "apples",
+    "apples",
+    "apples"
+  ]
+}

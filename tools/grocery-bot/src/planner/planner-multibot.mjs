@@ -114,12 +114,14 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
       if (!neededTypes.has(type)) {
         neededTypes.set(type, count * effectiveOracleWeight);
       }
+      // Mark oracle demand separately so budget calculation can use it
     }
   }
 
   // Collect all bots eligible for drop-off, then cap to avoid congestion at drop zone
   const dropCandidates = [];
   for (const bot of state.bots) {
+    const inv = bot.inventory || [];
     const deliverable = hasDeliverableInventory(bot, world.activeDemand);
 
     if (deliverable && shouldScheduleDropOff({
@@ -133,14 +135,38 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
       const dropOff = nearestDropOff(bot.position, state);
       const dropDist = manhattanDistance(bot.position, dropOff);
       dropCandidates.push({ bot, deliverableCount, dropOff, dropDist });
+    } else if (!deliverable && inv.length >= 3 && totalActiveMissing >= 3) {
+      // Inventory flush: bot is full with non-deliverable items and active order has significant unmet demand.
+      // Only flush if bot is reasonably close to DZ (within 10 Manhattan) to avoid wasting travel time.
+      const dropOff = nearestDropOff(bot.position, state);
+      const dropDist = manhattanDistance(bot.position, dropOff);
+      if (dropDist <= 10) {
+        dropCandidates.push({ bot, deliverableCount: 0, dropOff, dropDist, flush: true });
+      }
     }
   }
 
   // Sort by distance (closest first), cap to avoid drop-off gridlock
   // With many bots, allow more simultaneous drop runners — stagger by distance naturally
   const maxDropRunners = profile.assignment.max_drop_runners ?? Math.max(3, Math.ceil(state.bots.length / 2));
-  dropCandidates.sort((a, b) => a.dropDist - b.dropDist);
-  for (const { bot, deliverableCount, dropOff, dropDist } of dropCandidates.slice(0, maxDropRunners)) {
+  // Deliverable bots first (by distance), then flush bots (by distance)
+  dropCandidates.sort((a, b) => {
+    const aFlush = a.flush ? 1 : 0;
+    const bFlush = b.flush ? 1 : 0;
+    if (aFlush !== bFlush) return aFlush - bFlush;
+    return a.dropDist - b.dropDist;
+  });
+  const maxFlushBots = 2;
+  let flushCount = 0;
+  let dropCount = 0;
+  for (const { bot, deliverableCount, dropOff, dropDist, flush } of dropCandidates) {
+    if (flush) {
+      if (flushCount >= maxFlushBots) continue;
+      flushCount++;
+    } else {
+      if (dropCount >= maxDropRunners) continue;
+      dropCount++;
+    }
     const distanceCompensation = Math.max(0, dropDist * 0.8);
     tasks.push({
       key: `drop:${bot.id}`,
@@ -149,7 +175,7 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
       botId: bot.id,
       target: dropOff,
       item: null,
-      demandScore: 4 + deliverableCount * 3 + distanceCompensation,
+      demandScore: flush ? 1 : 4 + deliverableCount * 3 + distanceCompensation,
     });
   }
 

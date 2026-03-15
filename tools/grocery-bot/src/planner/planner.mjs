@@ -433,6 +433,8 @@ export class GroceryPlanner {
       walls: [...state.grid.walls, ...shelfWalls],
     });
 
+
+
     const world = buildWorldContext(state);
 
     if (state.bots.length === 1) {

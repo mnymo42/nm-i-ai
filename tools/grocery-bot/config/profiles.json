@@ -42,7 +42,7 @@
     },
     "routing": {
       "horizon": 26,
-      "direction_penalty": 2,
+      "direction_penalty": 0,
       "congestion_weight": 0.5
     },
     "teams": {
