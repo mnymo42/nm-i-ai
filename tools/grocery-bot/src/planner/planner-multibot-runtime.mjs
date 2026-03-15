@@ -382,79 +382,49 @@ export function executeAssignedTaskStrategy({
     }
   }
 
-  const reservations = makeOccupancyReservations(state);
-  const edgeReservations = new Map();
   const activeOrderId = state.orders?.find((o) => o.status === 'active' && !o.complete)?.id ?? null;
+  const activeDemand = world?.activeDemand || new Map();
   const botsByPriority = [...state.bots].sort((a, b) => a.id - b.id);
   const actions = [];
   let forcedWaits = 0;
+  const horizon = planner.profile.routing.horizon;
+  const useTwoPass = planner.profile.routing.two_pass_row === true;
 
-  for (const bot of botsByPriority) {
-    const stallKey = `${bot.id}`;
-    const forcedWaitRemaining = planner.forcedWait.get(stallKey) || 0;
-    if (forcedWaitRemaining > 0) {
-      planner.forcedWait.set(stallKey, forcedWaitRemaining - 1);
-      reservePath({
-        path: [bot.position],
-        startTime: 0,
-        reservations,
-        edgeReservations,
-        horizon: planner.profile.routing.horizon,
-        holdAtGoal: true,
-      });
-      actions.push({ bot: bot.id, action: 'wait' });
-      forcedWaits += 1;
-      continue;
-    }
-
+  // Helper: resolve a single bot's action given reservations
+  function resolveBot(bot, reservations, edgeReservations) {
     const task = taskByBot.get(bot.id);
     let resolved = null;
-
     if (task) {
       resolved = actionFromTask({
-        bot,
-        task,
-        graph,
-        reservations,
-        edgeReservations,
+        bot, task, graph, reservations, edgeReservations,
         profile: planner.profile,
         holdGoalSteps: planner.profile.routing.hold_goal_steps,
         previousPosition: planner.previousPositions.get(`${bot.id}`),
       });
     }
-
     if (!resolved) {
       const isEmpty = (bot.inventory || []).length === 0;
-      const hasDeliverable = !isEmpty && hasDeliverableInventory(bot, world.activeDemand);
+      const hasDeliverable = !isEmpty && hasDeliverableInventory(bot, activeDemand);
       if (isEmpty || !hasDeliverable) {
         const dropOff = nearestDropOff(bot.position, state);
         const parking = chooseParkingAction({
           bot, graph, reservations, edgeReservations,
-          horizon: planner.profile.routing.horizon,
-          dropOff, otherBots: state.bots, items: state.items,
+          horizon, dropOff, otherBots: state.bots, items: state.items,
           gridWidth: state.grid?.width, gridHeight: state.grid?.height,
         });
         resolved = { action: parking.action, nextPath: parking.path, targetType: 'parking' };
       } else {
-        const fallback = chooseFallbackAction(
-          bot,
-          graph,
-          reservations,
-          edgeReservations,
-          planner.profile.routing.horizon,
-        );
+        const fallback = chooseFallbackAction(bot, graph, reservations, edgeReservations, horizon);
         resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'fallback' };
       }
     }
-
+    // Opportunistic pickup when waiting
     if (resolved.action === 'wait' && !resolved.waitingForPickup && task?.kind === 'pick_up' && (bot.inventory || []).length < 3) {
       const nearest = pickNearestRelevantItem(
-        bot,
-        state.items,
+        bot, state.items,
         getNeededTypes(world.activeDemand, world.previewDemand, planner.profile.assignment.preview_item_weight),
       );
       if (nearest && adjacentManhattan(bot.position, nearest.position)) {
-        // Still need momentum check — don't pick up if bot just moved
         const prevPos = planner.previousPositions.get(`${bot.id}`);
         const botMoved = prevPos && prevPos !== encodeCoord(bot.position);
         if (!botMoved) {
@@ -462,51 +432,227 @@ export function executeAssignedTaskStrategy({
         }
       }
     }
+    return { resolved, task };
+  }
 
-    const previous = planner.previousPositions.get(stallKey);
-    const currentCoord = encodeCoord(bot.position);
-    const stalled = previous === currentCoord;
-    const stallCount = stalled ? (planner.stalls.get(stallKey) || 0) + 1 : 0;
-    planner.stalls.set(stallKey, stallCount);
+  // Right-of-way priority: higher = more important
+  function computeRightOfWay(bot, task) {
+    if (!task) return 0;
+    if (task.kind === 'drop_off' && hasDeliverableInventory(bot, activeDemand)) return 3;
+    if (task.kind === 'pick_up') return 2;
+    return 1;
+  }
 
-    if (stallCount >= planner.profile.anti_deadlock.stall_threshold && resolved.action.startsWith('move_')) {
-      const fallback = chooseFallbackAction(
-        bot,
-        graph,
-        reservations,
-        edgeReservations,
-        planner.profile.routing.horizon,
-      );
-      resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock' };
-      planner.forcedWait.set(stallKey, planner.profile.anti_deadlock.forced_wait_rounds);
+  // Identify forced-wait bots first (same for both passes)
+  const forcedWaitBots = new Set();
+  const baseReservations = makeOccupancyReservations(state);
+  const baseEdgeReservations = new Map();
+  for (const bot of botsByPriority) {
+    const stallKey = `${bot.id}`;
+    const forcedWaitRemaining = planner.forcedWait.get(stallKey) || 0;
+    if (forcedWaitRemaining > 0) {
+      planner.forcedWait.set(stallKey, forcedWaitRemaining - 1);
+      forcedWaitBots.add(bot.id);
+      reservePath({ path: [bot.position], startTime: 0, reservations: baseReservations, edgeReservations: baseEdgeReservations, horizon, holdAtGoal: true });
+      forcedWaits += 1;
+    }
+  }
+
+  if (useTwoPass) {
+    // === TWO-PASS RIGHT-OF-WAY ===
+
+    // Pass 1: Compute tentative paths using only base reservations (forced waits + t=0 occupancy)
+    const tentative = new Map(); // botId -> { bot, resolved, task, priority }
+    for (const bot of botsByPriority) {
+      if (forcedWaitBots.has(bot.id)) continue;
+      // Each bot sees forced-wait reservations but NOT other bots' tentative paths
+      const pass1Reservations = new Map(baseReservations);
+      for (const [t, set] of pass1Reservations) pass1Reservations.set(t, new Set(set));
+      const pass1EdgeReservations = new Map(baseEdgeReservations);
+      for (const [t, set] of pass1EdgeReservations) pass1EdgeReservations.set(t, new Set(set));
+
+      const { resolved, task } = resolveBot(bot, pass1Reservations, pass1EdgeReservations);
+      const priority = computeRightOfWay(bot, task);
+      tentative.set(bot.id, { bot, resolved, task, priority });
     }
 
-    planner.previousPositions.set(stallKey, currentCoord);
-
-    reservePath({
-      path: resolved.nextPath,
-      startTime: 0,
-      reservations,
-      edgeReservations,
-      horizon: planner.profile.routing.horizon,
-      holdAtGoal: resolved.targetType !== 'drop_off',
-    });
-
-    if (resolved.action === 'pick_up') {
-      queuePendingPickup(planner, bot, resolved.itemId, state.round);
-      actions.push({ bot: bot.id, action: 'pick_up', item_id: resolved.itemId });
-    } else {
-      actions.push({ bot: bot.id, action: resolved.action });
+    // Pass 2: Detect conflicts at time=1 (next step) and resolve by priority
+    // Build next-step map: cell -> [botId, ...]
+    const nextStepMap = new Map();
+    for (const [botId, entry] of tentative) {
+      const path = entry.resolved.nextPath || [entry.bot.position];
+      const nextCell = path.length >= 2 ? encodeCoord(path[1]) : encodeCoord(path[0]);
+      if (!nextStepMap.has(nextCell)) nextStepMap.set(nextCell, []);
+      nextStepMap.get(nextCell).push(botId);
     }
 
-    planner.lastActionByBot.set(bot.id, resolved.action);
-    planner._botDetails.set(bot.id, {
-      target: resolved.nextPath?.at(-1) || null,
-      path: resolved.nextPath || [],
-      taskType: resolved.targetType || (task?.kind ?? 'none'),
-      stallCount: planner.stalls.get(stallKey) || 0,
-      orderId: task?.kind === 'drop_off' ? activeOrderId : null,
-    });
+    // Find losers: lower-priority bot in each conflict yields
+    const losers = new Set();
+    for (const [cell, botIds] of nextStepMap) {
+      if (botIds.length <= 1) continue;
+      // Sort by priority desc, then distance to target asc, then ID asc
+      const sorted = botIds.map((id) => tentative.get(id)).sort((a, b) => {
+        if (b.priority !== a.priority) return b.priority - a.priority;
+        const aDist = a.task?.target ? manhattanDistance(a.bot.position, a.task.target) : 99;
+        const bDist = b.task?.target ? manhattanDistance(b.bot.position, b.task.target) : 99;
+        if (aDist !== bDist) return aDist - bDist;
+        return a.bot.id - b.bot.id;
+      });
+      // First bot wins, rest are losers
+      for (let i = 1; i < sorted.length; i++) losers.add(sorted[i].bot.id);
+    }
+
+    // Also detect swap conflicts (A→B's cell, B→A's cell)
+    for (const [botIdA, entryA] of tentative) {
+      if (losers.has(botIdA)) continue;
+      const pathA = entryA.resolved.nextPath || [entryA.bot.position];
+      if (pathA.length < 2) continue;
+      const nextA = encodeCoord(pathA[1]);
+      const curA = encodeCoord(entryA.bot.position);
+      for (const [botIdB, entryB] of tentative) {
+        if (botIdA >= botIdB || losers.has(botIdB)) continue;
+        const pathB = entryB.resolved.nextPath || [entryB.bot.position];
+        if (pathB.length < 2) continue;
+        const nextB = encodeCoord(pathB[1]);
+        const curB = encodeCoord(entryB.bot.position);
+        if (nextA === curB && nextB === curA) {
+          // Swap conflict — lower priority loses
+          if (entryA.priority < entryB.priority) losers.add(botIdA);
+          else if (entryB.priority < entryA.priority) losers.add(botIdB);
+          else if (entryA.bot.id > entryB.bot.id) losers.add(botIdA);
+          else losers.add(botIdB);
+        }
+      }
+    }
+
+    // Build final reservations: reserve winners first
+    const finalReservations = new Map(baseReservations);
+    for (const [t, set] of finalReservations) finalReservations.set(t, new Set(set));
+    const finalEdgeReservations = new Map(baseEdgeReservations);
+    for (const [t, set] of finalEdgeReservations) finalEdgeReservations.set(t, new Set(set));
+
+    // Reserve winner paths
+    for (const [botId, entry] of tentative) {
+      if (losers.has(botId)) continue;
+      reservePath({
+        path: entry.resolved.nextPath, startTime: 0,
+        reservations: finalReservations, edgeReservations: finalEdgeReservations,
+        horizon, holdAtGoal: entry.resolved.targetType !== 'drop_off',
+      });
+    }
+
+    // Re-plan losers with final reservations
+    for (const botId of losers) {
+      const entry = tentative.get(botId);
+      const { resolved } = resolveBot(entry.bot, finalReservations, finalEdgeReservations);
+      entry.resolved = resolved;
+      reservePath({
+        path: resolved.nextPath, startTime: 0,
+        reservations: finalReservations, edgeReservations: finalEdgeReservations,
+        horizon, holdAtGoal: resolved.targetType !== 'drop_off',
+      });
+    }
+
+    // Finalize: stall detection + action emission for all bots
+    for (const bot of botsByPriority) {
+      if (forcedWaitBots.has(bot.id)) {
+        actions.push({ bot: bot.id, action: 'wait' });
+        planner.lastActionByBot.set(bot.id, 'wait');
+        planner._botDetails.set(bot.id, { target: null, path: [bot.position], taskType: 'forced_wait', stallCount: 0, orderId: null });
+        continue;
+      }
+
+      const entry = tentative.get(bot.id);
+      let { resolved, task } = entry;
+      const stallKey = `${bot.id}`;
+      const previous = planner.previousPositions.get(stallKey);
+      const currentCoord = encodeCoord(bot.position);
+      const stalled = previous === currentCoord;
+      const stallCount = stalled ? (planner.stalls.get(stallKey) || 0) + 1 : 0;
+      planner.stalls.set(stallKey, stallCount);
+
+      if (stallCount >= planner.profile.anti_deadlock.stall_threshold && resolved.action.startsWith('move_')) {
+        const fallback = chooseFallbackAction(bot, graph, finalReservations, finalEdgeReservations, horizon);
+        resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock' };
+        planner.forcedWait.set(stallKey, planner.profile.anti_deadlock.forced_wait_rounds);
+      }
+
+      planner.previousPositions.set(stallKey, currentCoord);
+
+      if (resolved.action === 'pick_up') {
+        queuePendingPickup(planner, bot, resolved.itemId, state.round);
+        actions.push({ bot: bot.id, action: 'pick_up', item_id: resolved.itemId });
+      } else {
+        actions.push({ bot: bot.id, action: resolved.action });
+      }
+
+      planner.lastActionByBot.set(bot.id, resolved.action);
+      planner._botDetails.set(bot.id, {
+        target: resolved.nextPath?.at(-1) || null,
+        path: resolved.nextPath || [],
+        taskType: resolved.targetType || (task?.kind ?? 'none'),
+        stallCount: planner.stalls.get(stallKey) || 0,
+        orderId: task?.kind === 'drop_off' ? activeOrderId : null,
+      });
+    }
+  } else {
+    // === ORIGINAL SINGLE-PASS ===
+    const reservations = makeOccupancyReservations(state);
+    const edgeReservations = new Map();
+    // Re-reserve forced waits into single-pass reservations
+    for (const bot of botsByPriority) {
+      if (forcedWaitBots.has(bot.id)) {
+        reservePath({ path: [bot.position], startTime: 0, reservations, edgeReservations, horizon, holdAtGoal: true });
+      }
+    }
+
+    for (const bot of botsByPriority) {
+      if (forcedWaitBots.has(bot.id)) {
+        actions.push({ bot: bot.id, action: 'wait' });
+        planner.lastActionByBot.set(bot.id, 'wait');
+        planner._botDetails.set(bot.id, { target: null, path: [bot.position], taskType: 'forced_wait', stallCount: 0, orderId: null });
+        continue;
+      }
+
+      const { resolved: rawResolved, task } = resolveBot(bot, reservations, edgeReservations);
+      let resolved = rawResolved;
+      const stallKey = `${bot.id}`;
+      const previous = planner.previousPositions.get(stallKey);
+      const currentCoord = encodeCoord(bot.position);
+      const stalled = previous === currentCoord;
+      const stallCount = stalled ? (planner.stalls.get(stallKey) || 0) + 1 : 0;
+      planner.stalls.set(stallKey, stallCount);
+
+      if (stallCount >= planner.profile.anti_deadlock.stall_threshold && resolved.action.startsWith('move_')) {
+        const fallback = chooseFallbackAction(bot, graph, reservations, edgeReservations, horizon);
+        resolved = { action: fallback.action, nextPath: fallback.path, targetType: 'anti_deadlock' };
+        planner.forcedWait.set(stallKey, planner.profile.anti_deadlock.forced_wait_rounds);
+      }
+
+      planner.previousPositions.set(stallKey, currentCoord);
+
+      reservePath({
+        path: resolved.nextPath, startTime: 0,
+        reservations, edgeReservations, horizon,
+        holdAtGoal: resolved.targetType !== 'drop_off',
+      });
+
+      if (resolved.action === 'pick_up') {
+        queuePendingPickup(planner, bot, resolved.itemId, state.round);
+        actions.push({ bot: bot.id, action: 'pick_up', item_id: resolved.itemId });
+      } else {
+        actions.push({ bot: bot.id, action: resolved.action });
+      }
+
+      planner.lastActionByBot.set(bot.id, resolved.action);
+      planner._botDetails.set(bot.id, {
+        target: resolved.nextPath?.at(-1) || null,
+        path: resolved.nextPath || [],
+        taskType: resolved.targetType || (task?.kind ?? 'none'),
+        stallCount: planner.stalls.get(stallKey) || 0,
+        orderId: task?.kind === 'drop_off' ? activeOrderId : null,
+      });
+    }
   }
 
   planner.lastMetrics = {

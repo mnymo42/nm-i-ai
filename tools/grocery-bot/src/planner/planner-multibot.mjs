@@ -83,6 +83,17 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
     if (!hasActiveItem) botsCarryingPreview += 1;
   }
 
+  // Oracle carrier cap: limit how many bots carry oracle-only items to prevent inventory clogging
+  const oracleCarrierCap = profile.assignment.oracle_carrier_cap ?? 4;
+  let botsCarryingOracleOnly = 0;
+  for (const bot of state.bots) {
+    const inv = bot.inventory || [];
+    if (inv.length === 0) continue;
+    const hasActiveItem = inv.some((type) => (world.activeDemand.get(type) || 0) > 0);
+    const hasPreviewItem = inv.some((type) => (world.previewDemand.get(type) || 0) > 0);
+    if (!hasActiveItem && !hasPreviewItem) botsCarryingOracleOnly += 1;
+  }
+
   const allowPreviewPrefetch = (
     phase !== 'cutoff'
     && state.bots.length > 1
@@ -109,12 +120,12 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
   // With oracle, aggressively pre-stage: treat oracle demand at preview-level priority
   const aggressiveOracle = oracle?.known_orders?.length > 0;
   const effectiveOracleWeight = aggressiveOracle ? 0.7 : oracleWeight;
-  if (oracleDemand.size > 0) {
+  const allowOraclePrefetch = botsCarryingOracleOnly < oracleCarrierCap;
+  if (oracleDemand.size > 0 && allowOraclePrefetch) {
     for (const [type, count] of oracleDemand.entries()) {
       if (!neededTypes.has(type)) {
         neededTypes.set(type, count * effectiveOracleWeight);
       }
-      // Mark oracle demand separately so budget calculation can use it
     }
   }
 
@@ -210,18 +221,28 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
       : previewCount > 0
         ? previewCount + previewTaskBuffer
         : oracleCount > 0
-          ? Math.min(Math.ceil(oracleCount), oracleBudgetCap)
+          ? Math.max(2, Math.min(Math.ceil(oracleCount), oracleBudgetCap))
           : 0;
     if (budget <= 0) {
       continue;
     }
 
-    const items = [...(itemsByType.get(type) || [])]
-      .sort((a, b) => estimateDistanceToDropoff(a, state.drop_offs || state.drop_off) - estimateDistanceToDropoff(b, state.drop_offs || state.drop_off))
-      .slice(0, budget);
+    let items = [...(itemsByType.get(type) || [])]
+      .sort((a, b) => estimateDistanceToDropoff(a, state.drop_offs || state.drop_off) - estimateDistanceToDropoff(b, state.drop_offs || state.drop_off));
+
+    const sourceOrder = activeCount > 0 ? 'active' : previewCount > 0 ? 'preview' : 'oracle';
+
+    // Oracle items: only pick up if within reasonable distance of some bot
+    if (sourceOrder === 'oracle') {
+      const oracleMaxDist = profile.assignment.oracle_max_pickup_dist ?? 12;
+      items = items.filter((item) =>
+        state.bots.some((bot) => manhattanDistance(bot.position, item.position) <= oracleMaxDist),
+      );
+    }
+
+    items = items.slice(0, budget);
 
     for (const item of items) {
-      const sourceOrder = activeCount > 0 ? 'active' : previewCount > 0 ? 'preview' : 'oracle';
       tasks.push({
         key: `item:${item.id}`,
         kind: 'pick_up',

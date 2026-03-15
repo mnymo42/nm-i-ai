@@ -38,12 +38,14 @@
     "assignment": {
       "congestion_penalty": 0.62,
       "contention_penalty": 0.55,
-      "urgency_bonus": 0.8
+      "urgency_bonus": 0.8,
+      "oracle_carrier_cap": 4
     },
     "routing": {
       "horizon": 26,
       "direction_penalty": 0,
-      "congestion_weight": 0.5
+      "congestion_weight": 0.5,
+      "two_pass_row": true
     },
     "teams": {
       "active_bot_ratio": 1.2,
