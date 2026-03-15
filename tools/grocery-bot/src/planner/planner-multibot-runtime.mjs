@@ -419,6 +419,7 @@ export function executeAssignedTaskStrategy({
         edgeReservations,
         profile: planner.profile,
         holdGoalSteps: planner.profile.routing.hold_goal_steps,
+        previousPosition: planner.previousPositions.get(`${bot.id}`),
       });
     }
 
@@ -452,14 +453,19 @@ export function executeAssignedTaskStrategy({
       }
     }
 
-    if (resolved.action === 'wait' && task?.kind === 'pick_up' && (bot.inventory || []).length < 3) {
+    if (resolved.action === 'wait' && !resolved.waitingForPickup && task?.kind === 'pick_up' && (bot.inventory || []).length < 3) {
       const nearest = pickNearestRelevantItem(
         bot,
         state.items,
         getNeededTypes(world.activeDemand, world.previewDemand, planner.profile.assignment.preview_item_weight),
       );
       if (nearest && adjacentManhattan(bot.position, nearest.position)) {
-        resolved = { action: 'pick_up', itemId: nearest.id, nextPath: [bot.position], targetType: 'item' };
+        // Still need momentum check — don't pick up if bot just moved
+        const prevPos = planner.previousPositions.get(`${bot.id}`);
+        const botMoved = prevPos && prevPos !== encodeCoord(bot.position);
+        if (!botMoved) {
+          resolved = { action: 'pick_up', itemId: nearest.id, nextPath: [bot.position], targetType: 'item' };
+        }
       }
     }
 

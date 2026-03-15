@@ -28,15 +28,17 @@ function buildOracleDemand(oracle, currentTick, activeOrderId, previewOrderId) {
   if (activeOrderId) knownIds.add(activeOrderId);
   if (previewOrderId) knownIds.add(previewOrderId);
 
-  const lookaheadTicks = 80;
-
+  // Look ahead for ALL future orders — we know them from the oracle, pre-stage everything
   for (const order of oracle.known_orders) {
     if (knownIds.has(order.id)) continue;
     if (order.first_seen_tick < currentTick) continue;
-    if (order.first_seen_tick > currentTick + lookaheadTicks) continue;
+
+    // Weight by proximity: next orders get higher demand score
+    const ticksAway = Math.max(1, order.first_seen_tick - currentTick);
+    const weight = ticksAway <= 60 ? 1.0 : ticksAway <= 120 ? 0.6 : 0.3;
 
     for (const itemType of order.items_required) {
-      demand.set(itemType, (demand.get(itemType) || 0) + 1);
+      demand.set(itemType, (demand.get(itemType) || 0) + weight);
     }
   }
 
@@ -45,15 +47,27 @@ function buildOracleDemand(oracle, currentTick, activeOrderId, previewOrderId) {
 
 export function buildTasks(state, world, profile, phase, oracle, currentTick) {
   const tasks = [];
-  const inventoryCounts = countInventoryByType(state.bots);
+  // Only count inventory from bots reasonably close to drop-off as "covering" active demand.
+  // Far-away bots' items still exist but shouldn't block creating new pickup tasks for closer bots.
+  const dropOff = (state.drop_offs || [state.drop_off])[0] || [0, 0];
+  const nearThreshold = 15; // bots within 15 Manhattan distance count as "near"
+  const nearBots = state.bots.filter(b => manhattanDistance(b.position, dropOff) <= nearThreshold);
+  const nearInventory = countInventoryByType(nearBots);
+  const fullInventory = countInventoryByType(state.bots);
   const {
     remainingDemand: activeDemand,
     surplusInventory,
-  } = reserveInventoryForDemand(inventoryCounts, world.activeDemand);
+  } = reserveInventoryForDemand(nearInventory, world.activeDemand);
+  // For preview demand, use full inventory (far bots carrying preview items are still useful)
+  const activeSatisfied = new Map(world.activeDemand);
+  for (const [type, count] of nearInventory.entries()) {
+    if (activeSatisfied.has(type)) activeSatisfied.set(type, Math.max(0, activeSatisfied.get(type) - count));
+  }
+  const { surplusInventory: fullSurplus } = reserveInventoryForDemand(fullInventory, world.activeDemand);
   const {
     remainingDemand: previewDemand,
     surplusInventory: remainingPreviewSurplus,
-  } = reserveInventoryForDemand(surplusInventory, world.previewDemand);
+  } = reserveInventoryForDemand(fullSurplus, world.previewDemand);
 
   const totalActiveMissing = sumCounts(activeDemand);
   const totalFreeSlots = state.bots.reduce((sum, bot) => sum + Math.max(0, 3 - (bot.inventory || []).length), 0);
@@ -92,10 +106,13 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
     world.previewOrder?.id,
   );
   const oracleWeight = profile.assignment.oracle_item_weight ?? 0.15;
+  // With oracle, aggressively pre-stage: treat oracle demand at preview-level priority
+  const aggressiveOracle = oracle?.known_orders?.length > 0;
+  const effectiveOracleWeight = aggressiveOracle ? 0.7 : oracleWeight;
   if (oracleDemand.size > 0) {
     for (const [type, count] of oracleDemand.entries()) {
       if (!neededTypes.has(type)) {
-        neededTypes.set(type, count * oracleWeight);
+        neededTypes.set(type, count * effectiveOracleWeight);
       }
     }
   }
@@ -120,7 +137,8 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
   }
 
   // Sort by distance (closest first), cap to avoid drop-off gridlock
-  const maxDropRunners = profile.assignment.max_drop_runners ?? 3;
+  // With many bots, allow more simultaneous drop runners — stagger by distance naturally
+  const maxDropRunners = profile.assignment.max_drop_runners ?? Math.max(3, Math.ceil(state.bots.length / 2));
   dropCandidates.sort((a, b) => a.dropDist - b.dropDist);
   for (const { bot, deliverableCount, dropOff, dropDist } of dropCandidates.slice(0, maxDropRunners)) {
     const distanceCompensation = Math.max(0, dropDist * 0.8);
@@ -157,12 +175,16 @@ export function buildTasks(state, world, profile, phase, oracle, currentTick) {
     const activeCount = activeDemand.get(type) || 0;
     const previewCount = allowPreviewPrefetch ? (previewDemand.get(type) || 0) : 0;
     const oracleCount = oracleDemand.get(type) || 0;
+    // With aggressive oracle: give oracle items a generous budget (up to half the bots)
+    const oracleBudgetCap = aggressiveOracle
+      ? Math.ceil(state.bots.length / 2)
+      : Math.ceil(state.bots.length / 3);
     const budget = activeCount > 0
       ? activeCount + activeTaskBuffer
       : previewCount > 0
         ? previewCount + previewTaskBuffer
         : oracleCount > 0
-          ? Math.min(oracleCount, Math.ceil(state.bots.length / 3))
+          ? Math.min(Math.ceil(oracleCount), oracleBudgetCap)
           : 0;
     if (budget <= 0) {
       continue;
@@ -248,6 +270,7 @@ export function actionFromTask({
   edgeReservations,
   profile,
   holdGoalSteps,
+  previousPosition,
 }) {
   if (task.kind === 'drop_off') {
     if (isAtAnyDropOff(bot.position, { drop_offs: [task.target] })) {
@@ -278,6 +301,11 @@ export function actionFromTask({
   }
 
   if (adjacentManhattan(bot.position, item.position)) {
+    // Server requires bot to be stationary before pickup (momentum causes failed pickups)
+    const botMoved = previousPosition && previousPosition !== encodeCoord(bot.position);
+    if (botMoved) {
+      return { action: 'wait', nextPath: [bot.position], targetType: 'item', waitingForPickup: true };
+    }
     return { action: 'pick_up', itemId: item.id, nextPath: [bot.position], targetType: 'item' };
   }
 

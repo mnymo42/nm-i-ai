@@ -1,0 +1,28 @@
+{
+  "runId": "2026-03-15T15-00-21-054Z-expert-expert",
+  "difficulty": "expert",
+  "profile": "expert",
+  "finalScore": 24,
+  "finalItems": 14,
+  "finalOrders": 2,
+  "replay": "/home/magnus/prog/nm-i-ai/tools/grocery-bot/out/2026-03-15T15-00-21-054Z-expert-expert/replay.jsonl",
+  "provenance": {
+    "difficulty": "expert",
+    "profileName": "expert",
+    "git": {
+      "commit": "f2f37ebc0cb9259272e8d405a7556e9886acdd3e",
+      "shortCommit": "f2f37eb",
+      "dirty": true
+    },
+    "profileHash": "eb241f0554300a556d67297e27940aede93bcc42",
+    "oracle": null,
+    "script": null
+  },
+  "metrics": {
+    "ticks": 300,
+    "finalScore": 24,
+    "ordersCompleted": 2,
+    "itemsDelivered": 14,
+    "totalStalls": 1148
+  }
+}
